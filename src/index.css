@@ -1,70 +1,46 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* hot-spot 8 8 = tâm con trỏ (tuỳ bạn chỉnh) */
+  --cursor-default: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
+<path fill='%23FFD54F' stroke='%23F39C12' stroke-width='1' d='M12 2l2.9 5.9L21 9.2l-4.5 4.4L17 21l-5-2.6L7 21l.5-7.4L3 9.2l6.1-.9z'/>\
+</svg>") 8 8, auto;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  /* pointer: đổi màu tí cho cảm giác nhấn */
+  --cursor-pointer: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
+<path fill='%23A78BFA' stroke='%237C3AED' stroke-width='1' d='M12 2l2.9 5.9L21 9.2l-4.5 4.4L17 21l-5-2.6L7 21l.5-7.4L3 9.2l6.1-.9z'/>\
+</svg>") 8 8, pointer;
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+html, body, #root, #__next {
+  height: 100%;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+.kids-cursor * {
+  cursor: var(--cursor-default);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.kids-cursor a,
+.kids-cursor button,
+.kids-cursor [role="button"],
+.kids-cursor .clickable {
+  cursor: var(--cursor-pointer);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.kids-cursor input,
+.kids-cursor textarea,
+.kids-cursor [contenteditable="true"] {
+  cursor: text;
+}
+
+.kids-cursor .disabled,
+.kids-cursor [aria-disabled="true"],
+.kids-cursor:disabled {
+  cursor: not-allowed;
+}
+
+@media (hover: none) {
+  .kids-cursor * { cursor: auto !important; }
 }
