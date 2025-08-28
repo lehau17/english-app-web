@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import AuthLayout from '../../layouts/AuthLayout'
 
 interface RegisterFormData {
@@ -26,6 +27,7 @@ const ok = 'border-gray-200 focus:border-blue-500 focus:bg-blue-50'
 const err = 'border-red-400 bg-red-50 focus:border-red-500'
 
 const RegisterPage: React.FC = () => {
+  const { t } = useTranslation()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -47,7 +49,7 @@ const RegisterPage: React.FC = () => {
   }
 
   return (
-    <AuthLayout title="Join the Fun!">
+    <AuthLayout title={t('register.title')}>
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
         {/* Name */}
         <div>
@@ -55,7 +57,9 @@ const RegisterPage: React.FC = () => {
             htmlFor="name"
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
-            <span className="inline-flex items-center gap-2">Your Name</span>
+            <span className="inline-flex items-center gap-2">
+              {t('register.name_label')}
+            </span>
           </label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
@@ -66,14 +70,14 @@ const RegisterPage: React.FC = () => {
               id="name"
               autoComplete="name"
               {...register('name', {
-                required: 'Please tell us your name',
+                required: t('register.validations.name_required'),
                 minLength: {
                   value: 2,
-                  message: 'Name must be at least 2 characters',
+                  message: t('register.validations.name_minlength'),
                 },
               })}
               className={`${inputBase} ${errors.name ? err : ok} pr-4`}
-              placeholder="What should we call you?"
+              placeholder={t('register.name_placeholder')}
             />
           </div>
           {errors.name && (
@@ -91,7 +95,7 @@ const RegisterPage: React.FC = () => {
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
             <span className="inline-flex items-center gap-2">
-              Email Address
+              {t('register.email_label')}
             </span>
           </label>
           <div className="relative">
@@ -103,14 +107,14 @@ const RegisterPage: React.FC = () => {
               id="email"
               autoComplete="email"
               {...register('email', {
-                required: 'Please enter your email',
+                required: t('register.validations.email_required'),
                 pattern: {
                   value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Please enter a valid email address',
+                  message: t('register.validations.email_invalid'),
                 },
               })}
               className={`${inputBase} ${errors.email ? err : ok} pr-4`}
-              placeholder="your-email@example.com"
+              placeholder={t('register.email_placeholder')}
             />
           </div>
           {errors.email && (
@@ -128,7 +132,7 @@ const RegisterPage: React.FC = () => {
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
             <span className="inline-flex items-center gap-2">
-              Create Password
+              {t('register.password_label')}
             </span>
           </label>
           <div className="relative">
@@ -140,14 +144,14 @@ const RegisterPage: React.FC = () => {
               id="password"
               autoComplete="new-password"
               {...register('password', {
-                required: 'Please create a password',
+                required: t('register.validations.password_required'),
                 minLength: {
                   value: 6,
-                  message: 'Password must be at least 6 characters',
+                  message: t('register.validations.password_minlength'),
                 },
               })}
               className={`${inputBase} ${errors.password ? err : ok}`}
-              placeholder="Make it secure!"
+              placeholder={t('register.password_placeholder')}
             />
             <button
               type="button"
@@ -177,7 +181,7 @@ const RegisterPage: React.FC = () => {
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
             <span className="inline-flex items-center gap-2">
-              Confirm Password
+              {t('register.confirm_password_label')}
             </span>
           </label>
           <div className="relative">
@@ -189,11 +193,13 @@ const RegisterPage: React.FC = () => {
               id="confirmPassword"
               autoComplete="new-password"
               {...register('confirmPassword', {
-                required: 'Please confirm your password',
-                validate: (v) => v === password || 'Passwords do not match',
+                required: t('register.validations.confirm_password_required'),
+                validate: (v) =>
+                  v === password ||
+                  t('register.validations.passwords_no_match'),
               })}
               className={`${inputBase} ${errors.confirmPassword ? err : ok}`}
-              placeholder="Type it again!"
+              placeholder={t('register.confirm_password_placeholder')}
             />
             <button
               type="button"
@@ -233,12 +239,12 @@ const RegisterPage: React.FC = () => {
           {isLoading ? (
             <span className="flex items-center justify-center">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Creating Account...
+              {t('register.creating_account')}
             </span>
           ) : (
             <span className="inline-flex items-center justify-center gap-2">
               <Sparkles className="h-5 w-5" />
-              <span>Start My Adventure!</span>
+              <span>{t('register.submit_button')}</span>
             </span>
           )}
         </button>
@@ -246,13 +252,13 @@ const RegisterPage: React.FC = () => {
         {/* Footer */}
         <div className="text-center">
           <p className="text-gray-600">
-            Already have an account?{' '}
+            {t('register.has_account')}{' '}
             <button
               type="button"
               className="inline-flex items-center gap-2 font-semibold text-purple-600 transition-colors hover:text-purple-800 hover:underline"
             >
               <LogIn className="h-4 w-4" />
-              <span>Welcome Back!</span>
+              <span>{t('register.welcome_back')}</span>
             </button>
           </p>
         </div>

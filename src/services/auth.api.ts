@@ -1,28 +1,27 @@
 import api from '../lib/api'
-import type { User } from '../types/auth'
+import type { LoginPayload, LoginResponse } from '../types/auth.type'
+import type { BaseResponse } from '../types/base-response.type'
+import type { User } from '../types/user.type'
 
-export type LoginPayload = { email: string; password: string }
-export type LoginResponse = {
-  accessToken: string
-  refreshToken?: string | null
-  user: User
-}
 export type RefreshResponse = { accessToken: string }
 
 export const loginApi = async (
   payload: LoginPayload
-): Promise<LoginResponse> => {
-  const { data } = await api.post('/auth/login', payload)
+): Promise<BaseResponse<LoginResponse>> => {
+  const { data } = await api.post<BaseResponse<LoginResponse>>(
+    '/public/v1/auth/student-login',
+    payload
+  )
   return data
 }
 
 export const refreshApi = async (
   refreshToken: string
-): Promise<RefreshResponse> => {
-  const { data } = await api.post(
+): Promise<BaseResponse<LoginResponse>> => {
+  const { data } = await api.post<BaseResponse<LoginResponse>>(
     '/auth/refresh',
     { refreshToken },
-    { headers: { Authorization: '' } } // không gửi Bearer cũ
+    { headers: { Authorization: '' } }
   )
   return data
 }

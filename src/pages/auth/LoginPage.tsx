@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { useAuth } from '../../context/AuthContext'
 import AuthLayout from '../../layouts/AuthLayout'
 
 interface LoginFormData {
@@ -23,8 +25,11 @@ const ok = 'border-gray-200 focus:border-blue-500 focus:bg-blue-50'
 const err = 'border-red-400 bg-red-50 focus:border-red-500'
 
 const LoginPage: React.FC = () => {
+  const { t } = useTranslation()
+  const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const {
     register,
@@ -34,14 +39,31 @@ const LoginPage: React.FC = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
-    console.log('Login data:', data)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsLoading(false)
+    setApiError(null)
+    try {
+      await login(data.email, data.password)
+      // No need for success alert, AuthProvider will redirect to protected routes
+    } catch (error) {
+      console.error('Login failed:', error)
+      setApiError('Email hoặc mật khẩu không đúng. Vui lòng thử lại.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <AuthLayout title="Welcome Back!">
+    <AuthLayout title={t('login.title')}>
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        {apiError && (
+          <div
+            className="flex items-center rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800"
+            role="alert"
+          >
+            <AlertCircle className="mr-2 h-5 w-5 flex-shrink-0" />
+            <span className="font-medium">{apiError}</span>
+          </div>
+        )}
+
         {/* Email */}
         <div>
           <label
@@ -49,12 +71,11 @@ const LoginPage: React.FC = () => {
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
             <span className="inline-flex items-center gap-2">
-              <span>Email Address</span>
+              <span>{t('login.email_label')}</span>
             </span>
           </label>
 
           <div className="relative">
-            {/* Icon trái: canh giữa */}
             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
               <Mail className="h-5 w-5 text-gray-400" />
             </div>
@@ -64,14 +85,14 @@ const LoginPage: React.FC = () => {
               id="email"
               autoComplete="email"
               {...register('email', {
-                required: 'Please enter your email',
+                required: t('login.validations.email_required'),
                 pattern: {
                   value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Please enter a valid email address',
+                  message: t('login.validations.email_invalid'),
                 },
               })}
               className={`${inputBase} ${errors.email ? err : ok} pr-4`}
-              placeholder="your-email@example.com"
+              placeholder={t('login.email_placeholder')}
             />
           </div>
 
@@ -90,12 +111,11 @@ const LoginPage: React.FC = () => {
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
             <span className="inline-flex items-center gap-2">
-              <span>Password</span>
+              <span>{t('login.password_label')}</span>
             </span>
           </label>
 
           <div className="relative">
-            {/* Icon trái: canh giữa */}
             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
               <Lock className="h-5 w-5 text-gray-400" />
             </div>
@@ -105,17 +125,16 @@ const LoginPage: React.FC = () => {
               id="password"
               autoComplete="current-password"
               {...register('password', {
-                required: 'Please enter your password',
+                required: t('login.validations.password_required'),
                 minLength: {
                   value: 6,
-                  message: 'Password must be at least 6 characters',
+                  message: t('login.validations.password_minlength'),
                 },
               })}
               className={`${inputBase} ${errors.password ? err : ok}`}
-              placeholder="Enter your password"
+              placeholder={t('login.password_placeholder')}
             />
 
-            {/* Nút eye: canh giữa */}
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
@@ -151,12 +170,12 @@ const LoginPage: React.FC = () => {
           {isLoading ? (
             <span className="flex items-center justify-center">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Logging in...
+              {t('login.logging_in')}
             </span>
           ) : (
             <span className="inline-flex items-center justify-center gap-2">
               <LogIn className="h-5 w-5" />
-              <span>Start Learning</span>
+              <span>{t('login.submit_button')}</span>
               <Sparkles className="h-5 w-5" />
             </span>
           )}
@@ -165,13 +184,13 @@ const LoginPage: React.FC = () => {
         {/* Footer */}
         <div className="text-center">
           <p className="text-gray-600">
-            New to English Fun?{' '}
+            {t('login.no_account')}{' '}
             <button
               type="button"
               className="inline-flex items-center gap-2 font-semibold text-purple-600 transition-colors hover:text-purple-800 hover:underline"
             >
               <Sparkles className="h-4 w-4" />
-              <span>Join the Adventure!</span>
+              <span>{t('login.join_adventure')}</span>
             </button>
           </p>
         </div>
