@@ -1,24 +1,15 @@
-import { Link, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import './App.css'
 import { AuthProvider } from './context/AuthContext'
+import { HomeLayout } from './layouts/HomeLayout'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import ClassroomDetail from './pages/ClassroomDetail'
+import ClassroomPage from './pages/ClassroomPage'
+import HomePage from './pages/HomePage' // Import HomePage
+import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
-
-function Home() {
-  return (
-    <div style={{ textAlign: 'center', marginTop: '50px' }}>
-      <h1>Welcome to the English Learning App</h1>
-      <nav>
-        <Link to="/login" style={{ marginRight: '1rem' }}>
-          Login
-        </Link>
-        <Link to="/register">Register</Link>
-      </nav>
-    </div>
-  )
-}
 
 function App() {
   return (
@@ -32,7 +23,46 @@ function App() {
 
         {/* Protected pages */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={
+              <HomeLayout>
+                {' '}
+                {/* Wrap HomePage with HomeLayout */}
+                <HomePage />
+              </HomeLayout>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <HomeLayout>
+                {' '}
+                {/* Wrap HomePage with HomeLayout */}
+                <ProfilePage />
+              </HomeLayout>
+            }
+          />
+          <Route
+            path="/classroom"
+            element={
+              <HomeLayout>
+                {' '}
+                {/* Wrap HomePage with HomeLayout */}
+                <ClassroomPage />
+              </HomeLayout>
+            }
+          />
+          <Route
+            path="/classroom-detail/:id"
+            element={
+              <HomeLayout>
+                {' '}
+                {/* Wrap HomePage with HomeLayout */}
+                <ClassroomDetail classroomId="1" onBack={() => {}} />
+              </HomeLayout>
+            }
+          />
         </Route>
       </Routes>
     </AuthProvider>

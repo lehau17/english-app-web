@@ -1,0 +1,44 @@
+{
+  "login": {
+    "title": "Chào mừng trở lại!",
+    "email_label": "Địa chỉ Email",
+    "email_placeholder": "email-cua-ban@example.com",
+    "password_label": "Mật khẩu",
+    "password_placeholder": "Nhập mật khẩu của bạn",
+    "submit_button": "Bắt đầu học",
+    "logging_in": "Đang đăng nhập...",
+    "no_account": "Chưa có tài khoản?",
+    "join_adventure": "Tham gia cuộc phiêu lưu!",
+    "validations": {
+      "email_required": "Vui lòng nhập email của bạn",
+      "email_invalid": "Vui lòng nhập một địa chỉ email hợp lệ",
+      "password_required": "Vui lòng nhập mật khẩu của bạn",
+      "password_minlength": "Mật khẩu phải có ít nhất 6 ký tự"
+    }
+  },
+  "register": {
+    "title": "Tham gia cuộc vui!",
+    "name_label": "Tên của bạn",
+    "name_placeholder": "Chúng tôi nên gọi bạn là gì?",
+    "email_label": "Địa chỉ Email",
+    "email_placeholder": "email-cua-ban@example.com",
+    "password_label": "Tạo mật khẩu",
+    "password_placeholder": "Hãy tạo mật khẩu thật an toàn!",
+    "confirm_password_label": "Xác nhận mật khẩu",
+    "confirm_password_placeholder": "Nhập lại mật khẩu",
+    "submit_button": "Bắt đầu cuộc phiêu lưu của tôi!",
+    "creating_account": "Đang tạo tài khoản...",
+    "has_account": "Đã có tài khoản?",
+    "welcome_back": "Chào mừng trở lại!",
+    "validations": {
+      "name_required": "Vui lòng cho chúng tôi biết tên của bạn",
+      "name_minlength": "Tên phải có ít nhất 2 ký tự",
+      "email_required": "Vui lòng nhập email của bạn",
+      "email_invalid": "Vui lòng nhập một địa chỉ email hợp lệ",
+      "password_required": "Vui lòng tạo một mật khẩu",
+      "password_minlength": "Mật khẩu phải có ít nhất 6 ký tự",
+      "confirm_password_required": "Vui lòng xác nhận mật khẩu của bạn",
+      "passwords_no_match": "Mật khẩu không khớp"
+    }
+  }
+}

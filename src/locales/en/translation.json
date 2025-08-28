@@ -1,0 +1,44 @@
+{
+  "login": {
+    "title": "Welcome Back!",
+    "email_label": "Email Address",
+    "email_placeholder": "your-email@example.com",
+    "password_label": "Password",
+    "password_placeholder": "Enter your password",
+    "submit_button": "Start Learning",
+    "logging_in": "Logging in...",
+    "no_account": "New to English Fun?",
+    "join_adventure": "Join the Adventure!",
+    "validations": {
+      "email_required": "Please enter your email",
+      "email_invalid": "Please enter a valid email address",
+      "password_required": "Please enter your password",
+      "password_minlength": "Password must be at least 6 characters"
+    }
+  },
+  "register": {
+    "title": "Join the Fun!",
+    "name_label": "Your Name",
+    "name_placeholder": "What should we call you?",
+    "email_label": "Email Address",
+    "email_placeholder": "your-email@example.com",
+    "password_label": "Create Password",
+    "password_placeholder": "Make it secure!",
+    "confirm_password_label": "Confirm Password",
+    "confirm_password_placeholder": "Type it again!",
+    "submit_button": "Start My Adventure!",
+    "creating_account": "Creating Account...",
+    "has_account": "Already have an account?",
+    "welcome_back": "Welcome Back!",
+    "validations": {
+      "name_required": "Please tell us your name",
+      "name_minlength": "Name must be at least 2 characters",
+      "email_required": "Please enter your email",
+      "email_invalid": "Please enter a valid email address",
+      "password_required": "Please create a password",
+      "password_minlength": "Password must be at least 6 characters",
+      "confirm_password_required": "Please confirm your password",
+      "passwords_no_match": "Passwords do not match"
+    }
+  }
+}

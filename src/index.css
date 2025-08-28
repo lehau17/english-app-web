@@ -1,27 +1,26 @@
 @import "tailwindcss";
 
+/* === Cute Arrow Cursors (SVG data URI) === */
 :root {
-  /* hot-spot 8 8 = tâm con trỏ (tuỳ bạn chỉnh) */
+  /* Default cursor: pastel arrow */
   --cursor-default: url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
-<path fill='%23FFD54F' stroke='%23F39C12' stroke-width='1' d='M12 2l2.9 5.9L21 9.2l-4.5 4.4L17 21l-5-2.6L7 21l.5-7.4L3 9.2l6.1-.9z'/>\
-</svg>") 8 8, auto;
+<path d='M2 2 L2 19 L7 14 L10 22 L13 21 L10 13 L18 13 Z' fill='%23FFE082' stroke='%23F4B400' stroke-width='1.2'/>\
+</svg>") 2 2, auto;
 
-  /* pointer: đổi màu tí cho cảm giác nhấn */
+  /* Pointer cursor (hover-able): purple arrow */
   --cursor-pointer: url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
-<path fill='%23A78BFA' stroke='%237C3AED' stroke-width='1' d='M12 2l2.9 5.9L21 9.2l-4.5 4.4L17 21l-5-2.6L7 21l.5-7.4L3 9.2l6.1-.9z'/>\
-</svg>") 8 8, pointer;
+<path d='M2 2 L2 19 L7 14 L10 22 L13 21 L10 13 L18 13 Z' fill='%23C7A4FF' stroke='%237C3AED' stroke-width='1.2'/>\
+</svg>") 2 2, pointer;
 }
 
-html, body, #root, #__next {
-  height: 100%;
-}
+html, body, #root, #__next { height: 100%; }
 
-.kids-cursor * {
-  cursor: var(--cursor-default);
-}
+/* Apply to whole app (wrap your app with className="kids-cursor") */
+.kids-cursor * { cursor: var(--cursor-default); }
 
+/* Clickables use the purple pointer variant */
 .kids-cursor a,
 .kids-cursor button,
 .kids-cursor [role="button"],
@@ -29,18 +28,21 @@ html, body, #root, #__next {
   cursor: var(--cursor-pointer);
 }
 
+/* Keep text inputs with I-beam caret */
 .kids-cursor input,
 .kids-cursor textarea,
 .kids-cursor [contenteditable="true"] {
   cursor: text;
 }
 
+/* Disabled state */
 .kids-cursor .disabled,
 .kids-cursor [aria-disabled="true"],
 .kids-cursor:disabled {
   cursor: not-allowed;
 }
 
+/* Turn off on touch devices */
 @media (hover: none) {
   .kids-cursor * { cursor: auto !important; }
 }
