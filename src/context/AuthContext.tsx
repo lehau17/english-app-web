@@ -14,7 +14,7 @@ import {
   useMeQuery,
 } from '../hooks/auth.queries'
 import api from '../lib/api'
-import type { User } from '../types/auth'
+import type { User } from '../types/user.type'
 
 type AuthCtx = {
   user: User | null
