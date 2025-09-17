@@ -44,6 +44,14 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                 Học
               </NavLink>
               <NavLink
+                to="/listening-practice"
+                className={({ isActive }) =>
+                  `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                }
+              >
+                Luyện nghe
+              </NavLink>
+              <NavLink
                 to="/practice"
                 className={({ isActive }) =>
                   `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
@@ -70,12 +78,13 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                 className="w-56 bg-transparent text-sm outline-none placeholder:text-gray-400"
               />
             </div>
-            <button
+            <Link
+              to="/notifications"
               className="rounded-full p-2 text-gray-600 hover:bg-gray-100"
               aria-label="Thông báo"
             >
               <Bell className="h-5 w-5" />
-            </button>
+            </Link>
             <button
               className="hidden rounded-full p-2 text-gray-600 hover:bg-gray-100 md:inline-flex"
               aria-label="Ngôn ngữ"
@@ -89,9 +98,15 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                 onClick={() => setOpen((v) => !v)}
                 className="flex items-center gap-2 rounded-full bg-gray-900 px-2 py-1 pr-3 text-white"
               >
-                <Avatar src={'/vite.svg'} alt={user?.name || user?.email} />
+                <Avatar
+                  src={'/vite.svg'}
+                  alt={user?.displayName || user?.email}
+                />
                 <span className="hidden text-sm md:inline">
-                  {user?.name || user?.email || 'Guest'}
+                  {user?.displayName ||
+                    user?.firstName ||
+                    user?.lastName ||
+                    'Guest'}
                 </span>
               </button>
               {open && (
