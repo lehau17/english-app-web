@@ -1,0 +1,82 @@
+export interface ClassroomDetailResponse {
+  id: string
+  name: string
+  description: string
+  classCode: string
+  teacher: {
+    id: string
+    email: string
+    phone: string
+    passwordHash: string
+    role: string
+    status: string
+    provider: string
+    providerId: string | null
+    firstName: string
+    lastName: string
+    displayName: string | null
+    gender: string
+    dob: string | null
+    nationality: string | null
+    nativeLanguage: string | null
+    avatarUrl: string | null
+    bio: string | null
+    language: string
+    timezone: string
+    lastLoginAt: string | null
+    lastActiveAt: string | null
+    emailVerified: boolean
+    phoneVerified: boolean
+    twoFactorEnabled: boolean
+    preferences: any
+    privacySettings: any
+    notificationSettings: any
+    parentalConsent: any
+    profileCompleteness: number
+    isOnline: boolean
+    createdAt: string
+    updatedAt: string
+  }
+  isActive: boolean
+  maxStudents: number
+  createdAt: string
+  updatedAt: string
+  expiresAt: string | null
+  settings: Record<string, any>
+  _count: {
+    students: number
+    assignments: number
+    announcements: number
+  }
+  students: Array<{
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string | null
+    avatarUrl: string | null
+    studentRecord: {
+      joinedAt: string
+      isActive: boolean
+      notes: string | null
+    }
+  }>
+  assignments: Array<any>
+  announcements: Array<any>
+  lessons: Array<{
+    id: string
+    title: string
+    orderNo: number
+    estimatedTime: number
+    difficulty: string
+    isLocked: boolean
+    activities: Array<{
+      id: string
+      lessonId: string
+      orderNo: number
+      type: string
+      title: string
+      duration: number | null
+      passingScore: number | null
+    }>
+  }>
+}

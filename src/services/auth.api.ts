@@ -15,6 +15,16 @@ export const loginApi = async (
   return data
 }
 
+export const parentLoginApi = async (
+  payload: LoginPayload
+): Promise<BaseResponse<LoginResponse>> => {
+  const { data } = await api.post<BaseResponse<LoginResponse>>(
+    '/public/v1/auth/parent-login',
+    payload
+  )
+  return data
+}
+
 export const refreshApi = async (
   refreshToken: string
 ): Promise<BaseResponse<LoginResponse>> => {
@@ -27,6 +37,6 @@ export const refreshApi = async (
 }
 
 export const meApi = async (): Promise<User> => {
-  const { data } = await api.get('/auth/me')
+  const { data } = await api.get('private/v1/auth/me')
   return data
 }
