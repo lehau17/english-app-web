@@ -25,7 +25,10 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useState, type JSX } from 'react'
-
+import { useNavigate, useParams } from 'react-router-dom'
+import { useClassroomDetail } from '../hooks/useClassroomDetail'
+import { useNextLesson } from '../hooks/useNextLesson'
+import type { ClassroomDetailResponse } from '../types/classroom-detail.type'
 /**
  * =========================
  * Domain types & props
@@ -152,6 +155,9 @@ type ActivityType =
   | 'quiz'
   | 'flashcard'
   | 'conversation'
+  | 'fill_blank'
+  | 'dictation'
+  | 'matching'
 
 interface ActivityUI {
   id: string
@@ -321,127 +327,6 @@ const mockClassroomDetail: ClassroomModel = {
 /** =========================
  * NEW: Mock lessons + activities
  * ========================= */
-const mockLessons: LessonUI[] = [
-  {
-    id: 'lesson1',
-    title: 'Unit 1 · My Family',
-    orderNo: 1,
-    estimatedTime: 25,
-    difficulty: 'beginner',
-    isLocked: false,
-    activities: [
-      {
-        id: 'a1',
-        lessonId: 'lesson1',
-        orderNo: 1,
-        type: 'vocab',
-        title: 'Từ vựng: Family',
-        state: 'done',
-      },
-      {
-        id: 'a2',
-        lessonId: 'lesson1',
-        orderNo: 2,
-        type: 'flashcard',
-        title: 'Flashcards: Family',
-        state: 'in_progress',
-      },
-      {
-        id: 'a3',
-        lessonId: 'lesson1',
-        orderNo: 3,
-        type: 'quiz',
-        title: 'Quiz nhanh',
-        passingScore: 70,
-      },
-      {
-        id: 'a4',
-        lessonId: 'lesson1',
-        orderNo: 4,
-        type: 'listening',
-        title: 'Nghe & Chọn đáp án',
-        duration: 8,
-      },
-      {
-        id: 'a5',
-        lessonId: 'lesson1',
-        orderNo: 5,
-        type: 'pronunciation',
-        title: 'Phát âm /f/ & /v/',
-      },
-    ],
-  },
-  {
-    id: 'lesson2',
-    title: 'Unit 2 · Colors & Shapes',
-    orderNo: 2,
-    estimatedTime: 30,
-    difficulty: 'beginner',
-    isLocked: false,
-    activities: [
-      {
-        id: 'b1',
-        lessonId: 'lesson2',
-        orderNo: 1,
-        type: 'mini_game',
-        title: 'Color Pop Game',
-      },
-      {
-        id: 'b2',
-        lessonId: 'lesson2',
-        orderNo: 2,
-        type: 'reading',
-        title: 'Đọc ngắn: Color Poem',
-      },
-      {
-        id: 'b3',
-        lessonId: 'lesson2',
-        orderNo: 3,
-        type: 'quiz',
-        title: 'Color Quiz',
-        passingScore: 70,
-      },
-      {
-        id: 'b4',
-        lessonId: 'lesson2',
-        orderNo: 4,
-        type: 'speaking',
-        title: 'Nói về màu yêu thích',
-      },
-    ],
-  },
-  {
-    id: 'lesson3',
-    title: 'Unit 3 · Present Simple',
-    orderNo: 3,
-    estimatedTime: 35,
-    difficulty: 'elementary',
-    isLocked: true,
-    activities: [
-      {
-        id: 'c1',
-        lessonId: 'lesson3',
-        orderNo: 1,
-        type: 'grammar',
-        title: 'Cấu trúc & Quy tắc',
-      },
-      {
-        id: 'c2',
-        lessonId: 'lesson3',
-        orderNo: 2,
-        type: 'writing',
-        title: 'Viết câu đơn giản',
-      },
-      {
-        id: 'c3',
-        lessonId: 'lesson3',
-        orderNo: 3,
-        type: 'conversation',
-        title: 'Hội thoại ngắn',
-      },
-    ],
-  },
-]
 
 /**
  * =========================
@@ -655,6 +540,9 @@ const activityIcon: Record<ActivityType, LucideIcon> = {
   pronunciation: Mic,
   mini_game: Gamepad2,
   conversation: MessageSquare,
+  fill_blank: FileText,
+  dictation: Mic,
+  matching: Copy,
 }
 
 const activityColor: Record<ActivityType, string> = {
@@ -669,6 +557,9 @@ const activityColor: Record<ActivityType, string> = {
   pronunciation: 'text-pink-600',
   mini_game: 'text-orange-600',
   conversation: 'text-cyan-600',
+  fill_blank: 'text-emerald-600',
+  dictation: 'text-pink-600',
+  matching: 'text-indigo-600',
 }
 
 /** =========================
@@ -703,11 +594,13 @@ function LessonRow({
   return (
     <div className="rounded-xl border border-gray-200 bg-white">
       {/* Header row */}
-      <button
+      <div
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 gap-4 hover:bg-gray-50 rounded-xl transition"
+        className="w-full flex items-center justify-between p-4 gap-4 hover:bg-gray-50 rounded-xl transition cursor-pointer"
         aria-expanded={isOpen}
         aria-controls={`lesson-${lesson.id}-content`}
+        role="button"
+        tabIndex={0}
       >
         <div className="flex items-center gap-3 text-left">
           <div className="h-9 w-9 rounded-lg bg-gray-100 flex items-center justify-center">
@@ -761,13 +654,30 @@ function LessonRow({
 
           <motion.div
             animate={{ rotate: isOpen ? 180 : 0 }}
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
             transition={{ duration: 0.2 }}
-            className="h-8 w-8 rounded-lg flex items-center justify-center border border-gray-200 bg-white"
+            className="h-8 w-8 rounded-lg flex items-center justify-center border border-gray-200 bg-white pointer-events-none"
           >
-            <ChevronIcon />
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              className="text-gray-500"
+            >
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </motion.div>
         </div>
-      </button>
+      </div>
 
       {/* Collapsible content */}
       <AnimatePresence initial={false}>
@@ -852,22 +762,6 @@ function LessonRow({
   )
 }
 
-/** Small chevron icon (so we don’t import another) */
-function ChevronIcon(): JSX.Element {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" className="text-gray-500">
-      <path
-        d="M6 9l6 6 6-6"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 /**
  * =========================
  * Main component (typed)
@@ -876,24 +770,37 @@ function ChevronIcon(): JSX.Element {
 
 type TabKey = 'overview' | 'assignments' | 'announcements' | 'students'
 
-interface ClassroomDetailProps {
-  classroomId?: string
-  onBack: () => void
-  // optional handlers to integrate API
-  onStartLesson?: (lessonId: string) => void
-  onStartActivity?: (lessonId: string, activityId: string) => void
-  onContinueLearning?: () => void
-}
+// Đã loại bỏ interface ClassroomDetailProps vì không còn dùng
 
-export default function ClassroomDetail({
-  onBack,
-  onStartLesson,
-  onStartActivity,
-  onContinueLearning,
-}: ClassroomDetailProps): JSX.Element {
+export default function ClassroomDetail(props: {
+  onBack: () => void
+  classroomId?: string
+}): JSX.Element {
+  const { onBack } = props
+  const classroomIdFromUrl =
+    typeof window !== 'undefined'
+      ? window.location.pathname.split('/').pop() || undefined
+      : undefined
+
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [searchStudent, setSearchStudent] = useState<string>('')
-  const [openLessonId, setOpenLessonId] = useState<string | null>(null) // <-- NEW
+  const [openLessonId, setOpenLessonId] = useState<string | null>(null)
+
+  const { id: classroomIdFromParams } = useParams<{ id: string }>()
+
+  const {
+    data: classroomDetail,
+    isLoading,
+    isError,
+    error,
+  } = useClassroomDetail(classroomIdFromParams)
+
+  // Lấy dữ liệu lesson tiếp theo từ API /next
+  const { data: nextLessonData } = useNextLesson()
+
+  // Dữ liệu lớp học từ API
+  const detail: ClassroomDetailResponse | undefined = classroomDetail
 
   const copyClassCode = async (code: string): Promise<void> => {
     try {
@@ -904,13 +811,21 @@ export default function ClassroomDetail({
     }
   }
 
-  const filteredStudents: Student[] = mockClassroomDetail.students.filter(
-    (student) =>
-      student.displayName.toLowerCase().includes(searchStudent.toLowerCase())
-  )
+  // Handle null displayName for students
+  const filteredStudents =
+    detail?.students
+      ?.map((student) => ({
+        ...student,
+        displayName:
+          student.displayName ?? `${student.firstName} ${student.lastName}`,
+      }))
+      .filter((student) =>
+        student.displayName.toLowerCase().includes(searchStudent.toLowerCase())
+      ) ?? []
 
-  const averageScore = 85 // Mock
-  const completionRate = 78 // Mock
+  // Không có averageScore và completionRate trong API, có thể tính toán hoặc để 0
+  const averageScore = 0
+  const completionRate = 0
 
   const tabs: ReadonlyArray<{ id: TabKey; label: string; icon: LucideIcon }> = [
     { id: 'overview', label: 'Tổng quan', icon: BookOpen },
@@ -919,20 +834,54 @@ export default function ClassroomDetail({
     { id: 'students', label: 'Học sinh', icon: Users },
   ] as const
 
-  // CTA handlers (you can wire your API here)
+  // Điều hướng khi bắt đầu học bài
   const handleStartLesson = (lessonId: string) => {
-    onStartLesson?.(lessonId)
-    console.log('Start/Continue lesson:', lessonId)
-  }
-  const handleStartActivity = (lessonId: string, activityId: string) => {
-    onStartActivity?.(lessonId, activityId)
-    console.log('Start activity:', { lessonId, activityId })
-  }
-  const handleContinueLearning = () => {
-    onContinueLearning?.()
-    console.log('Global Continue learning')
+    if (!detail) return
+    const lesson = detail.lessons?.find((l) => l.id === lessonId)
+    const activityId = lesson?.activities?.[0]?.id
+    if (classroomIdFromUrl && lessonId && activityId) {
+      navigate(`/learn/${classroomIdFromUrl}/${lessonId}/${activityId}`)
+    }
   }
 
+  // Điều hướng khi bắt đầu học activity
+  const handleStartActivity = (lessonId: string, activityId: string) => {
+    if (!detail) return
+    if (lessonId && activityId) {
+      navigate(`/learn/${detail.id}/${lessonId}/${activityId}`)
+    }
+  }
+
+  // Điều hướng khi nhấn "Tiếp tục học"
+  const handleContinueLearning = () => {
+    if (!nextLessonData) return
+
+    // Lấy dữ liệu từ API /next
+    const classroomId = nextLessonData.id // classroomId từ API
+    const lessonId = nextLessonData.activity?.lessonId
+    const activityId = nextLessonData.activity?.id
+
+    if (classroomId && lessonId && activityId) {
+      navigate(`/learn/${classroomId}/${lessonId}/${activityId}`)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-gray-600">Đang tải dữ liệu lớp học...</div>
+      </div>
+    )
+  }
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-red-600">
+          Lỗi tải dữ liệu lớp học: {error?.message || ''}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen space-y-6">
       {/* Header */}
@@ -945,20 +894,16 @@ export default function ClassroomDetail({
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {mockClassroomDetail.name}
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">{detail?.name}</h1>
             <div className="flex items-center gap-2 text-gray-600">
-              <span>{mockClassroomDetail.teacher.displayName}</span>
+              <span>{detail?.teacher?.displayName}</span>
               <span>•</span>
               <span
                 className={`text-sm ${
-                  mockClassroomDetail.isActive
-                    ? 'text-green-600'
-                    : 'text-red-600'
+                  detail?.isActive ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {mockClassroomDetail.isActive ? 'Đang hoạt động' : 'Tạm ngưng'}
+                {detail?.isActive ? 'Đang hoạt động' : 'Tạm ngưng'}
               </span>
             </div>
           </div>
@@ -977,11 +922,11 @@ export default function ClassroomDetail({
           )}
 
           <button
-            onClick={() => copyClassCode(mockClassroomDetail.classCode)}
+            onClick={() => copyClassCode(detail?.classCode ?? '')}
             className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200 transition"
           >
             <Copy className="h-4 w-4" />
-            {mockClassroomDetail.classCode}
+            {detail?.classCode}
           </button>
           <button
             className="rounded-lg p-2 hover:bg-gray-100 transition"
@@ -1006,8 +951,7 @@ export default function ClassroomDetail({
             <div>
               <p className="text-sm text-blue-700">Học sinh</p>
               <p className="text-xl font-bold text-blue-900">
-                {mockClassroomDetail._count.students}/
-                {mockClassroomDetail.maxStudents}
+                {detail?._count?.students ?? 0}/{detail?.maxStudents ?? 0}
               </p>
             </div>
           </div>
@@ -1018,7 +962,7 @@ export default function ClassroomDetail({
             <div>
               <p className="text-sm text-green-700">Bài tập</p>
               <p className="text-xl font-bold text-green-900">
-                {mockClassroomDetail._count.assignments}
+                {detail?._count?.assignments ?? 0}
               </p>
             </div>
           </div>
@@ -1029,7 +973,7 @@ export default function ClassroomDetail({
             <div>
               <p className="text-sm text-orange-700">Thông báo</p>
               <p className="text-xl font-bold text-orange-900">
-                {mockClassroomDetail._count.announcements}
+                {detail?._count?.announcements ?? 0}
               </p>
             </div>
           </div>
@@ -1075,26 +1019,44 @@ export default function ClassroomDetail({
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Danh sách bài học</h3>
                   <span className="text-sm text-gray-500">
-                    {mockLessons.length} bài • ước tính ~
-                    {mockLessons.reduce(
-                      (sum, l) => sum + (l.estimatedTime ?? 0),
+                    {detail?.lessons?.length ?? 0} bài • ước tính ~
+                    {detail?.lessons?.reduce(
+                      (sum: number, l) => sum + (l.estimatedTime ?? 0),
                       0
-                    )}{' '}
+                    ) ?? 0}{' '}
                     phút
                   </span>
                 </div>
 
                 <div className="space-y-3">
-                  {mockLessons.map((lesson) => (
+                  {detail?.lessons?.map((lesson) => (
                     <LessonRow
                       key={lesson.id}
-                      lesson={lesson}
+                      lesson={{
+                        ...lesson,
+                        difficulty: lesson.difficulty as
+                          | 'beginner'
+                          | 'elementary'
+                          | 'intermediate'
+                          | undefined,
+                        activities: lesson.activities.map((a) => ({
+                          ...a,
+                          type: a.type as ActivityType,
+                          duration:
+                            a.duration === null ? undefined : a.duration,
+                          passingScore:
+                            a.passingScore === null
+                              ? undefined
+                              : a.passingScore,
+                          state: undefined,
+                        })),
+                      }}
                       isOpen={openLessonId === lesson.id}
-                      onToggle={() =>
+                      onToggle={() => {
                         setOpenLessonId(
                           openLessonId === lesson.id ? null : lesson.id
                         )
-                      }
+                      }}
                       onStart={handleStartLesson}
                       onStartActivity={handleStartActivity}
                     />
@@ -1112,9 +1074,7 @@ export default function ClassroomDetail({
                     <label className="text-sm font-medium text-gray-700">
                       Mô tả
                     </label>
-                    <p className="text-gray-600 mt-1">
-                      {mockClassroomDetail.description}
-                    </p>
+                    <p className="text-gray-600 mt-1">{detail?.description}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1122,9 +1082,10 @@ export default function ClassroomDetail({
                         Ngày tạo
                       </label>
                       <p className="text-gray-600 mt-1">
-                        {new Date(
-                          mockClassroomDetail.createdAt
-                        ).toLocaleDateString('vi-VN')}
+                        {detail?.createdAt &&
+                          new Date(detail.createdAt).toLocaleDateString(
+                            'vi-VN'
+                          )}
                       </p>
                     </div>
                     <div>
@@ -1132,25 +1093,14 @@ export default function ClassroomDetail({
                         Lần cập nhật cuối
                       </label>
                       <p className="text-gray-600 mt-1">
-                        {new Date(
-                          mockClassroomDetail.updatedAt
-                        ).toLocaleDateString('vi-VN')}
+                        {detail?.updatedAt &&
+                          new Date(detail.updatedAt).toLocaleDateString(
+                            'vi-VN'
+                          )}
                       </p>
                     </div>
                   </div>
-                  {mockClassroomDetail.schedule && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Lịch học
-                      </label>
-                      <p className="text-gray-600 mt-1">
-                        {mockClassroomDetail.schedule.days.join(', ')} lúc{' '}
-                        {mockClassroomDetail.schedule.time}
-                        {mockClassroomDetail.schedule.duration &&
-                          ` (${mockClassroomDetail.schedule.duration} phút)`}
-                      </p>
-                    </div>
-                  )}
+                  {/* Không có schedule trong API, ẩn UI này */}
                 </div>
               </div>
 
@@ -1158,15 +1108,15 @@ export default function ClassroomDetail({
               <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
                 <h3 className="text-lg font-semibold mb-4">Bài tập gần đây</h3>
                 <div className="space-y-4">
-                  {mockClassroomDetail.assignments
-                    .slice(0, 3)
-                    .map((assignment) => (
+                  {detail?.assignments
+                    ?.slice(0, 3)
+                    .map((assignment: Assignment) => (
                       <AssignmentCard
                         key={assignment.id}
                         assignment={assignment}
                       />
                     ))}
-                  {mockClassroomDetail.assignments.length === 0 && (
+                  {detail?.assignments?.length === 0 && (
                     <p className="text-gray-500 text-center py-8">
                       Chưa có bài tập nào
                     </p>
@@ -1188,10 +1138,10 @@ export default function ClassroomDetail({
                 )}
               </div>
               <div className="space-y-4">
-                {mockClassroomDetail.assignments.map((assignment) => (
+                {detail?.assignments?.map((assignment: Assignment) => (
                   <AssignmentCard key={assignment.id} assignment={assignment} />
                 ))}
-                {mockClassroomDetail.assignments.length === 0 && (
+                {detail?.assignments?.length === 0 && (
                   <div className="text-center py-12">
                     <FileText className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-4 text-lg font-medium text-gray-900">
@@ -1220,13 +1170,13 @@ export default function ClassroomDetail({
                 )}
               </div>
               <div className="space-y-4">
-                {mockClassroomDetail.announcements.map((announcement) => (
+                {detail?.announcements?.map((announcement: Announcement) => (
                   <AnnouncementCard
                     key={announcement.id}
                     announcement={announcement}
                   />
                 ))}
-                {mockClassroomDetail.announcements.length === 0 && (
+                {detail?.announcements?.length === 0 && (
                   <div className="text-center py-12">
                     <Bell className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-4 text-lg font-medium text-gray-900">
@@ -1271,14 +1221,30 @@ export default function ClassroomDetail({
               <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
                 <div className="space-y-2">
                   {filteredStudents.map((student) => (
-                    <StudentCard key={student.id} student={student} />
+                    <StudentCard
+                      key={student.id}
+                      student={{
+                        ...student,
+                        displayName:
+                          student.displayName ??
+                          `${student.firstName} ${student.lastName}`,
+                        avatarUrl: student.avatarUrl ?? '',
+                        studentRecord: {
+                          ...student.studentRecord,
+                          notes:
+                            student.studentRecord.notes === null
+                              ? undefined
+                              : student.studentRecord.notes,
+                        },
+                      }}
+                    />
                   ))}
                   {filteredStudents.length === 0 && searchStudent && (
                     <p className="text-center py-8 text-gray-500">
                       Không tìm thấy học sinh phù hợp
                     </p>
                   )}
-                  {mockClassroomDetail.students.length === 0 && (
+                  {detail?.students?.length === 0 && (
                     <div className="text-center py-12">
                       <Users className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-4 text-lg font-medium text-gray-900">
@@ -1303,17 +1269,20 @@ export default function ClassroomDetail({
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-200">
                 <img
-                  src={mockClassroomDetail.teacher.avatarUrl}
-                  alt={mockClassroomDetail.teacher.displayName}
+                  src={detail?.teacher?.avatarUrl ?? undefined}
+                  alt={
+                    detail?.teacher?.displayName ??
+                    `${detail?.teacher?.firstName ?? ''} ${detail?.teacher?.lastName ?? ''}`
+                  }
                   className="h-full w-full object-cover"
                 />
               </div>
               <div>
                 <p className="font-medium text-gray-900">
-                  {mockClassroomDetail.teacher.displayName}
+                  {detail?.teacher?.displayName}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {mockClassroomDetail.teacher.email}
+                  {detail?.teacher?.email}
                 </p>
               </div>
             </div>
@@ -1345,9 +1314,8 @@ export default function ClassroomDetail({
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Ngày tạo</span>
                 <span className="font-medium">
-                  {new Date(mockClassroomDetail.createdAt).toLocaleDateString(
-                    'vi-VN'
-                  )}
+                  {detail?.createdAt &&
+                    new Date(detail.createdAt).toLocaleDateString('vi-VN')}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -1362,13 +1330,11 @@ export default function ClassroomDetail({
                   {averageScore}/100
                 </span>
               </div>
-              {mockClassroomDetail.expiresAt && (
+              {detail?.expiresAt && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Hết hạn mã lớp</span>
                   <span className="font-medium text-orange-600">
-                    {new Date(mockClassroomDetail.expiresAt).toLocaleDateString(
-                      'vi-VN'
-                    )}
+                    {new Date(detail.expiresAt).toLocaleDateString('vi-VN')}
                   </span>
                 </div>
               )}
@@ -1376,7 +1342,7 @@ export default function ClassroomDetail({
           </div>
 
           {/* Class Settings Preview */}
-          {currentUser.role === 'teacher' && (
+          {currentUser.role === 'teacher' && detail?.settings && (
             <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
               <h3 className="text-base font-semibold mb-4">Cài đặt lớp học</h3>
               <div className="space-y-3 text-sm">
@@ -1384,32 +1350,30 @@ export default function ClassroomDetail({
                   <span className="text-gray-600">Cho phép thảo luận</span>
                   <span
                     className={
-                      mockClassroomDetail.settings.allowDiscussion
+                      detail.settings.allowDiscussion
                         ? 'text-green-600'
                         : 'text-red-600'
                     }
                   >
-                    {mockClassroomDetail.settings.allowDiscussion
-                      ? 'Có'
-                      : 'Không'}
+                    {detail.settings.allowDiscussion ? 'Có' : 'Không'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tự động chấm điểm</span>
                   <span
                     className={
-                      mockClassroomDetail.settings.autoGrade
+                      detail.settings.autoGrade
                         ? 'text-green-600'
                         : 'text-red-600'
                     }
                   >
-                    {mockClassroomDetail.settings.autoGrade ? 'Có' : 'Không'}
+                    {detail.settings.autoGrade ? 'Có' : 'Không'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Giờ hạn mặc định</span>
                   <span className="font-medium">
-                    {mockClassroomDetail.settings.dueTimeDefault}
+                    {detail.settings.dueTimeDefault}
                   </span>
                 </div>
               </div>
