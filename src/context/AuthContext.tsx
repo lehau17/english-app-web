@@ -8,10 +8,12 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   refreshAccessTokenFn,
   useLoginMutation,
   useMeQuery,
+  useParentLoginMutation,
 } from '../hooks/auth.queries'
 import api from '../lib/api'
 import type { User } from '../types/user.type'
@@ -23,6 +25,7 @@ type AuthCtx = {
   isAuthenticated: boolean
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  parentLogin: (email: string, password: string) => Promise<void>
   logout: () => void
   setUser: React.Dispatch<React.SetStateAction<User | null>>
 }
@@ -37,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState<string | null>(null)
@@ -97,6 +101,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setAccessToken(data.accessToken)
     setRefreshToken(data.refreshToken ?? null)
     queryClient.setQueryData(['me'], data.user)
+  }
+
+  // Parent login mutation (TanStack)
+  const parentLoginMutation = useParentLoginMutation()
+  const parentLogin = async (email: string, password: string) => {
+    try {
+      console.log('Starting parent login...')
+      const data = await parentLoginMutation.mutateAsync({ email, password })
+      console.log('Parent login successful, user data:', data.user)
+
+      setAccessToken(data.accessToken)
+      setRefreshToken(data.refreshToken ?? null)
+      queryClient.setQueryData(['me'], data.user)
+
+      console.log('User data set to query cache, navigating to /parent-home')
+
+      // Redirect parent to parent home page
+      navigate('/parent-home')
+    } catch (error) {
+      console.error('Parent login failed:', error)
+      throw error
+    }
   }
 
   const logout = () => {
@@ -183,10 +209,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isAuthenticated,
       loading,
       login,
+      parentLogin,
       logout,
       setUser,
     }),
-    [user, accessToken, refreshToken, isAuthenticated, loading]
+    [user, accessToken, refreshToken, isAuthenticated, loading, parentLogin]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

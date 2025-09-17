@@ -1,5 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { loginApi, meApi, refreshApi } from '../services/auth.api'
+import {
+  loginApi,
+  meApi,
+  parentLoginApi,
+  refreshApi,
+} from '../services/auth.api'
 import type { LoginPayload, LoginResponse } from '../types/auth.type'
 import type { User } from '../types/user.type'
 
@@ -16,6 +21,14 @@ export const useLoginMutation = () =>
   useMutation<LoginResponse, unknown, LoginPayload>({
     mutationFn: async (payload) => {
       const response = await loginApi(payload)
+      return response.data
+    },
+  })
+
+export const useParentLoginMutation = () =>
+  useMutation<LoginResponse, unknown, LoginPayload>({
+    mutationFn: async (payload) => {
+      const response = await parentLoginApi(payload)
       return response.data
     },
   })
