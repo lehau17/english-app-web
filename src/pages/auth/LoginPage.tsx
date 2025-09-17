@@ -7,6 +7,7 @@ import {
   LogIn,
   Mail,
   Sparkles,
+  Users,
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -192,6 +193,16 @@ const LoginPage: React.FC = () => {
               <Sparkles className="h-4 w-4" />
               <span>{t('login.join_adventure')}</span>
             </button>
+          </p>
+          <p className="text-gray-600 mt-2">
+            Bạn là phụ huynh?
+            <a
+              href="/parent-login"
+              className="inline-flex items-center gap-2 font-semibold text-blue-600 transition-colors hover:text-blue-800 hover:underline"
+            >
+              <Users className="h-4 w-4" />
+              <span>Đăng nhập Phụ huynh</span>
+            </a>
           </p>
         </div>
       </form>
