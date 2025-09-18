@@ -25,43 +25,19 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useState, type JSX } from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useClassroomAnnouncements } from '../hooks/useClassroomAnnouncements'
 import { useClassroomDetail } from '../hooks/useClassroomDetail'
 import { useNextLesson } from '../hooks/useNextLesson'
-import type { ClassroomDetailResponse } from '../types/classroom-detail.type'
-/**
- * =========================
- * Domain types & props
- * =========================
- */
-
-type Role = 'student' | 'teacher' | 'parent' | 'admin'
-
-type Weekday =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday'
-
-interface CurrentUser {
-  id: string
-  role: Role
-  firstName: string
-  lastName: string
-  displayName: string
-}
-
-interface Teacher {
-  id: string
-  firstName: string
-  lastName: string
-  displayName: string
-  email: string
-  avatarUrl: string
-}
+import { useStudentDetail, useTeacherDetail } from '../hooks/useUserDetail'
+import { createClassroomAnnouncement } from '../services/classroom-detail.api'
+import type {
+  ClassroomAnnouncement,
+  ClassroomDetailResponse,
+} from '../types/classroom-detail.type'
+import UserDetailModal from '../components/user/UserDetailModel'
 
 interface StudentRecord {
   joinedAt: string // ISO
@@ -96,53 +72,8 @@ interface Assignment {
 }
 
 type AnnouncementPriority = 'high' | 'normal' | 'low'
+type Announcement = ClassroomAnnouncement
 
-interface Announcement {
-  id: string
-  title: string
-  content: string
-  priority: AnnouncementPriority
-  targetAll: boolean
-  createdAt: string // ISO
-  updatedAt: string // ISO
-}
-
-interface Schedule {
-  days: Weekday[]
-  time: string // HH:mm
-  duration: number // minutes
-}
-
-interface ClassroomModel {
-  id: string
-  name: string
-  description: string
-  classCode: string
-  teacher: Teacher
-  isActive: boolean
-  maxStudents: number
-  createdAt: string
-  updatedAt: string
-  expiresAt?: string
-  settings: {
-    allowDiscussion: boolean
-    autoGrade: boolean
-    dueTimeDefault: string // HH:mm
-  }
-  schedule?: Schedule
-  _count: {
-    students: number
-    assignments: number
-    announcements: number
-  }
-  students: Student[]
-  assignments: Assignment[]
-  announcements: Announcement[]
-}
-
-/** =========================
- * NEW: Lesson/Activity UI types
- * ========================= */
 type ActivityType =
   | 'vocab'
   | 'pronunciation'
@@ -183,164 +114,23 @@ interface LessonUI {
 
 /**
  * =========================
- * Mock data (typed)
- * =========================
- */
-
-const currentUser: CurrentUser = {
-  id: 'user123',
-  role: 'teacher',
-  firstName: 'Bé',
-  lastName: 'Ong',
-  displayName: 'Bé Ong',
-}
-
-const mockClassroomDetail: ClassroomModel = {
-  id: 'class1',
-  name: 'Tiếng Anh Lớp 5A',
-  description:
-    'Lớp học tiếng Anh cho học sinh lớp 5, tập trung vào từ vựng và ngữ pháp cơ bản',
-  classCode: 'ABC123XY',
-  teacher: {
-    id: 'teacher1',
-    firstName: 'Cô',
-    lastName: 'Lan',
-    displayName: 'Cô Lan',
-    email: 'co.lan@school.edu.vn',
-    avatarUrl: '/api/placeholder/60/60',
-  },
-  isActive: true,
-  maxStudents: 30,
-  createdAt: '2024-01-10T08:00:00Z',
-  updatedAt: '2024-08-29T10:00:00Z',
-  expiresAt: '2024-12-31T23:59:59Z',
-  settings: {
-    allowDiscussion: true,
-    autoGrade: true,
-    dueTimeDefault: '17:00',
-  },
-  schedule: {
-    days: ['monday', 'wednesday', 'friday'],
-    time: '14:00',
-    duration: 90,
-  },
-  _count: {
-    students: 24,
-    assignments: 2,
-    announcements: 2,
-  },
-  students: [
-    {
-      id: 's1',
-      firstName: 'Nguyễn Văn',
-      lastName: 'An',
-      displayName: 'Nguyễn Văn An',
-      avatarUrl: '/api/placeholder/32/32',
-      studentRecord: {
-        joinedAt: '2024-01-15T00:00:00Z',
-        isActive: true,
-        notes: 'Học sinh chăm chỉ',
-      },
-    },
-    {
-      id: 's2',
-      firstName: 'Trần Thị',
-      lastName: 'Bình',
-      displayName: 'Trần Thị Bình',
-      avatarUrl: '/api/placeholder/32/32',
-      studentRecord: {
-        joinedAt: '2024-01-16T00:00:00Z',
-        isActive: true,
-      },
-    },
-    {
-      id: 's3',
-      firstName: 'Lê Hoàng',
-      lastName: 'Cường',
-      displayName: 'Lê Hoàng Cường',
-      avatarUrl: '/api/placeholder/32/32',
-      studentRecord: {
-        joinedAt: '2024-01-17T00:00:00Z',
-        isActive: true,
-      },
-    },
-  ],
-  assignments: [
-    {
-      id: 'assign1',
-      title: 'Bài tập từ vựng Unit 3',
-      description: 'Hoàn thành các bài tập về từ vựng chủ đề gia đình',
-      instructions:
-        'Làm tất cả các bài tập từ trang 25-30. Ghi âm phát âm của 10 từ mới.',
-      dueDate: '2024-08-31T17:00:00Z',
-      status: 'published',
-      isPublished: true,
-      totalPoints: 100,
-      timeLimit: 45,
-      maxAttempts: 3,
-      createdAt: '2024-08-25T10:00:00Z',
-      _count: {
-        submissions: 18,
-      },
-    },
-    {
-      id: 'assign2',
-      title: 'Ngữ pháp: Present Simple',
-      description: 'Bài tập về thì hiện tại đơn',
-      instructions: 'Hoàn thành 20 câu trắc nghiệm và 5 câu viết lại câu.',
-      dueDate: '2024-09-02T17:00:00Z',
-      status: 'published',
-      isPublished: true,
-      totalPoints: 50,
-      timeLimit: 30,
-      maxAttempts: 2,
-      createdAt: '2024-08-28T09:00:00Z',
-      _count: {
-        submissions: 12,
-      },
-    },
-  ],
-  announcements: [
-    {
-      id: 'ann1',
-      title: 'Nghỉ học ngày 30/8',
-      content:
-        'Lớp học sẽ nghỉ vào ngày 30/8 do giáo viên có việc đột xuất. Các em nhớ làm bài tập về nhà nhé!',
-      priority: 'high',
-      targetAll: true,
-      createdAt: '2024-08-28T10:00:00Z',
-      updatedAt: '2024-08-28T10:00:00Z',
-    },
-    {
-      id: 'ann2',
-      title: 'Thông báo kiểm tra giữa kỳ',
-      content:
-        'Kiểm tra giữa kỳ sẽ diễn ra vào ngày 5/9. Phạm vi ôn tập từ Unit 1 đến Unit 3.',
-      priority: 'normal',
-      targetAll: true,
-      createdAt: '2024-08-26T15:00:00Z',
-      updatedAt: '2024-08-26T15:00:00Z',
-    },
-  ],
-}
-
-/** =========================
- * NEW: Mock lessons + activities
- * ========================= */
-
-/**
- * =========================
  * UI Sub-components (typed)
  * =========================
  */
 
-type AssignmentCardProps = { assignment: Assignment }
+type AssignmentCardProps = {
+  assignment: Assignment
+  detail: ClassroomDetailResponse
+}
 
-function AssignmentCard({ assignment }: AssignmentCardProps): JSX.Element {
+function AssignmentCard({
+  assignment,
+  detail,
+}: AssignmentCardProps): JSX.Element {
   const dueDate = new Date(assignment.dueDate)
   const isOverdue = dueDate < new Date()
   const completionRate =
-    (assignment._count.submissions / mockClassroomDetail._count.students) * 100
+    (assignment._count.submissions / detail._count.students) * 100
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 hover:shadow-sm transition">
@@ -402,8 +192,8 @@ function AssignmentCard({ assignment }: AssignmentCardProps): JSX.Element {
       <div className="border-t border-gray-100 pt-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">
-            {assignment._count.submissions}/
-            {mockClassroomDetail._count.students} học sinh đã nộp
+            {assignment._count.submissions}/{detail._count.students} học sinh đã
+            nộp
           </span>
           <div className="flex items-center gap-2">
             <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -426,6 +216,8 @@ function AssignmentCard({ assignment }: AssignmentCardProps): JSX.Element {
           </span>
         </div>
       </div>
+
+      {/* Modals */}
     </div>
   )
 }
@@ -447,11 +239,12 @@ function AnnouncementCard({
     low: MessageSquare,
   }
 
-  const Icon = priorityIcons[announcement.priority] ?? Bell
+  const Icon =
+    priorityIcons[announcement.priority as AnnouncementPriority] ?? Bell
 
   return (
     <div
-      className={`rounded-xl border p-4 ${priorityColors[announcement.priority] ?? priorityColors.normal}`}
+      className={`rounded-xl border p-4 ${priorityColors[announcement.priority as AnnouncementPriority] ?? priorityColors.normal}`}
     >
       <div className="flex items-start gap-3">
         <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -485,11 +278,14 @@ function AnnouncementCard({
   )
 }
 
-type StudentCardProps = { student: Student }
+type StudentCardProps = { student: Student; onClick?: (id: string) => void }
 
-function StudentCard({ student }: StudentCardProps): JSX.Element {
+function StudentCard({ student, onClick }: StudentCardProps): JSX.Element {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition">
+    <div
+      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition cursor-pointer"
+      onClick={() => onClick?.(student.id)}
+    >
       <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200">
         <img
           src={student.avatarUrl}
@@ -777,6 +573,7 @@ export default function ClassroomDetail(props: {
   classroomId?: string
 }): JSX.Element {
   const { onBack } = props
+  const { user } = useAuth()
   const classroomIdFromUrl =
     typeof window !== 'undefined'
       ? window.location.pathname.split('/').pop() || undefined
@@ -786,6 +583,12 @@ export default function ClassroomDetail(props: {
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [searchStudent, setSearchStudent] = useState<string>('')
   const [openLessonId, setOpenLessonId] = useState<string | null>(null)
+  const [showAnnForm, setShowAnnForm] = useState(false)
+  const [annTitle, setAnnTitle] = useState('')
+  const [annBody, setAnnBody] = useState('')
+  const [annLoading, setAnnLoading] = useState(false)
+  const [openStudentId, setOpenStudentId] = useState<string | null>(null)
+  const [openTeacherId, setOpenTeacherId] = useState<string | null>(null)
 
   const { id: classroomIdFromParams } = useParams<{ id: string }>()
 
@@ -797,10 +600,37 @@ export default function ClassroomDetail(props: {
   } = useClassroomDetail(classroomIdFromParams)
 
   // Lấy dữ liệu lesson tiếp theo từ API /next
-  const { data: nextLessonData } = useNextLesson()
+  const role = user?.role
+  const isTeacher = role === 'teacher'
+  const isStudent = role === 'student'
+
+  const { data: nextLessonData } = useNextLesson(isStudent)
 
   // Dữ liệu lớp học từ API
   const detail: ClassroomDetailResponse | undefined = classroomDetail
+  // Load user details for modals
+  const { data: studentDetail, isLoading: loadingStudentDetail } =
+    useStudentDetail(openStudentId || undefined)
+  const { data: teacherDetail, isLoading: loadingTeacherDetail } =
+    useTeacherDetail(openTeacherId || undefined)
+
+  const announcementPageSize = 5
+  const [announcementPage, setAnnouncementPage] = useState(1)
+  const {
+    data: announcementsPage,
+    isLoading: isLoadingAnnouncements,
+    refetch: refetchAnnouncements,
+  } = useClassroomAnnouncements(
+    classroomIdFromParams,
+    announcementPage,
+    announcementPageSize
+  )
+
+  const announcements = announcementsPage?.data ?? []
+  const announcementTotal =
+    announcementsPage?.totalItems ?? detail?._count?.announcements ?? 0
+  const hasNextAnnouncement = announcementsPage?.hasNextPage ?? false
+  const hasPrevAnnouncement = announcementsPage?.hasPrevPage ?? false
 
   const copyClassCode = async (code: string): Promise<void> => {
     try {
@@ -822,6 +652,34 @@ export default function ClassroomDetail(props: {
       .filter((student) =>
         student.displayName.toLowerCase().includes(searchStudent.toLowerCase())
       ) ?? []
+
+  const handleCreateAnnouncement = async () => {
+    if (!classroomIdFromParams) return
+    if (!annTitle.trim()) {
+      toast.error('Nhập tiêu đề thông báo')
+      return
+    }
+    try {
+      setAnnLoading(true)
+      await createClassroomAnnouncement(classroomIdFromParams, {
+        title: annTitle.trim(),
+        content: annBody.trim() || '',
+      })
+      toast.success('Đã gửi thông báo đến học viên trong lớp')
+      setAnnTitle('')
+      setAnnBody('')
+      setShowAnnForm(false)
+      if (announcementPage === 1) {
+        await refetchAnnouncements()
+      } else {
+        setAnnouncementPage(1)
+      }
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Gửi thông báo thất bại')
+    } finally {
+      setAnnLoading(false)
+    }
+  }
 
   // Không có averageScore và completionRate trong API, có thể tính toán hoặc để 0
   const averageScore = 0
@@ -896,7 +754,12 @@ export default function ClassroomDetail(props: {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{detail?.name}</h1>
             <div className="flex items-center gap-2 text-gray-600">
-              <span>{detail?.teacher?.displayName}</span>
+              <button
+                className="underline underline-offset-2 hover:text-gray-900"
+                onClick={() => setOpenTeacherId(detail?.teacher?.id || null)}
+              >
+                {detail?.teacher?.displayName}
+              </button>
               <span>•</span>
               <span
                 className={`text-sm ${
@@ -911,7 +774,7 @@ export default function ClassroomDetail(props: {
 
         <div className="flex items-center gap-3">
           {/* NEW: Global CTA “Tiếp tục học” */}
-          {currentUser.role === 'student' && (
+          {user?.role === 'student' && (
             <button
               onClick={handleContinueLearning}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 transition"
@@ -973,7 +836,7 @@ export default function ClassroomDetail(props: {
             <div>
               <p className="text-sm text-orange-700">Thông báo</p>
               <p className="text-xl font-bold text-orange-900">
-                {detail?._count?.announcements ?? 0}
+                {announcementTotal}
               </p>
             </div>
           </div>
@@ -1114,6 +977,7 @@ export default function ClassroomDetail(props: {
                       <AssignmentCard
                         key={assignment.id}
                         assignment={assignment}
+                        detail={detail}
                       />
                     ))}
                   {detail?.assignments?.length === 0 && (
@@ -1130,7 +994,7 @@ export default function ClassroomDetail(props: {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Danh sách bài tập</h3>
-                {currentUser.role === 'teacher' && (
+                {user?.role === 'teacher' && (
                   <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition">
                     <Plus className="h-4 w-4" />
                     Tạo bài tập
@@ -1139,7 +1003,11 @@ export default function ClassroomDetail(props: {
               </div>
               <div className="space-y-4">
                 {detail?.assignments?.map((assignment: Assignment) => (
-                  <AssignmentCard key={assignment.id} assignment={assignment} />
+                  <AssignmentCard
+                    key={assignment.id}
+                    assignment={assignment}
+                    detail={detail}
+                  />
                 ))}
                 {detail?.assignments?.length === 0 && (
                   <div className="text-center py-12">
@@ -1148,7 +1016,7 @@ export default function ClassroomDetail(props: {
                       Chưa có bài tập
                     </h3>
                     <p className="mt-2 text-sm text-gray-500">
-                      {currentUser.role === 'teacher'
+                      {user?.role == 'teacher'
                         ? 'Tạo bài tập đầu tiên cho lớp học này'
                         : 'Giáo viên chưa tạo bài tập nào'}
                     </p>
@@ -1162,34 +1030,121 @@ export default function ClassroomDetail(props: {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Thông báo</h3>
-                {currentUser.role === 'teacher' && (
-                  <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition">
-                    <Plus className="h-4 w-4" />
-                    Tạo thông báo
-                  </button>
+                {isTeacher && (
+                  <div className="flex items-center gap-2">
+                    {!showAnnForm && (
+                      <button
+                        onClick={() => setShowAnnForm(true)}
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Tạo thông báo
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
+              {isTeacher && showAnnForm && (
+                <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-700">Tiêu đề</label>
+                      <input
+                        value={annTitle}
+                        onChange={(e) => setAnnTitle(e.target.value)}
+                        placeholder="Nhập tiêu đề thông báo"
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-700">Nội dung</label>
+                      <textarea
+                        value={annBody}
+                        onChange={(e) => setAnnBody(e.target.value)}
+                        placeholder="Nhập nội dung (tuỳ chọn)"
+                        rows={3}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={handleCreateAnnouncement}
+                      disabled={annLoading}
+                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {annLoading ? (
+                        <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Gửi thông báo
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAnnForm(false)
+                        setAnnTitle('')
+                        setAnnBody('')
+                      }}
+                      disabled={annLoading}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      Huỷ
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="space-y-4">
-                {detail?.announcements?.map((announcement: Announcement) => (
-                  <AnnouncementCard
-                    key={announcement.id}
-                    announcement={announcement}
-                  />
-                ))}
-                {detail?.announcements?.length === 0 && (
-                  <div className="text-center py-12">
+                {isLoadingAnnouncements ? (
+                  <div className="py-12 text-center text-sm text-gray-500">
+                    Đang tải thông báo...
+                  </div>
+                ) : announcements.length === 0 ? (
+                  <div className="py-12 text-center">
                     <Bell className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-4 text-lg font-medium text-gray-900">
                       Chưa có thông báo
                     </h3>
                     <p className="mt-2 text-sm text-gray-500">
-                      {currentUser.role === 'teacher'
+                      {isTeacher
                         ? 'Tạo thông báo đầu tiên cho lớp học này'
                         : 'Chưa có thông báo nào từ giáo viên'}
                     </p>
                   </div>
+                ) : (
+                  announcements.map((announcement) => (
+                    <AnnouncementCard
+                      key={announcement.id}
+                      announcement={announcement}
+                    />
+                  ))
                 )}
               </div>
+
+              {(hasPrevAnnouncement || hasNextAnnouncement) && (
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() =>
+                      setAnnouncementPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={!hasPrevAnnouncement}
+                    className="rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Trang trước
+                  </button>
+                  <span className="text-xs text-gray-500">
+                    Trang {announcementsPage?.page ?? announcementPage} /{' '}
+                    {announcementsPage?.totalPages ?? 1}
+                  </span>
+                  <button
+                    onClick={() => setAnnouncementPage((prev) => prev + 1)}
+                    disabled={!hasNextAnnouncement}
+                    className="rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Trang tiếp
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1210,7 +1165,7 @@ export default function ClassroomDetail(props: {
                       className="rounded-lg border border-gray-300 pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-                  {currentUser.role === 'teacher' && (
+                  {user?.role === 'teacher' && (
                     <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition">
                       <Plus className="h-4 w-4" />
                       Thêm học sinh
@@ -1237,6 +1192,7 @@ export default function ClassroomDetail(props: {
                               : student.studentRecord.notes,
                         },
                       }}
+                      onClick={(id) => setOpenStudentId(id)}
                     />
                   ))}
                   {filteredStudents.length === 0 && searchStudent && (
@@ -1264,7 +1220,10 @@ export default function ClassroomDetail(props: {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Teacher Info */}
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+          <div
+            className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 cursor-pointer hover:bg-gray-50"
+            onClick={() => setOpenTeacherId(detail?.teacher?.id || null)}
+          >
             <h3 className="text-base font-semibold mb-4">Giáo viên</h3>
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-200">
@@ -1342,7 +1301,7 @@ export default function ClassroomDetail(props: {
           </div>
 
           {/* Class Settings Preview */}
-          {currentUser.role === 'teacher' && detail?.settings && (
+          {user?.role === 'teacher' && detail?.settings && (
             <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
               <h3 className="text-base font-semibold mb-4">Cài đặt lớp học</h3>
               <div className="space-y-3 text-sm">
@@ -1385,6 +1344,24 @@ export default function ClassroomDetail(props: {
           )}
         </div>
       </div>
+      {openStudentId && (
+        <UserDetailModal
+          open={!!openStudentId}
+          onClose={() => setOpenStudentId(null)}
+          user={studentDetail}
+          loading={loadingStudentDetail}
+          title="Thông tin học sinh"
+        />
+      )}
+      {openTeacherId && (
+        <UserDetailModal
+          open={!!openTeacherId}
+          onClose={() => setOpenTeacherId(null)}
+          user={teacherDetail}
+          loading={loadingTeacherDetail}
+          title="Thông tin giáo viên"
+        />
+      )}
     </div>
   )
 }

@@ -17,6 +17,7 @@ export interface MyClassroomResponse {
   students: number
   maxStudents: number
   assignments: number
+  classCode?: string
   _count: {
     students: number
     assignments: number

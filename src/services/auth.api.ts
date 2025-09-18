@@ -37,6 +37,10 @@ export const refreshApi = async (
 }
 
 export const meApi = async (): Promise<User> => {
-  const { data } = await api.get('private/v1/auth/me')
-  return data
+  const { data } =
+    await api.get<import('../types/base-response.type').BaseResponse<User>>(
+      'private/v1/auth/me'
+    )
+  // unwrap global envelope
+  return data.data
 }

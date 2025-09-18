@@ -60,8 +60,38 @@ export interface ClassroomDetailResponse {
       notes: string | null
     }
   }>
-  assignments: Array<any>
-  announcements: Array<any>
+  assignments: Array<{
+    id: string
+    title: string
+    description?: string | null
+    instructions?: string | null
+    dueDate?: string | null
+    status: string
+    isPublished: boolean
+    totalPoints: number
+    timeLimit?: number | null
+    maxAttempts: number
+    createdAt: string
+    _count: {
+      submissions: number
+    }
+    activities: Array<{
+      id: string
+      type: string
+      title: string
+      instructions?: string | null
+      content: any
+      points: number
+      timeLimit?: number | null
+      maxAttempts?: number | null
+      passingScore?: number | null
+      difficulty?: string | null
+      hints?: string[]
+      createdAt: string
+      updatedAt: string
+    }>
+  }>
+  announcements: ClassroomAnnouncement[]
   lessons: Array<{
     id: string
     title: string
@@ -79,4 +109,16 @@ export interface ClassroomDetailResponse {
       passingScore: number | null
     }>
   }>
+}
+
+export interface ClassroomAnnouncement {
+  id: string
+  title: string
+  content: string
+  priority: string
+  targetAll: boolean
+  targetIds: string[]
+  attachments?: any
+  createdAt: string
+  updatedAt: string
 }
