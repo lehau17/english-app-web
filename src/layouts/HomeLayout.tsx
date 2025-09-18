@@ -1,6 +1,8 @@
 import { Bell, Globe, LogOut, Menu, Search, UserIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { Link, NavLink } from 'react-router-dom'
+import { io, Socket } from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
 
 function Avatar({ src, alt }: { src?: string; alt?: string }) {
@@ -19,6 +21,55 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
+
+  // Compute socket URL: prefer VITE_SOCKET_URL, fallback from API URL port
+  const socketUrl = useMemo(() => {
+    const fromEnv = (import.meta as any)?.env?.VITE_SOCKET_URL as
+      | string
+      | undefined
+    if (fromEnv) return fromEnv
+    const api = (import.meta as any)?.env?.VITE_API_URL as string | undefined
+    if (api) {
+      try {
+        const u = new URL(api)
+        // drop trailing /api if present
+        const origin = `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`
+        return origin
+      } catch {
+        return 'http://localhost:3000'
+      }
+    }
+    return 'http://localhost:3000'
+  }, [])
+
+  useEffect(() => {
+    // Connect when user is available
+    if (!user?.id) return
+    const s: Socket = io(socketUrl, {
+      transports: ['websocket'],
+      query: { userId: user.id },
+    })
+
+    s.on('connect', () => {
+      // Optional: toast.success('Đã kết nối thông báo')
+      console.log('Socket connected')
+    })
+
+    s.on('notification', (msg: any) => {
+      const title = msg?.title || 'Thông báo'
+      const body = msg?.body || ''
+      toast(`${title}${body ? ` — ${body}` : ''}`)
+    })
+
+    s.on('disconnect', () => {
+      // Optional: toast('Ngắt kết nối thông báo')
+      console.log('Socket disconnected')
+    })
+
+    return () => {
+      s.disconnect()
+    }
+  }, [user?.id, socketUrl])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">

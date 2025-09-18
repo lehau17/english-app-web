@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchMyClassrooms } from '../services/home.api'
 
-export const useMyClassrooms = () => {
+export const useMyClassrooms = (role?: string, enabled = true) => {
   return useQuery({
-    queryKey: ['my-classrooms'],
+    queryKey: ['my-classrooms', role],
     queryFn: () => fetchMyClassrooms(),
-    select: (res) => res?.data || [],
+    enabled,
+    select: (res) => res?.data ?? [],
   })
 }
