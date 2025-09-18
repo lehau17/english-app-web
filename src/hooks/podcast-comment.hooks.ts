@@ -98,7 +98,7 @@ export const useCreateComment = () => {
   return useMutation({
     mutationFn: (data: CreatePodcastCommentRequest) =>
       podcastCommentApi.createComment(data),
-    onSuccess: (response, variables) => {
+    onSuccess: (_response, variables) => {
       // Invalidate comments của podcast này
       queryClient.invalidateQueries({
         queryKey: podcastCommentKeys.byPodcast(variables.podcastId),

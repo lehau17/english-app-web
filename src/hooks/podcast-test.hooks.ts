@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { podcastTestApi, SubmitTestRequest } from '../services/podcast-test.api'
+import { podcastTestApi } from '../services/podcast-test.api'
+import type { SubmitTestRequest } from '../services/podcast-test.api'
 
 // Hook to get podcast test content
 export const usePodcastTest = (podcastId: string) => {

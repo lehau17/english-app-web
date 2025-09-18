@@ -21,7 +21,7 @@ interface ListeningPracticeComponentProps {
 export const ListeningPracticeComponent: React.FC<
   ListeningPracticeComponentProps
 > = ({
-  podcastId,
+  podcastId: _podcastId,
   title,
   audioUrl,
   questions,
@@ -29,6 +29,7 @@ export const ListeningPracticeComponent: React.FC<
   onSubmit,
   onExit,
 }) => {
+  void _podcastId
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)

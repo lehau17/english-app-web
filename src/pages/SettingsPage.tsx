@@ -3,10 +3,6 @@ import {
   Bell,
   Globe,
   Monitor,
-  Moon,
-  Sun,
-  Volume2,
-  VolumeX,
   User,
   Lock,
   Mail,
@@ -102,12 +98,11 @@ const SettingsPage: React.FC = () => {
 
   // Interface settings
   const [darkMode, setDarkMode] = useState(false)
-  const [language, setLanguage] = useState('vi')
   const [soundEffects, setSoundEffects] = useState(true)
   const [hapticFeedback, setHapticFeedback] = useState(true)
 
   // Learning settings
-  const [dailyGoal, setDailyGoal] = useState(30)
+  const [dailyGoal] = useState(30)
   const [autoplay, setAutoplay] = useState(true)
   const [showHints, setShowHints] = useState(true)
   const [practiceReminders, setPracticeReminders] = useState(true)
@@ -365,7 +360,6 @@ const SettingsPage: React.FC = () => {
                         label={item.label}
                         description={item.description}
                         onClick={item.onClick}
-                        rightElement={item.rightElement}
                       />
                     )}
                   </div>

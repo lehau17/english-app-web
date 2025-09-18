@@ -74,6 +74,14 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     },
   })
 
+  // Format seconds to mm:ss
+  const formatDuration = (sec: number) => {
+    if (!sec || !Number.isFinite(sec)) return 'Unknown'
+    const minutes = Math.floor(sec / 60)
+    const seconds = Math.floor(sec % 60)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
   const createPodcastMutation = useCreatePodcast()
   const watchContent = watch('content')
   const tagInput = (watch('__tag_input') as string) || ''
@@ -149,7 +157,15 @@ export const CreatePodcastPageUpdated: React.FC = () => {
 
       setPreviewUrl(response.data.url)
       setValue('audioUrl', response.data.url)
-      setAudioDuration(0)
+      // Load duration from generated audio
+      try {
+        const audio = new Audio(response.data.url)
+        audio.addEventListener('loadedmetadata', () => {
+          setAudioDuration(audio.duration || 0)
+        })
+      } catch {
+        // fallback: duration will be set by <audio onLoadedMetadata>
+      }
     } catch (error) {
       console.error('Generate audio error:', error)
       alert('Có lỗi xảy ra khi tạo audio')
@@ -581,11 +597,18 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                     <Label className="font-medium mb-2 block">
                       Preview Audio
                     </Label>
-                    <audio controls src={previewUrl} className="w-full" />
+                    <audio
+                      controls
+                      src={previewUrl}
+                      className="w-full"
+                      onLoadedMetadata={(e) =>
+                        setAudioDuration(e.currentTarget.duration || 0)
+                      }
+                    />
                     <p className="text-sm text-muted-foreground mt-2">
                       Duration:{' '}
                       {audioDuration
-                        ? `${audioDuration.toFixed(1)}s`
+                        ? formatDuration(audioDuration)
                         : 'Unknown'}
                     </p>
                   </div>

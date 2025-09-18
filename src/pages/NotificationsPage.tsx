@@ -127,16 +127,8 @@ const NotificationsPage: React.FC = () => {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const {
-    items,
-    page,
-    setPage,
-    hasNext,
-    loading,
-    loadMore,
-    reload,
-    refreshUnread,
-  } = useNotificationsPagination({ filter, pageSize: 10 })
+  const { items, hasNext, loading, loadMore, reload, refreshUnread } =
+    useNotificationsPagination({ filter, pageSize: 10 })
 
   // Map API notification to UI
   function mapApi(n: ApiNotification): Notification {
@@ -253,6 +245,48 @@ const NotificationsPage: React.FC = () => {
     }
   }
 
+  // Bulk selection state
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const allIds = filteredNotifications.map((n) => n.id)
+  const selectedIds = allIds.filter((id) => selected[id])
+  const toggleAll = (checked: boolean) => {
+    const next: Record<string, boolean> = {}
+    allIds.forEach((id) => (next[id] = checked))
+    setSelected(next)
+  }
+  const toggleOne = (id: string, checked: boolean) =>
+    setSelected((prev) => ({ ...prev, [id]: checked }))
+
+  const bulkMarkRead = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      const targets = filteredNotifications.filter(
+        (n) => selected[n.id] && !n.isRead
+      )
+      await Promise.allSettled(targets.map((n) => markNotificationRead(n.id)))
+      await refreshUnread()
+      setSelected({})
+      reload()
+      toast.success(`Đã đánh dấu ${targets.length} thông báo`)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Cập nhật thất bại')
+    }
+  }
+  const bulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      await Promise.allSettled(
+        selectedIds.map((id) => apiDeleteNotification(id))
+      )
+      await refreshUnread()
+      setSelected({})
+      reload()
+      toast.success(`Đã xóa ${selectedIds.length} thông báo`)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Xóa thất bại')
+    }
+  }
+
   const filterTabs = [
     { key: 'all' as const, label: 'Tất cả', count: filterCounts.all },
     { key: 'unread' as const, label: 'Chưa đọc', count: filterCounts.unread },
@@ -300,6 +334,22 @@ const NotificationsPage: React.FC = () => {
                 >
                   Xóa đã đọc
                 </button>
+              )}
+              {selectedIds.length > 0 && (
+                <>
+                  <button
+                    onClick={bulkMarkRead}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    Đánh dấu đã đọc ({selectedIds.length})
+                  </button>
+                  <button
+                    onClick={bulkDelete}
+                    className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Xóa ({selectedIds.length})
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -366,13 +416,39 @@ const NotificationsPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredNotifications.map((notification) => (
-              <NotificationItem
-                key={notification.id}
-                notification={notification}
-                onMarkAsRead={markAsRead}
-                onDelete={deleteNotification}
+            {/* Bulk selector header */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={
+                  selectedIds.length === allIds.length && allIds.length > 0
+                }
+                onChange={(e) => toggleAll(e.target.checked)}
               />
+              <span>Chọn tất cả</span>
+              {selectedIds.length > 0 && (
+                <span className="ml-2 text-gray-500">
+                  Đã chọn {selectedIds.length}/{allIds.length}
+                </span>
+              )}
+            </div>
+            {filteredNotifications.map((notification) => (
+              <div key={notification.id} className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4"
+                  checked={!!selected[notification.id]}
+                  onChange={(e) => toggleOne(notification.id, e.target.checked)}
+                />
+                <div className="flex-1">
+                  <NotificationItem
+                    notification={notification}
+                    onMarkAsRead={markAsRead}
+                    onDelete={deleteNotification}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         )}

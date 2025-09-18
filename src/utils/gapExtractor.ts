@@ -11,7 +11,6 @@ export function extractGapsFromContent(content: string): {
 } {
   const gaps: CreatePodcastGapData[] = []
   let cleanContent = content
-  const currentIndex = 0
   let orderNo = 1
 
   // Regex để tìm [word] pattern
@@ -20,7 +19,6 @@ export function extractGapsFromContent(content: string): {
 
   // Process từng match
   while ((match = gapRegex.exec(content)) !== null) {
-    const fullMatch = match[0] // [word]
     const answer = match[1] // word
     const matchStart = match.index
 

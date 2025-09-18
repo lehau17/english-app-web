@@ -82,7 +82,7 @@ export async function getLessonDetail(lessonId: string) {
 }
 
 export async function fetchLessonAndActivities(
-  classroomId: string,
+  _classroomId: string,
   lessonId: string,
   userId: string
 ) {

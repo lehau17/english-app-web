@@ -13,7 +13,7 @@ const ListeningPracticePage: React.FC = () => {
   const [filterDuration, setFilterDuration] = useState('all')
   const [sortBy, setSortBy] = useState('createdAt')
   const [searchQuery, setSearchQuery] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage] = useState(1)
 
   // Fetch podcasts data
   const {
@@ -77,6 +77,8 @@ const ListeningPracticePage: React.FC = () => {
             type="text"
             placeholder="Tìm kiếm bài học..."
             className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 

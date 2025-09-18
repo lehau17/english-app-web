@@ -18,6 +18,7 @@ import PodcastDetailPage from './pages/PodcastDetailPage'
 import PodcastPracticePage from './pages/PodcastPracticePage'
 import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
+import AssignmentSubmissionsPage from './pages/AssignmentSubmissionsPage'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
 import { Toaster } from 'react-hot-toast'
@@ -72,6 +73,14 @@ function App() {
             element={
               <HomeLayout>
                 <ClassroomDetailWrapper />
+              </HomeLayout>
+            }
+          />
+          <Route
+            path="/classroom-detail/:id/assignments/:assignmentId/submissions"
+            element={
+              <HomeLayout>
+                <AssignmentSubmissionsPage />
               </HomeLayout>
             }
           />

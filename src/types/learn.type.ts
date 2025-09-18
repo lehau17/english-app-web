@@ -10,6 +10,9 @@ export type ActivityType =
   | 'quiz'
   | 'flashcard'
   | 'conversation'
+  | 'fill_blank'
+  | 'dictation'
+  | 'matching'
 
 export type ProgressState =
   | 'not_started'
@@ -97,6 +100,22 @@ export interface FlashcardItem {
 export interface FlashcardContent {
   cards: FlashcardItem[]
 }
+export interface FillBlankContent {
+  passage: string
+  blanks: string[]
+}
+export interface DictationContent {
+  audioUrl: string
+  transcript: string
+  minWords: number
+}
+export interface MatchingPair {
+  left: string
+  right: string
+}
+export interface MatchingContent {
+  pairs: MatchingPair[]
+}
 export interface ConversationMessage {
   role: 'assistant' | 'user'
   text: string
@@ -119,6 +138,9 @@ export type ActivityContent =
   | { kind: 'grammar'; data: GrammarContent }
   | { kind: 'flashcard'; data: FlashcardContent }
   | { kind: 'conversation'; data: ConversationContent }
+  | { kind: 'fill_blank'; data: FillBlankContent }
+  | { kind: 'dictation'; data: DictationContent }
+  | { kind: 'matching'; data: MatchingContent }
 
 export interface Activity extends ActivityBase {
   content: ActivityContent

@@ -33,9 +33,10 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   currentUserId,
   onReply,
-  showReplies = true,
+  showReplies: _showReplies = true,
   isReply = false,
 }) => {
+  void _showReplies
   const [showMenu, setShowMenu] = useState(false)
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -223,7 +224,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         {showEditForm ? (
           <CommentEditForm
             initialContent={comment.content}
-            onSave={(content) => {
+            onSave={(_content) => {
               // Handle edit
               setShowEditForm(false)
             }}

@@ -30,6 +30,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useClassroomAnnouncements } from '../hooks/useClassroomAnnouncements'
 import { useClassroomDetail } from '../hooks/useClassroomDetail'
+import {
+  deleteAssignment,
+  setAssignmentPublish,
+} from '../services/assignment.api'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNextLesson } from '../hooks/useNextLesson'
 import { useStudentDetail, useTeacherDetail } from '../hooks/useUserDetail'
 import { createClassroomAnnouncement } from '../services/classroom-detail.api'
@@ -38,6 +43,7 @@ import type {
   ClassroomDetailResponse,
 } from '../types/classroom-detail.type'
 import UserDetailModal from '../components/user/UserDetailModel'
+import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
 
 interface StudentRecord {
   joinedAt: string // ISO
@@ -54,21 +60,20 @@ interface Student {
   studentRecord: StudentRecord
 }
 
-type AssignmentStatus = 'draft' | 'published' | 'archived'
-
 interface Assignment {
   id: string
   title: string
-  description?: string
-  instructions?: string
-  dueDate: string // ISO
-  status: AssignmentStatus
+  description?: string | null
+  instructions?: string | null
+  dueDate?: string | null // ISO
+  status?: string
   isPublished: boolean
   totalPoints: number
-  timeLimit?: number // minutes
+  timeLimit?: number | null // minutes
   maxAttempts: number
   createdAt: string // ISO
   _count: { submissions: number }
+  activities?: any[]
 }
 
 type AnnouncementPriority = 'high' | 'normal' | 'low'
@@ -121,14 +126,22 @@ interface LessonUI {
 type AssignmentCardProps = {
   assignment: Assignment
   detail: ClassroomDetailResponse
+  onViewSubmissions?: (id: string) => void
+  onTogglePublish?: (a: Assignment) => void
+  onEdit?: (a: Assignment) => void
+  onDelete?: (a: Assignment) => void
 }
 
 function AssignmentCard({
   assignment,
   detail,
+  onViewSubmissions,
+  onTogglePublish,
+  onEdit,
+  onDelete,
 }: AssignmentCardProps): JSX.Element {
-  const dueDate = new Date(assignment.dueDate)
-  const isOverdue = dueDate < new Date()
+  const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
+  const isOverdue = !!dueDate && dueDate < new Date()
   const completionRate =
     (assignment._count.submissions / detail._count.students) * 100
 
@@ -146,11 +159,17 @@ function AssignmentCard({
           <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {dueDate.toLocaleDateString('vi-VN')} lúc{' '}
-              {dueDate.toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              {dueDate ? (
+                <>
+                  {dueDate.toLocaleDateString('vi-VN')} lúc{' '}
+                  {dueDate.toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </>
+              ) : (
+                <span>Không hạn</span>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <Trophy className="h-4 w-4" />
@@ -208,12 +227,32 @@ function AssignmentCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-          <span>Tối đa {assignment.maxAttempts} lần làm</span>
-          <span>•</span>
-          <span>
-            Tạo lúc {new Date(assignment.createdAt).toLocaleDateString('vi-VN')}
-          </span>
+        <div className="flex flex-wrap items-center gap-2 mt-3 text-sm">
+          <button
+            onClick={() => onViewSubmissions?.(assignment.id)}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 hover:bg-gray-50"
+          >
+            <Trophy className="h-4 w-4" /> Bài nộp (
+            {assignment._count.submissions})
+          </button>
+          <button
+            onClick={() => onTogglePublish?.(assignment)}
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 ${assignment.isPublished ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-white hover:bg-black'}`}
+          >
+            {assignment.isPublished ? 'Đang xuất bản' : 'Nháp'}
+          </button>
+          <button
+            onClick={() => onEdit?.(assignment)}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 hover:bg-gray-50"
+          >
+            Chỉnh sửa
+          </button>
+          <button
+            onClick={() => onDelete?.(assignment)}
+            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-white hover:bg-red-700"
+          >
+            Xóa
+          </button>
         </div>
       </div>
 
@@ -589,6 +628,13 @@ export default function ClassroomDetail(props: {
   const [annLoading, setAnnLoading] = useState(false)
   const [openStudentId, setOpenStudentId] = useState<string | null>(null)
   const [openTeacherId, setOpenTeacherId] = useState<string | null>(null)
+  const [showEditAssignment, setShowEditAssignment] = useState(false)
+  const [editAssignmentId, setEditAssignmentId] = useState<string | undefined>(
+    undefined
+  )
+  const [editInitial, setEditInitial] = useState<any>(undefined)
+  const queryClient = useQueryClient()
+  const [showCreateAssignment, setShowCreateAssignment] = useState(false)
 
   const { id: classroomIdFromParams } = useParams<{ id: string }>()
 
@@ -597,6 +643,7 @@ export default function ClassroomDetail(props: {
     isLoading,
     isError,
     error,
+    refetch: refetchClassroomDetail,
   } = useClassroomDetail(classroomIdFromParams)
 
   // Lấy dữ liệu lesson tiếp theo từ API /next
@@ -971,15 +1018,88 @@ export default function ClassroomDetail(props: {
               <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
                 <h3 className="text-lg font-semibold mb-4">Bài tập gần đây</h3>
                 <div className="space-y-4">
-                  {detail?.assignments
-                    ?.slice(0, 3)
-                    .map((assignment: Assignment) => (
-                      <AssignmentCard
-                        key={assignment.id}
-                        assignment={assignment}
-                        detail={detail}
-                      />
-                    ))}
+                  {detail?.assignments?.slice(0, 3).map((assignment) => (
+                    <AssignmentCard
+                      key={assignment.id}
+                      assignment={assignment}
+                      detail={detail}
+                      onViewSubmissions={(aid) =>
+                        navigate(
+                          `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
+                        )
+                      }
+                      onTogglePublish={async (a) => {
+                        try {
+                          await setAssignmentPublish(
+                            detail.id,
+                            a.id,
+                            !a.isPublished
+                          )
+                          toast.success(
+                            a.isPublished
+                              ? 'Đã chuyển sang Nháp'
+                              : 'Đã xuất bản'
+                          )
+                          await queryClient.invalidateQueries({
+                            queryKey: ['classroom-detail', detail.id],
+                          })
+                        } catch (e: any) {
+                          toast.error(
+                            e?.response?.data?.message ||
+                              'Cập nhật trạng thái thất bại'
+                          )
+                        }
+                      }}
+                      onEdit={(a) => {
+                        const initial = {
+                          title: a.title,
+                          description: a.description || '',
+                          instructions: a.instructions || '',
+                          dueDate: a.dueDate
+                            ? new Date(a.dueDate).toISOString().slice(0, 16)
+                            : '',
+                          isPublished: a.isPublished,
+                          totalPoints: a.totalPoints || 100,
+                          timeLimit: a.timeLimit || undefined,
+                          maxAttempts: a.maxAttempts || 1,
+                          activities: (a.activities || []).map((ac: any) => ({
+                            type: ac.type,
+                            title: ac.title,
+                            instructions: ac.instructions || '',
+                            points: ac.points || 0,
+                            timeLimit: ac.timeLimit || undefined,
+                            maxAttempts: ac.maxAttempts || undefined,
+                            passingScore: ac.passingScore || undefined,
+                            difficulty: ac.difficulty || undefined,
+                            hints: ac.hints || [],
+                            content: { kind: ac.type, data: ac.content },
+                          })),
+                        }
+                        setEditInitial(initial)
+                        setEditAssignmentId(a.id)
+                        setShowEditAssignment(true)
+                      }}
+                      onDelete={async (a) => {
+                        if (
+                          !confirm(
+                            'Xoá bài tập này? Hành động không thể hoàn tác.'
+                          )
+                        )
+                          return
+                        try {
+                          await deleteAssignment(detail.id, a.id)
+                          toast.success('Đã xoá bài tập')
+                          await queryClient.invalidateQueries({
+                            queryKey: ['classroom-detail', detail.id],
+                          })
+                        } catch (e: any) {
+                          toast.error(
+                            e?.response?.data?.message || 'Xoá thất bại'
+                          )
+                        }
+                      }}
+                    />
+                  ))}
                   {detail?.assignments?.length === 0 && (
                     <p className="text-gray-500 text-center py-8">
                       Chưa có bài tập nào
@@ -995,18 +1115,94 @@ export default function ClassroomDetail(props: {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Danh sách bài tập</h3>
                 {user?.role === 'teacher' && (
-                  <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition">
+                  <button
+                    onClick={() => setShowCreateAssignment(true)}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition"
+                  >
                     <Plus className="h-4 w-4" />
                     Tạo bài tập
                   </button>
                 )}
               </div>
               <div className="space-y-4">
-                {detail?.assignments?.map((assignment: Assignment) => (
+                {detail?.assignments?.map((assignment) => (
                   <AssignmentCard
                     key={assignment.id}
                     assignment={assignment}
                     detail={detail}
+                    onViewSubmissions={(aid) =>
+                      navigate(
+                        `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
+                      )
+                    }
+                    onTogglePublish={async (a) => {
+                      try {
+                        await setAssignmentPublish(
+                          detail.id,
+                          a.id,
+                          !a.isPublished
+                        )
+                        toast.success(
+                          a.isPublished ? 'Đã chuyển sang Nháp' : 'Đã xuất bản'
+                        )
+                        await queryClient.invalidateQueries({
+                          queryKey: ['classroom-detail', detail.id],
+                        })
+                      } catch (e: any) {
+                        toast.error(
+                          e?.response?.data?.message ||
+                            'Cập nhật trạng thái thất bại'
+                        )
+                      }
+                    }}
+                    onEdit={(a) => {
+                      const initial = {
+                        title: a.title,
+                        description: a.description || '',
+                        instructions: a.instructions || '',
+                        dueDate: a.dueDate
+                          ? new Date(a.dueDate).toISOString().slice(0, 16)
+                          : '',
+                        isPublished: a.isPublished,
+                        totalPoints: a.totalPoints || 100,
+                        timeLimit: a.timeLimit || undefined,
+                        maxAttempts: a.maxAttempts || 1,
+                        activities: (a.activities || []).map((ac: any) => ({
+                          type: ac.type,
+                          title: ac.title,
+                          instructions: ac.instructions || '',
+                          points: ac.points || 0,
+                          timeLimit: ac.timeLimit || undefined,
+                          maxAttempts: ac.maxAttempts || undefined,
+                          passingScore: ac.passingScore || undefined,
+                          difficulty: ac.difficulty || undefined,
+                          hints: ac.hints || [],
+                          content: { kind: ac.type, data: ac.content },
+                        })),
+                      }
+                      setEditInitial(initial)
+                      setEditAssignmentId(a.id)
+                      setShowEditAssignment(true)
+                    }}
+                    onDelete={async (a) => {
+                      if (
+                        !confirm(
+                          'Xoá bài tập này? Hành động không thể hoàn tác.'
+                        )
+                      )
+                        return
+                      try {
+                        await deleteAssignment(detail.id, a.id)
+                        toast.success('Đã xoá bài tập')
+                        await queryClient.invalidateQueries({
+                          queryKey: ['classroom-detail', detail.id],
+                        })
+                      } catch (e: any) {
+                        toast.error(
+                          e?.response?.data?.message || 'Xoá thất bại'
+                        )
+                      }
+                    }}
                   />
                 ))}
                 {detail?.assignments?.length === 0 && (
@@ -1360,6 +1556,24 @@ export default function ClassroomDetail(props: {
           user={teacherDetail}
           loading={loadingTeacherDetail}
           title="Thông tin giáo viên"
+        />
+      )}
+      {detail?.id && (
+        <CreateAssignmentModal
+          isOpen={showCreateAssignment}
+          classroomId={detail.id}
+          onClose={() => setShowCreateAssignment(false)}
+        />
+      )}
+      {detail?.id && (
+        <CreateAssignmentModal
+          isOpen={showEditAssignment}
+          classroomId={detail.id}
+          mode="edit"
+          assignmentId={editAssignmentId}
+          initialValues={editInitial}
+          onSubmitted={() => refetchClassroomDetail?.()}
+          onClose={() => setShowEditAssignment(false)}
         />
       )}
     </div>

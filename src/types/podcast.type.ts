@@ -18,6 +18,7 @@ export interface CreatePodcastData {
   voiceType?: string
   speechSpeed?: number
   duration?: number
+  tags?: string[]
   gaps: CreatePodcastGapData[] // Frontend sẽ tự tính từ [word] format
 }
 

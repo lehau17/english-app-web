@@ -265,6 +265,280 @@ function RightSidebar({ activity }: { activity?: Activity }): JSX.Element {
     </div>
   )
 }
+function FillBlankActivity({
+  data,
+  onPass,
+}: {
+  data: import('../types/learn.type').FillBlankContent
+  onPass: () => void
+}): JSX.Element {
+  const placeholderReGlobal = /(\[_{2,}\])/g
+  const placeholderTokenRe = /^\[_{2,}\]$/
+  const tokens = useMemo(
+    () => (data.passage || '').split(placeholderReGlobal),
+    [data.passage]
+  )
+  const placeholderCount = useMemo(
+    () => tokens.filter((t) => placeholderTokenRe.test(t)).length,
+    [tokens]
+  )
+  const [answers, setAnswers] = useState<string[]>(() =>
+    Array.from({ length: Math.max(1, placeholderCount) }, () => '')
+  )
+  useEffect(() => {
+    if (answers.length !== placeholderCount) {
+      setAnswers((prev) => {
+        const next = [...prev]
+        next.length = placeholderCount
+        for (let i = 0; i < placeholderCount; i++)
+          if (next[i] === undefined) next[i] = ''
+        return next
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeholderCount])
+
+  const [checked, setChecked] = useState(false)
+  const [result, setResult] = useState<boolean[]>([])
+
+  const normalize = (s: string) => s.trim().toLowerCase()
+
+  const handleCheck = () => {
+    const expected = (data.blanks ?? []).map(normalize)
+    const got = answers.map(normalize)
+    const n = Math.max(expected.length, answers.length)
+    const per: boolean[] = []
+    for (let i = 0; i < n; i++) {
+      per[i] =
+        (expected[i] ?? '') === (got[i] ?? '') && (expected[i] ?? '') !== ''
+    }
+    setResult(per)
+    setChecked(true)
+    const okAll =
+      expected.length > 0 &&
+      expected.length === answers.length &&
+      expected.every((e, i) => e === got[i])
+    if (okAll) onPass()
+  }
+
+  let blankIdx = 0
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 leading-8">
+        <h3 className="font-semibold mb-2">Điền vào chỗ trống</h3>
+        <div className="text-gray-800 flex flex-wrap">
+          {tokens.map((tk, i) => {
+            if (placeholderTokenRe.test(tk)) {
+              const ok = checked ? result[blankIdx] : undefined
+              const idx = blankIdx
+              blankIdx++
+              return (
+                <input
+                  key={`blank-${i}`}
+                  value={answers[idx] ?? ''}
+                  onChange={(e) => {
+                    const arr = [...answers]
+                    arr[idx] = e.target.value
+                    setAnswers(arr)
+                  }}
+                  className={
+                    'mx-1 rounded-md border-b-2 bg-yellow-50 px-2 py-0.5 text-sm focus:outline-none ' +
+                    (ok === undefined
+                      ? 'border-yellow-400'
+                      : ok
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-red-500 bg-red-50')
+                  }
+                  placeholder={`#${idx + 1}`}
+                  style={{ minWidth: 60 }}
+                />
+              )
+            }
+            return (
+              <span key={`t-${i}`} className="whitespace-pre-wrap">
+                {tk}
+              </span>
+            )
+          })}
+        </div>
+        {checked && data.blanks && (
+          <div className="mt-2 text-xs text-gray-500">
+            Số chỗ trống: {answers.length} • Số đáp án: {data.blanks.length}
+          </div>
+        )}
+      </div>
+      <div>
+        <button
+          onClick={handleCheck}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+        >
+          <ShieldCheck className="h-4 w-4" /> Kiểm tra
+        </button>
+      </div>
+    </div>
+  )
+}
+function DictationActivity({
+  data,
+  onPass,
+}: {
+  data: import('../types/learn.type').DictationContent
+  onPass: () => void
+}): JSX.Element {
+  const [text, setText] = useState('')
+  const [checked, setChecked] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const normalizeWords = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+
+  const handleCheck = () => {
+    const target = normalizeWords(data.transcript || '')
+    const got = normalizeWords(text)
+    const setT = new Set(target)
+    let matched = 0
+    for (const w of got) {
+      if (setT.has(w)) matched++
+    }
+    const ratio = target.length ? matched / target.length : 0
+    setChecked(true)
+    const passByLen = (data.minWords ?? 0) <= got.length
+    if ((ratio >= 0.8 || got.join(' ') === target.join(' ')) && passByLen) {
+      onPass()
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Nghe và chép lại</h3>
+          <p className="text-sm text-gray-600">
+            Yêu cầu tối thiểu: {data.minWords ?? 0} từ
+          </p>
+        </div>
+        {data.audioUrl && (
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+              onClick={() => audioRef.current?.play()}
+            >
+              <Volume2 className="h-4 w-4" /> Phát audio
+            </button>
+            <audio ref={audioRef} src={data.audioUrl} />
+          </div>
+        )}
+      </div>
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          rows={8}
+          placeholder="Nhập nội dung bạn nghe được..."
+        />
+        <div className="pt-3">
+          <button
+            onClick={handleCheck}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            <ShieldCheck className="h-4 w-4" /> Kiểm tra
+          </button>
+          {checked && (
+            <span className="ml-3 text-xs text-gray-500">
+              Đáp án có thể khác đôi chút, hệ thống chấp nhận ~80% từ đúng
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+function MatchingActivity({
+  data,
+  onPass,
+}: {
+  data: import('../types/learn.type').MatchingContent
+  onPass: () => void
+}): JSX.Element {
+  const pairs = data.pairs ?? []
+  const rights = useMemo(() => pairs.map((p) => p.right), [pairs])
+  const shuffled = useMemo(() => {
+    const arr = [...rights]
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr
+  }, [rights])
+  const [selected, setSelected] = useState<string[]>(
+    Array(pairs.length).fill('')
+  )
+  const [checked, setChecked] = useState(false)
+
+  const correctAll = pairs.every((p, i) => selected[i] === p.right)
+  const handleCheck = () => {
+    setChecked(true)
+    if (correctAll) onPass()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <h3 className="font-semibold mb-3">Ghép cặp tương ứng</h3>
+        <div className="space-y-3">
+          {pairs.map((p, i) => {
+            const ok = checked ? selected[i] === p.right : undefined
+            return (
+              <div key={i} className="grid gap-2 md:grid-cols-3 items-center">
+                <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
+                  {p.left}
+                </div>
+                <div className="md:col-span-2">
+                  <select
+                    className={
+                      'w-full rounded-lg border px-3 py-2 text-sm ' +
+                      (ok === undefined
+                        ? 'border-gray-300'
+                        : ok
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-red-500 bg-red-50')
+                    }
+                    value={selected[i]}
+                    onChange={(e) => {
+                      const arr = [...selected]
+                      arr[i] = e.target.value
+                      setSelected(arr)
+                    }}
+                  >
+                    <option value="">-- Chọn --</option>
+                    {shuffled.map((r, idx) => (
+                      <option key={idx} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="pt-3">
+          <button
+            onClick={handleCheck}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            <ShieldCheck className="h-4 w-4" /> Kiểm tra
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /** ========================
  * Activity Renderers
@@ -2277,6 +2551,24 @@ export default function LearnPlayerPage(): JSX.Element {
                   )}
                   {active.content.kind === 'conversation' && (
                     <ConversationActivity
+                      data={active.content.data}
+                      onPass={handlePass}
+                    />
+                  )}
+                  {active.content.kind === 'fill_blank' && (
+                    <FillBlankActivity
+                      data={active.content.data}
+                      onPass={handlePass}
+                    />
+                  )}
+                  {active.content.kind === 'dictation' && (
+                    <DictationActivity
+                      data={active.content.data}
+                      onPass={handlePass}
+                    />
+                  )}
+                  {active.content.kind === 'matching' && (
+                    <MatchingActivity
                       data={active.content.data}
                       onPass={handlePass}
                     />

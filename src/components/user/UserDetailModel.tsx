@@ -302,27 +302,6 @@ function InfoItem({ label, value }: { label: string; value: string }) {
   )
 }
 
-function SecurityBadge({
-  label,
-  verified,
-}: {
-  label: string
-  verified?: boolean
-}) {
-  return (
-    <div
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-        verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-      }`}
-    >
-      <div
-        className={`w-1.5 h-1.5 rounded-full ${
-          verified ? 'bg-green-600' : 'bg-gray-400'
-        }`}
-      ></div>
-      {label}
-    </div>
-  )
-}
+// (removed unused SecurityBadge component)
 
 export default UserDetailModal

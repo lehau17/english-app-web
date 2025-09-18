@@ -96,6 +96,7 @@ const DragDropFile: React.FC<Props> = ({
           type="file"
           accept={accept}
           onChange={onFileChange}
+          multiple={multiple}
           className="hidden"
           id="drag-drop-input"
         />
