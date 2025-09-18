@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
+import { Toaster } from 'react-hot-toast'
 
 function App() {
   // const navigate = useNavigate();
@@ -31,6 +32,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <Toaster position="top-right" />
       <Routes>
         {/* Public pages */}
         <Route element={<PublicRoute />}>

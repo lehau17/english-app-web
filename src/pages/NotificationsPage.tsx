@@ -1,16 +1,21 @@
-import React, { useState, useMemo } from 'react'
 import {
+  ArrowLeft,
   Bell,
   Check,
-  Clock,
-  Filter,
   MoreVertical,
-  Trash2,
-  ArrowLeft,
   Search,
+  Trash2,
   X,
 } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
+import {
+  deleteNotification as apiDeleteNotification,
+  markNotificationRead,
+  type ApiNotification,
+} from '../services/notifications.api'
+import { useNotificationsPagination } from '../hooks/notifications.hooks'
 
 interface Notification {
   id: string
@@ -122,107 +127,61 @@ const NotificationsPage: React.FC = () => {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'achievement',
-      title: 'Chúc mừng! Bạn đã hoàn thành streak 7 ngày',
-      content:
-        'Bạn đã học liên tục 7 ngày. Hãy tiếp tục duy trì thói quen học tập tốt này! Bạn đã nhận được 50 xu và 100 XP thưởng.',
-      time: '2 phút trước',
-      timestamp: new Date(Date.now() - 2 * 60 * 1000),
-      isRead: false,
-      icon: '🏆',
-      color: '#FFD700',
-    },
-    {
-      id: '2',
-      type: 'lesson',
-      title: 'Bài học mới đã sẵn sàng',
-      content:
-        'Unit 2: Colors - Màu sắc quanh ta đã được mở khóa. Bài học này bao gồm 15 từ vựng mới và 3 hoạt động thú vị. Hãy bắt đầu học ngay!',
-      time: '1 giờ trước',
-      timestamp: new Date(Date.now() - 60 * 60 * 1000),
-      isRead: false,
-      icon: '📚',
-      color: '#4CAF50',
-    },
-    {
-      id: '3',
-      type: 'reminder',
-      title: 'Đến giờ học rồi!',
-      content:
-        'Hãy dành 15 phút để ôn lại từ vựng hôm nay nhé. Bạn có 12 từ cần ôn tập để không bị quên.',
-      time: '3 giờ trước',
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-      isRead: true,
-      icon: '⏰',
-      color: '#FF9800',
-    },
-    {
-      id: '4',
-      type: 'assignment',
-      title: 'Bài tập mới từ Cô Lan',
-      content:
-        'Lớp Tiếng Anh 5A có bài tập mới: "Từ vựng Unit 3". Bài tập bao gồm 20 câu hỏi trắc nghiệm và 5 câu điền từ. Hạn nộp: 31/08/2024',
-      time: '5 giờ trước',
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-      isRead: true,
-      icon: '📝',
-      color: '#2196F3',
-    },
-    {
-      id: '5',
-      type: 'system',
-      title: 'Cập nhật ứng dụng',
-      content:
-        'Phiên bản mới v1.0.1 đã có sẵn với nhiều tính năng thú vị: Chế độ tối, game từ vựng mới và cải thiện hiệu suất.',
-      time: '1 ngày trước',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      isRead: true,
-      icon: '🔄',
-      color: '#9C27B0',
-    },
-    {
-      id: '6',
-      type: 'social',
-      title: 'Bạn bè mới',
-      content:
-        'Bé Gấu đã tham gia lớp học của bạn. Hãy chào đón bạn ấy! Bạn có thể xem profile và thành tích của Bé Gấu.',
-      time: '2 ngày trước',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      isRead: true,
-      icon: '👋',
-      color: '#E91E63',
-    },
-    {
-      id: '7',
-      type: 'event',
-      title: 'Sự kiện tuần: Thử thách 7 ngày',
-      content:
-        'Tham gia ngay để nhận huy hiệu đặc biệt và 200 xu thưởng! Hoàn thành ít nhất 1 bài học mỗi ngày trong 7 ngày liên tiếp.',
-      time: '3 ngày trước',
-      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      isRead: true,
-      icon: '🎉',
-      color: '#FF5722',
-    },
-    {
-      id: '8',
-      type: 'achievement',
-      title: 'Bạn đã lên cấp!',
-      content:
-        'Chúc mừng! Bạn đã đạt cấp độ 5. Bây giờ bạn có thể truy cập các bài học nâng cao và mini-games mới.',
-      time: '1 tuần trước',
-      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      isRead: true,
-      icon: '⭐',
-      color: '#FF6B35',
-    },
-  ])
+  const {
+    items,
+    page,
+    setPage,
+    hasNext,
+    loading,
+    loadMore,
+    reload,
+    refreshUnread,
+  } = useNotificationsPagination({ filter, pageSize: 10 })
 
+  // Map API notification to UI
+  function mapApi(n: ApiNotification): Notification {
+    const created = new Date(n.createdAt)
+    const type = (n.type as Notification['type']) || 'system'
+    const iconMap: Record<Notification['type'], string> = {
+      achievement: '🏆',
+      lesson: '📘',
+      reminder: '⏰',
+      assignment: '📝',
+      system: '⚙️',
+      social: '💬',
+      event: '📅',
+    }
+    const colorMap: Record<Notification['type'], string> = {
+      achievement: '#10b981',
+      lesson: '#3b82f6',
+      reminder: '#f59e0b',
+      assignment: '#6366f1',
+      system: '#6b7280',
+      social: '#ec4899',
+      event: '#22c55e',
+    }
+    return {
+      id: n.id,
+      type,
+      title: n.title,
+      content: n.body || '',
+      time: created.toLocaleString('vi-VN'),
+      timestamp: created,
+      isRead: !!n.readAt,
+      icon: iconMap[type],
+      color: colorMap[type],
+    }
+  }
+
+  // Initial unread refresh
+  useEffect(() => {
+    refreshUnread().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const mappedNotifications = useMemo(() => items.map(mapApi), [items])
   const filteredNotifications = useMemo(() => {
-    let result = notifications
+    let result = mappedNotifications
 
     // Filter by read status
     if (filter === 'unread') {
@@ -241,33 +200,57 @@ const NotificationsPage: React.FC = () => {
     }
 
     return result.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-  }, [notifications, filter, searchQuery])
+  }, [mappedNotifications, filter, searchQuery])
 
   const filterCounts = useMemo(
     () => ({
-      all: notifications.length,
-      unread: notifications.filter((n) => !n.isRead).length,
-      read: notifications.filter((n) => n.isRead).length,
+      all: mappedNotifications.length,
+      unread: mappedNotifications.filter((n) => !n.isRead).length,
+      read: mappedNotifications.filter((n) => n.isRead).length,
     }),
-    [notifications]
+    [mappedNotifications]
   )
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    )
+  const markAsRead = async (id: string) => {
+    try {
+      await markNotificationRead(id)
+      await refreshUnread()
+      reload()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Cập nhật thất bại')
+    }
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+  const markAllAsRead = async () => {
+    try {
+      const unread = mappedNotifications.filter((n) => !n.isRead)
+      await Promise.allSettled(unread.map((n) => markNotificationRead(n.id)))
+      await refreshUnread()
+      reload()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Cập nhật thất bại')
+    }
   }
 
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  const deleteNotification = async (id: string) => {
+    try {
+      await apiDeleteNotification(id)
+      await refreshUnread()
+      reload()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Xóa thất bại')
+    }
   }
 
-  const clearAllRead = () => {
-    setNotifications((prev) => prev.filter((n) => !n.isRead))
+  const clearAllRead = async () => {
+    try {
+      const readList = mappedNotifications.filter((n) => n.isRead)
+      await Promise.allSettled(readList.map((n) => apiDeleteNotification(n.id)))
+      await refreshUnread()
+      reload()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Xóa thất bại')
+    }
   }
 
   const filterTabs = [
@@ -395,10 +378,14 @@ const NotificationsPage: React.FC = () => {
         )}
 
         {/* Load More */}
-        {filteredNotifications.length > 0 && (
+        {filteredNotifications.length > 0 && hasNext && (
           <div className="text-center mt-8">
-            <button className="px-6 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-              Tải thêm thông báo
+            <button
+              onClick={loadMore}
+              disabled={loading}
+              className="px-6 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {loading ? 'Đang tải...' : 'Tải thêm thông báo'}
             </button>
           </div>
         )}
