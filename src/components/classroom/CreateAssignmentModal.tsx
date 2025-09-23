@@ -1,11 +1,11 @@
-import { useFieldArray, useForm } from 'react-hook-form'
-import { X, Plus, Trash2, Clock, Trophy } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Clock, Plus, Trash2, Trophy, X } from 'lucide-react'
+import React, { useEffect } from 'react'
+import { useFieldArray, useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { createAssignment } from '../../services/assignment.api'
 import type { AssignmentCreateRequest } from '../../types/assignment.type'
 import type { ActivityType } from '../../types/learn.type'
-import { createAssignment } from '../../services/assignment.api'
-import React from 'react'
 
 type Props = {
   isOpen: boolean
@@ -101,9 +101,17 @@ export default function CreateAssignmentModal({
   initialValues?: AssignmentCreateRequest
   onSubmitted?: () => void
 }) {
-  const queryClient = useQueryClient()
   const mode = rest.mode ?? 'create'
-  const { register, control, handleSubmit, watch, setValue } =
+
+  console.log('🚀 CreateAssignmentModal render:', {
+    isOpen,
+    mode,
+    hasInitialValues: !!rest.initialValues,
+    initialActivitiesCount: rest.initialValues?.activities?.length,
+  })
+
+  const queryClient = useQueryClient()
+  const { register, control, handleSubmit, watch, setValue, reset } =
     useForm<AssignmentCreateRequest>({
       defaultValues: rest.initialValues ?? {
         title: '',
@@ -121,7 +129,44 @@ export default function CreateAssignmentModal({
     fields: actFields,
     append: addAct,
     remove: removeAct,
+    replace: replaceActivities,
   } = useFieldArray({ control, name: 'activities' })
+
+  // Reset form when initialValues change (for edit mode)
+  useEffect(() => {
+    if (rest.initialValues && mode === 'edit') {
+      console.log('🔄 Resetting form with initialValues:', rest.initialValues)
+      console.log('📋 Activities count:', rest.initialValues.activities?.length)
+      rest.initialValues.activities?.forEach((activity, index) => {
+        console.log(`📝 Activity ${index}:`, {
+          type: activity.type,
+          title: activity.title,
+          content: activity.content,
+        })
+      })
+
+      // Reset the entire form
+      reset(rest.initialValues)
+
+      // Also manually replace field array to ensure it updates
+      if (rest.initialValues.activities) {
+        replaceActivities(rest.initialValues.activities)
+      }
+
+      // Also manually ensure field array is updated
+      setTimeout(() => {
+        console.log('📊 After reset - actFields length:', actFields.length)
+      }, 100)
+    }
+  }, [rest.initialValues, mode, reset, actFields.length])
+
+  // Debug log current field array state
+  useEffect(() => {
+    console.log('📊 Current actFields length:', actFields.length)
+    actFields.forEach((field, index) => {
+      console.log(`📋 Field ${index}:`, field)
+    })
+  }, [actFields])
 
   const mutation = useMutation({
     mutationFn: (payload: AssignmentCreateRequest) =>
@@ -154,21 +199,21 @@ export default function CreateAssignmentModal({
       title: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
       points: 10,
       maxAttempts: 1,
-      content: { kind: type, data: {} },
+      content: {},
     }
     // seed minimal content per type
     switch (type) {
       case 'quiz':
       case 'reading':
       case 'grammar':
-        ;(base as any).content.data = {
+        ;(base as any).content = {
           question: '',
           options: ['', ''],
           correctIndex: 0,
         }
         break
       case 'listening':
-        ;(base as any).content.data = {
+        ;(base as any).content = {
           audioUrl: '',
           prompt: '',
           options: ['', ''],
@@ -176,42 +221,42 @@ export default function CreateAssignmentModal({
         }
         break
       case 'vocab':
-        ;(base as any).content.data = { items: [{ word: '', definition: '' }] }
+        ;(base as any).content = { items: [{ word: '', definition: '' }] }
         break
       case 'pronunciation':
-        ;(base as any).content.data = { phrase: '', tips: [] }
+        ;(base as any).content = { phrase: '', tips: [] }
         break
       case 'speaking':
-        ;(base as any).content.data = { prompt: '', minSeconds: 10, tips: [] }
+        ;(base as any).content = { prompt: '', minSeconds: 10, tips: [] }
         break
       case 'mini_game':
-        ;(base as any).content.data = { target: '', pool: [], rounds: 3 }
+        ;(base as any).content = { target: '', pool: [], rounds: 3 }
         break
       case 'writing':
-        ;(base as any).content.data = { prompt: '', minWords: 50, rubric: [] }
+        ;(base as any).content = { prompt: '', minWords: 50, rubric: [] }
         break
       case 'flashcard':
-        ;(base as any).content.data = { cards: [{ front: '', back: '' }] }
+        ;(base as any).content = { cards: [{ front: '', back: '' }] }
         break
       case 'conversation':
-        ;(base as any).content.data = {
+        ;(base as any).content = {
           scenario: '',
           initialDialog: [{ role: 'assistant', text: '' }],
           suggestions: [],
         }
         break
       case 'fill_blank':
-        ;(base as any).content.data = { passage: '', blanks: [''] }
+        ;(base as any).content = { passage: '', blanks: [''] }
         break
       case 'dictation':
-        ;(base as any).content.data = {
+        ;(base as any).content = {
           audioUrl: '',
           transcript: '',
           minWords: 0,
         }
         break
       case 'matching':
-        ;(base as any).content.data = { pairs: [{ left: '', right: '' }] }
+        ;(base as any).content = { pairs: [{ left: '', right: '' }] }
         break
     }
     addAct(base as any)
@@ -474,7 +519,7 @@ function TypeSpecificFields({
   setValue: any
   watch: any
 }) {
-  const basePath = `activities.${idx}.content.data`
+  const basePath = `activities.${idx}.content`
   const val = (name: string) => watch(`${basePath}.${name}`)
 
   // helpers for array fields
@@ -541,8 +586,18 @@ function TypeSpecificFields({
             <TextInput
               type="number"
               min={0}
+              max={Math.max(0, ((val('options') as string[]) || []).length - 1)}
               {...register(`${basePath}.correctIndex` as const, {
                 valueAsNumber: true,
+                validate: (value: number) => {
+                  const options = val('options') as string[]
+                  if (!options || options.length === 0)
+                    return 'Cần có ít nhất 1 lựa chọn'
+                  if (value < 0 || value >= options.length) {
+                    return `Index phải từ 0 đến ${options.length - 1}`
+                  }
+                  return true
+                },
               })}
             />
           </Labeled>
@@ -593,8 +648,18 @@ function TypeSpecificFields({
             <TextInput
               type="number"
               min={0}
+              max={Math.max(0, ((val('options') as string[]) || []).length - 1)}
               {...register(`${basePath}.correctIndex` as const, {
                 valueAsNumber: true,
+                validate: (value: number) => {
+                  const options = val('options') as string[]
+                  if (!options || options.length === 0)
+                    return 'Cần có ít nhất 1 lựa chọn'
+                  if (value < 0 || value >= options.length) {
+                    return `Index phải từ 0 đến ${options.length - 1}`
+                  }
+                  return true
+                },
               })}
             />
           </Labeled>
