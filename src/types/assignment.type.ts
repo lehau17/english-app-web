@@ -10,7 +10,7 @@ export interface AssignmentCreateActivity {
   passingScore?: number
   difficulty?: string
   hints?: string[]
-  content: any // should follow { kind: ActivityType; data: ... }
+  content: any
 }
 
 export interface AssignmentCreateRequest {
