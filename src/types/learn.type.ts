@@ -53,11 +53,16 @@ export interface QuizContent {
   correctIndex: number
   explanation?: string
 }
-export interface ListeningContent {
-  audioUrl: string
-  prompt: string
+export interface ListeningQuestion {
+  question: string
   options: string[]
   correctIndex: number
+}
+
+export interface ListeningContent {
+  audioUrl: string
+  instructions: string
+  questions: ListeningQuestion[]
 }
 export interface PronunciationContent {
   phrase: string

@@ -75,6 +75,13 @@ export interface ClassroomDetailResponse {
     _count: {
       submissions: number
     }
+    submission?: {
+      id: string
+      score: number | null
+      status: 'submitted' | 'graded' | 'late' | 'missing'
+      attempt: number
+      submittedAt: string | null
+    } | null
     activities: Array<{
       id: string
       type: string
@@ -109,6 +116,19 @@ export interface ClassroomDetailResponse {
       passingScore: number | null
     }>
   }>
+  course?: {
+    id: string
+    title: string
+    description: string | null
+    price: number | null
+    currency: string | null
+    difficulty: string
+    estimatedHours: number | null
+    imageUrl: string | null
+    tags: string[]
+    isPublished: boolean
+    language: string
+  } | null
 }
 
 export interface ClassroomAnnouncement {

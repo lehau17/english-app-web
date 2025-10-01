@@ -3,15 +3,34 @@ export interface ChildProgress {
   name: string
   avatar?: string
   level: number
-  xp: number
-  xpToNext: number
-  streak: number
-  coins: number
   todayStudyTime: number
   completedActivities: number
   totalActivities: number
   recentActivity: string
   lastActive: string
+  settings?: {
+    canViewProgress: boolean
+    canSetGoals: boolean
+    canControlTime: boolean
+    dailyTimeLimit?: number
+    bedtimeStart?: string
+    bedtimeEnd?: string
+    notificationsEnabled: boolean
+    notificationTypes: string[]
+    notificationSchedule: string
+    quietHoursStart?: string
+    quietHoursEnd?: string
+  }
+}
+
+export interface ParentChildProgressItem {
+  id: string
+  activityTitle: string
+  activityType: string
+  state: string
+  score?: number | null
+  timeSpent: number
+  createdAt: string
 }
 
 export interface ParentReward {
@@ -19,16 +38,21 @@ export interface ParentReward {
   title: string
   description?: string
   cost: number
-  claimed: boolean
+  type: string
+  imageUrl?: string
+  isActive: boolean
+  claimsCount: number
+  createdAt: string
 }
 
 export interface ParentNotification {
   id: string
-  type: 'achievement' | 'activity' | 'reminder' | 'system'
+  type: string
   title: string
-  message: string
-  time: string
-  read: boolean
+  body?: string
+  data?: any
+  readAt?: string
+  createdAt: string
 }
 
 export interface ParentDashboardData {

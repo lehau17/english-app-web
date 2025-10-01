@@ -1,6 +1,6 @@
 import api from '../lib/api'
-import type { BaseResponse } from '../types/base-response.type'
 import type { AssignmentCreateRequest } from '../types/assignment.type'
+import type { BaseResponse } from '../types/base-response.type'
 
 type PageResponse<T> = {
   data: T[]
@@ -78,4 +78,111 @@ export async function getAssignmentSubmissions(
     { params }
   )
   return res.data
+}
+
+// New APIs for assignment taking flow
+export async function getAssignmentForTaking(assignmentId: string) {
+  const res = await api.get<BaseResponse<any>>(
+    `/private/v1/assignments/${assignmentId}`
+  )
+  return res.data
+}
+
+export async function submitAssignment(
+  assignmentId: string,
+  payload: {
+    answers: Record<string, any>
+    timeSpent?: number
+    notes?: string
+  }
+) {
+  const res = await api.post<BaseResponse<any>>(
+    `/private/v1/assignments/${assignmentId}/submit`,
+    payload
+  )
+  return res.data
+}
+
+export async function getMySubmissionResult(assignmentId: string) {
+  const res = await api.get<BaseResponse<any>>(
+    `/private/v1/assignments/${assignmentId}/my-submission`
+  )
+  return res.data
+}
+
+export async function getMySubmissionHistory(assignmentId: string) {
+  const res = await api.get<BaseResponse<any>>(
+    `/private/v1/assignments/${assignmentId}/my-submission-history`
+  )
+  return res.data
+}
+
+// Import APIs
+export async function downloadAssignmentTemplate() {
+  const res = await api.get(`/private/v1/assignments/import/template`, {
+    responseType: 'blob',
+  })
+  return res.data
+}
+
+export async function previewAssignmentImport(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const res = await api.post<BaseResponse<any>>(
+    `/private/v1/assignments/import/preview`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
+  return res.data
+}
+
+export async function importAssignment(
+  classroomId: string,
+  file: File,
+  importData?: any
+) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  if (importData) {
+    Object.keys(importData).forEach((key) => {
+      formData.append(key, importData[key])
+    })
+  }
+
+  const res = await api.post<BaseResponse<any>>(
+    `/private/v1/assignments/classroom/${classroomId}/import`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
+  return res.data
+}
+
+// PDF Download API
+export async function downloadAssignmentPdf(assignmentId: string) {
+  const res = await api.get(`/private/v1/assignments/${assignmentId}/pdf`, {
+    responseType: 'blob',
+  })
+  return res.data
+}
+
+// Utility function to download PDF from blob
+export function downloadPdfFromBlob(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
 }

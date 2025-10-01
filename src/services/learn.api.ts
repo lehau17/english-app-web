@@ -62,6 +62,13 @@ export async function completeActivity(dto: CompleteActivityRequest) {
   return response.data
 }
 
+export async function unlockNextLesson(lessonId: string) {
+  const response = await api.post<
+    BaseResponse<{ message: string; nextLessonId?: string }>
+  >(`/private/v1/lessons/${lessonId}/unlock`)
+  return response.data
+}
+
 export async function getClassroomDetail(classroomId: string) {
   const response = await api.get<BaseResponse<any>>(
     `/private/v1/classrooms/${classroomId}/detail`

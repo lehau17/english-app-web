@@ -5,6 +5,7 @@ import type {
   NextLesson,
   StudentDashboard,
 } from '../types/home.type'
+import type { LeaderboardApiResponse } from '../types/leaderboard.type'
 import type { User } from '../types/user.type'
 
 // Lấy thông tin user hiện tại
@@ -38,6 +39,40 @@ export const fetchStudentDashboard = async (): Promise<
 > => {
   const { data } = await api.get<BaseResponse<StudentDashboard>>(
     '/private/v1/student-dashboard'
+  )
+  return data
+}
+
+export const fetchClassroomLeaderboard = async (
+  classroomId: string,
+  params?: { year?: number; month?: number; from?: string; to?: string }
+): Promise<LeaderboardApiResponse> => {
+  const { data } = await api.get<LeaderboardApiResponse>(
+    `/private/v1/leaderboards/classrooms/${classroomId}`,
+    { params }
+  )
+  return data
+}
+
+export const fetchMonthlyLeaderboard = async (params: {
+  year: number
+  month: number
+  classroomId?: string
+}): Promise<LeaderboardApiResponse> => {
+  const { data } = await api.get<LeaderboardApiResponse>(
+    '/private/v1/leaderboards/monthly',
+    { params }
+  )
+  return data
+}
+
+export const fetchYearlyLeaderboard = async (params: {
+  year: number
+  classroomId?: string
+}): Promise<LeaderboardApiResponse> => {
+  const { data } = await api.get<LeaderboardApiResponse>(
+    '/private/v1/leaderboards/yearly',
+    { params }
   )
   return data
 }

@@ -5,6 +5,21 @@ import type { User } from '../types/user.type'
 
 export type RefreshResponse = { accessToken: string }
 
+export interface UpdateProfilePayload {
+  displayName?: string
+  bio?: string
+  nationality?: string
+  timezone?: string
+  firstName?: string
+  lastName?: string
+  avatarUrl?: string
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string
+  newPassword: string
+}
+
 export const loginApi = async (
   payload: LoginPayload
 ): Promise<BaseResponse<LoginResponse>> => {
@@ -43,4 +58,23 @@ export const meApi = async (): Promise<User> => {
     )
   // unwrap global envelope
   return data.data
+}
+
+// Update profile của current user
+export const updateProfileApi = async (
+  userId: string,
+  payload: UpdateProfilePayload
+): Promise<User> => {
+  const { data } = await api.put<BaseResponse<User>>(
+    `/private/v1/students/${userId}`,
+    payload
+  )
+  return data.data
+}
+
+// Change password
+export const changePasswordApi = async (
+  payload: ChangePasswordPayload
+): Promise<void> => {
+  await api.post('/private/v1/auth/change-password', payload)
 }
