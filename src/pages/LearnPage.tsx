@@ -1325,7 +1325,6 @@ function VocabActivity({
                   <button
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
                     onClick={() => {
-                      console.log('Play audio', it.audioUrl)
                       audioRef.current?.play()
                     }}
                   >
@@ -3367,7 +3366,6 @@ function BottomNav({
   onGoToNextLesson?: () => void
   currentActivityCompleted?: boolean
 }): JSX.Element {
-  console.log('test', { hasPrev, hasNext, currentActivityCompleted })
   const canGoNext = hasNext && currentActivityCompleted
   return (
     <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3">
@@ -3492,9 +3490,7 @@ export default function LearnPlayerPage(): JSX.Element {
     if (!user?.id) return
 
     try {
-      console.log('Fetching next lesson...')
       const result = await nextLessonQuery.refetch()
-      console.log('Next lesson response:', result)
       if (result.data) {
         setNextLesson(result.data)
         return result.data
@@ -3508,16 +3504,9 @@ export default function LearnPlayerPage(): JSX.Element {
   // Use TanStack Query for lesson and activities data
   const { data: lessonData, isLoading, error } = lessonAndActivitiesQuery
 
-  console.log('Lesson and activities query state:', {
-    isLoading,
-    error,
-    lessonData,
-  })
-
   // Update local state when data is available
   useEffect(() => {
     if (lessonData) {
-      console.log('Lesson data received:', lessonData)
       setLesson(lessonData.lesson)
 
       // Map activities to match FE expected format
@@ -3530,7 +3519,6 @@ export default function LearnPlayerPage(): JSX.Element {
         },
       }))
 
-      console.log('Mapped activities:', mappedActivities)
       setActivities(mappedActivities)
       setActiveId(lessonData.currentActivityId)
       setLoading(false)
@@ -3611,8 +3599,7 @@ export default function LearnPlayerPage(): JSX.Element {
               await unlockNextLessonMutation.mutateAsync(lessonId)
             // Show success message with the unlock result
             if (unlockResult.data.message) {
-              // You could show a toast or notification here
-              console.log('🎉 Lesson completed!', unlockResult.data.message)
+              // Success - lesson unlocked
             }
           } catch (unlockError) {
             // Don't fail the main flow if unlock fails
