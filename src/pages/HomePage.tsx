@@ -599,6 +599,7 @@ export default function HomePage(): JSX.Element {
             name: paymentClassroom.name,
             course: paymentClassroom.course
               ? {
+                  id: paymentClassroom.course.id,
                   title: paymentClassroom.course.title,
                   price: paymentClassroom.course.price || 0,
                   currency: paymentClassroom.course.currency,

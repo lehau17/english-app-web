@@ -9,12 +9,6 @@ const ProtectedRoute: React.FC = () => {
 
   // Redirect based on user role after authentication
   useEffect(() => {
-    console.log('ProtectedRoute useEffect:', {
-      isAuthenticated,
-      user,
-      currentPath: location.pathname,
-    })
-
     if (isAuthenticated && user && user.role) {
       const currentPath = location.pathname
 
@@ -24,15 +18,11 @@ const ProtectedRoute: React.FC = () => {
         currentPath === '/parent-login' ||
         currentPath === '/'
       ) {
-        console.log('Redirecting based on role:', user.role)
         if (user.role === 'parent') {
-          console.log('Redirecting parent to /parent-home')
           navigate('/parent-home', { replace: true })
         } else if (user.role === 'student') {
-          console.log('Redirecting student to /')
           navigate('/', { replace: true })
         } else {
-          console.log('Redirecting other role to /')
           navigate('/', { replace: true })
         }
       }
