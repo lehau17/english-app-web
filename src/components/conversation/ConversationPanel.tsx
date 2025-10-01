@@ -1,4 +1,11 @@
-import { Loader2, MessageSquareText, X } from 'lucide-react'
+import {
+  Image,
+  Loader2,
+  Maximize,
+  MessageSquareText,
+  Minimize,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type {
   ConversationMessage,
@@ -13,6 +20,8 @@ interface ClassroomOption {
 
 interface ConversationPanelProps {
   onClose: () => void
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
   classrooms: ClassroomOption[]
   selectedClassroomId?: string
   onSelectClassroom: (id: string) => void
@@ -22,7 +31,7 @@ interface ConversationPanelProps {
   onSelectConversation: (id: string) => void
   messages: ConversationMessage[]
   loadingMessages: boolean
-  onSendMessage: (content: string) => Promise<void>
+  onSendMessage: (content: string, attachments?: File[]) => Promise<void>
   sendingMessage: boolean
   hasMoreMessages: boolean
   onLoadMoreMessages: () => void
@@ -32,6 +41,8 @@ interface ConversationPanelProps {
 
 export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   onClose,
+  isFullscreen = false,
+  onToggleFullscreen,
   classrooms,
   selectedClassroomId,
   onSelectClassroom,
@@ -50,7 +61,9 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
 }) => {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const messagesContainerRef = useRef<HTMLDivElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (loadingMessages) return
@@ -67,14 +80,25 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
   const handleSubmit = async () => {
     const content = draft.trim()
-    if (!content) return
+    if (!content && selectedFiles.length === 0) return
     setSending(true)
     try {
-      await onSendMessage(content)
+      await onSendMessage(content, selectedFiles)
       setDraft('')
+      setSelectedFiles([])
     } finally {
       setSending(false)
     }
+  }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+    setSelectedFiles((prev) => [...prev, ...imageFiles])
+  }
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const renderParticipantNames = (participants: ConversationParticipant[]) => {
@@ -93,7 +117,13 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   }
 
   return (
-    <div className="mb-4 w-[420px] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-xl">
+    <div
+      className={`mb-4 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-xl ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 m-0 h-screen w-screen rounded-none'
+          : 'w-[500px]'
+      }`}
+    >
       <div className="flex items-center justify-between border-b border-black/5 bg-slate-900/95 px-4 py-3 text-white">
         <div className="flex flex-col">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
@@ -118,18 +148,38 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full p-1 text-white/80 transition hover:bg-white/20 hover:text-white"
-          aria-label="Đóng trò chuyện"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className="rounded-full p-1 text-white/80 transition hover:bg-white/20 hover:text-white"
+              title={isFullscreen ? 'Thu nhỏ' : 'Phóng to'}
+            >
+              {isFullscreen ? (
+                <Minimize className="h-4 w-4" />
+              ) : (
+                <Maximize className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-white/80 transition hover:bg-white/20 hover:text-white"
+            aria-label="Đóng trò chuyện"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex h-[420px]">
-        <aside className="w-40 border-r border-black/5 bg-slate-50/60">
+      <div
+        className={`flex ${isFullscreen ? 'h-[calc(100vh-64px)]' : 'h-[420px]'}`}
+      >
+        <aside
+          className={`border-r border-black/5 bg-slate-50/60 ${isFullscreen ? 'w-64' : 'w-40'}`}
+        >
           {loadingConversations ? (
             <div className="flex h-full items-center justify-center text-slate-400">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -260,6 +310,33 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               </div>
 
               <div className="border-t border-black/5 bg-white px-4 py-3">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+                {selectedFiles.length > 0 && (
+                  <div className="mb-2 flex gap-2 overflow-x-auto pb-2">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="relative flex-shrink-0">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="h-16 w-16 rounded-lg object-cover"
+                        />
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="rounded-2xl border border-black/5 bg-slate-50/80 p-2 shadow-inner">
                   <textarea
                     className="h-16 w-full resize-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
@@ -274,11 +351,23 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
                     }}
                     disabled={sendingMessage || sending}
                   />
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600 transition hover:bg-gray-200"
+                    >
+                      <Image className="h-3 w-3" />
+                      Hình ảnh
+                    </button>
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={sendingMessage || sending || !draft.trim()}
+                      disabled={
+                        sendingMessage ||
+                        sending ||
+                        (!draft.trim() && selectedFiles.length === 0)
+                      }
                       className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                     >
                       {(sendingMessage || sending) && (

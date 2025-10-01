@@ -1,8 +1,8 @@
-import { Bot, MessageCircle, Loader2 } from 'lucide-react'
+import { Bot, Loader2, MessageCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
-import { useMyClassrooms } from '../../hooks/useMyClassrooms'
+import { useConversation } from '../../context/useConversation'
 import {
   useConversationList,
   useConversationMessages,
@@ -10,6 +10,7 @@ import {
   useMarkConversationReadMutation,
   useSendConversationMessage,
 } from '../../hooks/conversation.hooks'
+import { useMyClassrooms } from '../../hooks/useMyClassrooms'
 import type { ConversationSummary } from '../../types/conversation.type'
 import { ConversationPanel } from './ConversationPanel'
 import { SearchUserModal } from './SearchUserModal'
@@ -18,7 +19,9 @@ const DEFAULT_LIMIT = 20
 
 export const ConversationWidget = () => {
   const { user } = useAuth()
+  const { registerOpenWidget } = useConversation()
   const [isOpen, setIsOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [selectedClassroomId, setSelectedClassroomId] = useState<
     string | undefined
   >(undefined)
@@ -26,6 +29,17 @@ export const ConversationWidget = () => {
     string | undefined
   >(undefined)
   const [showSearchModal, setShowSearchModal] = useState(false)
+
+  // Register openWidget function với context
+  useEffect(() => {
+    registerOpenWidget((classroomId: string, conversationId?: string) => {
+      setSelectedClassroomId(classroomId)
+      if (conversationId) {
+        setSelectedConversationId(conversationId)
+      }
+      setIsOpen(true)
+    })
+  }, [registerOpenWidget])
 
   const classroomsQuery = useMyClassrooms(user?.role, !!user)
   const classroomOptions = useMemo(
@@ -103,8 +117,15 @@ export const ConversationWidget = () => {
     activeConversation?.unreadCount,
   ])
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, attachments?: File[]) => {
     if (!selectedClassroomId || !selectedConversationId) return
+
+    // Tạm thời chỉ gửi text message, có thể mở rộng để upload files sau
+    if (attachments && attachments.length > 0) {
+      toast('Chức năng gửi hình ảnh đang được phát triển')
+      return
+    }
+
     await sendMessageMutation.mutateAsync({
       classroomId: selectedClassroomId,
       conversationId: selectedConversationId,
@@ -115,6 +136,7 @@ export const ConversationWidget = () => {
   }
 
   const handleToggle = () => setIsOpen((value) => !value)
+  const handleToggleFullscreen = () => setIsFullscreen((value) => !value)
 
   const handleAiClick = () => {
     toast('Tính năng Chat với AI đang được phát triển.')
@@ -129,6 +151,8 @@ export const ConversationWidget = () => {
       {isOpen && (
         <ConversationPanel
           onClose={handleToggle}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
           classrooms={classroomOptions}
           selectedClassroomId={selectedClassroomId}
           onSelectClassroom={(id) => {
