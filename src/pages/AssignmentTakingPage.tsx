@@ -16,7 +16,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   getAssignmentForTaking,
-  getMySubmissionResult,
+  getMySubmissionHistory,
   submitAssignment,
 } from '../services/assignment.api'
 
@@ -82,31 +82,7 @@ export default function AssignmentTakingPage(): JSX.Element {
       try {
         setIsLoading(true)
 
-        // Check if student has already submitted this assignment
-        try {
-          const submissionResponse = await getMySubmissionResult(assignmentId)
-          if (submissionResponse && submissionResponse.data) {
-            // Student has already submitted, redirect to result page
-            toast.success(
-              'Bạn đã nộp bài tập này rồi. Đang chuyển đến trang kết quả...'
-            )
-            navigate(
-              `/classroom/${classroomId}/assignment/${assignmentId}/result`
-            )
-            return
-          }
-        } catch (error: any) {
-          // If 404, means no submission yet - continue to load assignment
-          if (error.response?.status === 404) {
-            console.log(
-              'No submission found, allowing student to take assignment'
-            )
-          } else {
-            console.error('Error checking submission:', error)
-            // Don't block assignment taking for other errors
-          }
-        }
-
+        // First load assignment to get maxAttempts info
         const response = await getAssignmentForTaking(assignmentId)
         const assignmentData = response.data
 
@@ -115,6 +91,37 @@ export default function AssignmentTakingPage(): JSX.Element {
           toast.error('Không thể tải dữ liệu bài tập')
           navigate(`/classroom-detail/${classroomId}`)
           return
+        }
+
+        // Check if student has exceeded max attempts
+        try {
+          const historyResponse = await getMySubmissionHistory(assignmentId)
+          const submissionHistory = historyResponse?.data || []
+
+          if (submissionHistory.length >= assignmentData.maxAttempts) {
+            // Student has exceeded max attempts - redirect to result page with most recent submission
+            toast.error(
+              `Bạn đã sử dụng hết ${assignmentData.maxAttempts} lần làm bài. Đang chuyển đến trang kết quả...`
+            )
+            navigate(
+              `/classroom/${classroomId}/assignment/${assignmentId}/result`
+            )
+            return
+          }
+
+          console.log(
+            `Student has ${submissionHistory.length}/${assignmentData.maxAttempts} attempts used`
+          )
+        } catch (error: any) {
+          // If 404, means no submission history yet - continue to load assignment
+          if (error.response?.status === 404) {
+            console.log(
+              'No submission history found, allowing student to take assignment'
+            )
+          } else {
+            console.error('Error checking submission history:', error)
+            // Don't block assignment taking for other errors
+          }
         }
 
         // Additional validation: check if assignment is still available
@@ -383,41 +390,132 @@ export default function AssignmentTakingPage(): JSX.Element {
         )
 
       case 'listening':
+        // Handle both old and new listening formats
+        const hasQuestions =
+          activity.content.questions &&
+          Array.isArray(activity.content.questions)
+        const questions = hasQuestions
+          ? activity.content.questions
+          : [
+              {
+                question:
+                  activity.content.prompt ||
+                  'Listen and choose the correct answer',
+                options: activity.content.options || [],
+                correctIndex: activity.content.correctIndex || 0,
+              },
+            ]
+
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Volume2 className="h-5 w-5 text-green-600" />
               Nghe và trả lời
             </h3>
+
+            {/* Audio Section */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <audio controls className="w-full mb-3">
                 <source src={activity.content.audioUrl} type="audio/mpeg" />
                 Trình duyệt của bạn không hỗ trợ phát audio.
               </audio>
-              <p className="text-green-800 font-medium">
-                {activity.content.prompt}
+              <p className="text-green-800 font-medium text-sm">
+                🎧 Nghe audio và trả lời {questions.length} câu hỏi bên dưới
               </p>
             </div>
-            <div className="space-y-2">
-              {activity.content.options.map((option: string, index: number) => (
-                <label
-                  key={index}
-                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name={activity.id}
-                    value={index}
-                    checked={answer === index}
-                    onChange={(e) =>
-                      handleAnswerChange(activity.id, parseInt(e.target.value))
-                    }
-                    className="text-green-600"
-                  />
-                  <span>{option}</span>
-                </label>
-              ))}
+
+            {/* Questions Section */}
+            <div className="space-y-6">
+              {questions.map((question: any, questionIndex: number) => {
+                const questionKey = `${activity.id}_q${questionIndex}`
+                const questionAnswer = hasQuestions
+                  ? answer && typeof answer === 'object'
+                    ? answer[questionIndex]
+                    : undefined
+                  : answer
+
+                return (
+                  <div
+                    key={questionIndex}
+                    className="border border-gray-200 rounded-lg p-4 bg-white"
+                  >
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-800 mb-2">
+                        {questions.length > 1 && (
+                          <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">
+                            Câu {questionIndex + 1}
+                          </span>
+                        )}
+                        {question.question}
+                      </h4>
+                    </div>
+
+                    <div className="space-y-2">
+                      {question.options.map(
+                        (option: string, optionIndex: number) => (
+                          <label
+                            key={optionIndex}
+                            className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition"
+                          >
+                            <input
+                              type="radio"
+                              name={questionKey}
+                              value={optionIndex}
+                              checked={questionAnswer === optionIndex}
+                              onChange={(e) => {
+                                const newOptionIndex = parseInt(e.target.value)
+                                if (hasQuestions) {
+                                  // Multiple questions format
+                                  const newAnswer = { ...(answer || {}) }
+                                  newAnswer[questionIndex] = newOptionIndex
+                                  handleAnswerChange(activity.id, newAnswer)
+                                } else {
+                                  // Single question format (backward compatibility)
+                                  handleAnswerChange(
+                                    activity.id,
+                                    newOptionIndex
+                                  )
+                                }
+                              }}
+                              className="text-green-600"
+                            />
+                            <span className="text-gray-700">{option}</span>
+                          </label>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
+
+            {/* Progress Indicator for Multiple Questions */}
+            {questions.length > 1 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-green-700 font-medium">Tiến độ:</span>
+                  <span className="text-green-600">
+                    {answer && typeof answer === 'object'
+                      ? Object.keys(answer).length
+                      : 0}{' '}
+                    / {questions.length} câu đã trả lời
+                  </span>
+                </div>
+                <div className="mt-2 bg-green-200 rounded-full h-2">
+                  <div
+                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        answer && typeof answer === 'object'
+                          ? (Object.keys(answer).length / questions.length) *
+                            100
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )
 
@@ -1045,10 +1143,29 @@ export default function AssignmentTakingPage(): JSX.Element {
 
     switch (currentActivity.type) {
       case 'quiz':
-      case 'listening':
       case 'reading':
       case 'grammar':
         return typeof currentAnswer === 'number'
+
+      case 'listening':
+        // Handle both old and new listening formats
+        const activity = assignment?.assignmentActivities[currentActivityIndex]
+        if (!activity) return false
+
+        const hasQuestions =
+          activity.content.questions &&
+          Array.isArray(activity.content.questions)
+        if (hasQuestions) {
+          // New format: multiple questions - check if at least one question is answered
+          return (
+            typeof currentAnswer === 'object' &&
+            currentAnswer !== null &&
+            Object.keys(currentAnswer).length > 0
+          )
+        } else {
+          // Old format: single question
+          return typeof currentAnswer === 'number'
+        }
 
       case 'fill_blank':
         if (Array.isArray(currentAnswer)) {
@@ -1228,10 +1345,26 @@ export default function AssignmentTakingPage(): JSX.Element {
 
               switch (activity.type) {
                 case 'quiz':
-                case 'listening':
                 case 'reading':
                 case 'grammar':
                   return typeof activityAnswer === 'number'
+
+                case 'listening':
+                  // Handle both old and new listening formats
+                  const hasQuestions =
+                    activity.content.questions &&
+                    Array.isArray(activity.content.questions)
+                  if (hasQuestions) {
+                    // New format: multiple questions
+                    return (
+                      typeof activityAnswer === 'object' &&
+                      activityAnswer !== null &&
+                      Object.keys(activityAnswer).length > 0
+                    )
+                  } else {
+                    // Old format: single question
+                    return typeof activityAnswer === 'number'
+                  }
 
                 case 'fill_blank':
                   if (Array.isArray(activityAnswer)) {
