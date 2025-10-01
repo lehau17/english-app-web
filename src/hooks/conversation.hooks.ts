@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
+import { resolveSocketUrl } from '../lib/socket'
 import {
   createClassroomConversation,
   fetchClassroomConversations,
@@ -17,12 +18,11 @@ import {
 import type {
   ConversationMessage,
   ConversationSummary,
+  CreateConversationPayload,
   PaginatedResult,
   SendConversationMessagePayload,
   SendMessageResponse,
-  CreateConversationPayload,
 } from '../types/conversation.type'
-import { resolveSocketUrl } from '../lib/socket'
 
 const conversationKeys = {
   all: ['conversations'] as const,
@@ -252,8 +252,14 @@ function updateConversationCachesAfterMessage(
         })
       } else {
         const latest = { ...pages[0] }
-        latest.data = [...latest.data, message]
-        latest.totalItems += 1
+        // Check if message already exists to prevent duplicates
+        const messageExists = latest.data.some(
+          (existingMessage) => existingMessage.id === message.id
+        )
+        if (!messageExists) {
+          latest.data = [...latest.data, message]
+          latest.totalItems += 1
+        }
         pages[0] = latest
       }
       return { ...prev, pages }

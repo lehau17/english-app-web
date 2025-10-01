@@ -5,6 +5,7 @@ import {
   fetchLessonAndActivities,
   getNextLesson,
   startActivity,
+  unlockNextLesson,
 } from '../services/learn.api'
 
 // Query keys
@@ -88,6 +89,20 @@ export const useCanStartActivity = () => {
     },
     onError: (error) => {
       console.error('Failed to check can start activity:', error)
+    },
+  })
+}
+
+// Hook để unlock next lesson
+export const useUnlockNextLesson = () => {
+  return useMutation({
+    mutationFn: unlockNextLesson,
+    onSuccess: (data) => {
+      console.log('Next lesson unlocked:', data.data.message)
+      // Show success notification if needed
+    },
+    onError: (error) => {
+      console.error('Failed to unlock next lesson:', error)
     },
   })
 }

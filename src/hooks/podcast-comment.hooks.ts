@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-// import { toast } from 'react-hot-toast'; // TODO: Install react-hot-toast
+import { toast } from 'react-hot-toast'
 import { podcastCommentApi } from '../services/podcast-comment.api'
 import type {
   CreatePodcastCommentRequest,
@@ -111,12 +111,10 @@ export const useCreateComment = () => {
         })
       }
 
-      // toast.success('Đã thêm bình luận thành công!');
-      console.log('Đã thêm bình luận thành công!')
+      toast.success('Đã thêm bình luận thành công!')
     },
     onError: (error: any) => {
-      // toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi thêm bình luận');
-      console.error(
+      toast.error(
         error.response?.data?.message || 'Có lỗi xảy ra khi thêm bình luận'
       )
     },
@@ -141,12 +139,10 @@ export const useUpdateComment = () => {
         queryKey: podcastCommentKeys.all,
       })
 
-      // toast.success('Đã cập nhật bình luận!');
-      console.log('Đã cập nhật bình luận!')
+      toast.success('Đã cập nhật bình luận!')
     },
     onError: (error: any) => {
-      // toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bình luận');
-      console.error(
+      toast.error(
         error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bình luận'
       )
     },
@@ -166,12 +162,10 @@ export const useDeleteComment = () => {
         queryKey: podcastCommentKeys.all,
       })
 
-      // toast.success('Đã xóa bình luận!');
-      console.log('Đã xóa bình luận!')
+      toast.success('Đã xóa bình luận!')
     },
     onError: (error: any) => {
-      // toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa bình luận');
-      console.error(
+      toast.error(
         error.response?.data?.message || 'Có lỗi xảy ra khi xóa bình luận'
       )
     },
@@ -197,8 +191,7 @@ export const useLikeComment = () => {
       })
     },
     onError: (error: any) => {
-      // toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
-      console.error(error.response?.data?.message || 'Có lỗi xảy ra')
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra')
     },
   })
 }
@@ -214,14 +207,10 @@ export const useReportComment = () => {
       data: ReportCommentRequest
     }) => podcastCommentApi.reportComment(commentId, data),
     onSuccess: () => {
-      // toast.success('Đã báo cáo bình luận!');
-      console.log('Đã báo cáo bình luận!')
+      toast.success('Đã báo cáo bình luận!')
     },
     onError: (error: any) => {
-      // toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi báo cáo');
-      console.error(
-        error.response?.data?.message || 'Có lỗi xảy ra khi báo cáo'
-      )
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi báo cáo')
     },
   })
 }
