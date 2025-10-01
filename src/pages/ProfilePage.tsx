@@ -1,6 +1,7 @@
 import {
   Calendar,
   ChevronRight,
+  CreditCard,
   Edit,
   Globe,
   ListMusic,
@@ -19,6 +20,7 @@ import NotificationSettingsModal from '../components/profile/NotificationSetting
 import PrivacySettingsModal from '../components/profile/PrivacySettingsModal'
 import ProfilePageSkeleton from '../components/profile/ProfilePageSkeleton'
 import RecentActivityCard from '../components/profile/RecentActivityCard'
+import TransactionHistoryCard from '../components/profile/TransactionHistoryCard'
 import { useAuth } from '../context/AuthContext'
 import { useUserPlaylists } from '../hooks/playlist.hooks'
 import { changePasswordApi, updateProfileApi } from '../services/auth.api'
@@ -31,7 +33,7 @@ import {
   validateFileUpload,
 } from '../utils/errorHandling'
 
-type TabId = 'overview' | 'playlists' | 'settings'
+type TabId = 'overview' | 'playlists' | 'settings' | 'transactions'
 
 interface UserProfile {
   id: string
@@ -304,6 +306,15 @@ export default function ProfilePage() {
           [
             { id: 'overview', label: 'Tổng quan', icon: User },
             { id: 'playlists', label: 'Playlist', icon: ListMusic },
+            ...(user?.role === 'parent'
+              ? [
+                  {
+                    id: 'transactions' as TabId,
+                    label: 'Giao dịch',
+                    icon: CreditCard,
+                  },
+                ]
+              : []),
             { id: 'settings', label: 'Cài đặt', icon: Settings },
           ] as Array<{ id: TabId; label: string; icon: any }>
         ).map(({ id, label, icon: Icon }) => (
@@ -409,6 +420,18 @@ export default function ProfilePage() {
               emptyMessage="Bạn chưa có playlist nào"
               className="lg:grid-cols-2" // Override to show 2 columns max
             />
+          </div>
+        )}
+
+        {activeTab === 'transactions' && user?.role === 'parent' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold">Lịch sử giao dịch</h3>
+              <p className="text-sm text-gray-600">
+                Theo dõi các giao dịch thanh toán của bạn
+              </p>
+            </div>
+            <TransactionHistoryCard limit={20} />
           </div>
         )}
 
