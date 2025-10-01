@@ -61,7 +61,32 @@ export const useMyClassroomsWithStatus = (role?: string, enabled = true) => {
     queryKey: ['my-classrooms-with-status', role],
     queryFn: () => fetchMyClassrooms(),
     enabled,
-    select: (res): ClassroomWithStatus[] => res?.data ?? [],
+    select: (res): ClassroomWithStatus[] => {
+      if (!res?.data) return []
+
+      // Transform MyClassroomResponse to ClassroomWithStatus
+      return res.data.map((classroom) => ({
+        id: classroom.id,
+        name: classroom.name,
+        description: undefined,
+        classCode: classroom.classCode || '',
+        status: 'ongoing' as ClassroomStatus, // Default status - API should provide this
+        maxStudents: classroom.maxStudents,
+        isActive: true, // Default - API should provide this
+        periodStart: new Date().toISOString(), // Default - API should provide this
+        periodEnd: new Date().toISOString(), // Default - API should provide this
+        teacher: classroom.teacher
+          ? {
+              id: '', // Not provided in MyClassroomResponse
+              firstName: '',
+              lastName: '',
+              displayName: classroom.teacher.displayName,
+              avatarUrl: undefined,
+            }
+          : undefined,
+        _count: classroom._count,
+      }))
+    },
   })
 }
 
@@ -75,7 +100,32 @@ export const useMyClassroomsByStatus = (
     queryKey: ['my-classrooms', role, status],
     queryFn: () => fetchMyClassrooms({ status }),
     enabled,
-    select: (res): ClassroomWithStatus[] => res?.data ?? [],
+    select: (res): ClassroomWithStatus[] => {
+      if (!res?.data) return []
+
+      // Transform MyClassroomResponse to ClassroomWithStatus
+      return res.data.map((classroom) => ({
+        id: classroom.id,
+        name: classroom.name,
+        description: undefined,
+        classCode: classroom.classCode || '',
+        status: status, // Use the requested status
+        maxStudents: classroom.maxStudents,
+        isActive: true, // Default - API should provide this
+        periodStart: new Date().toISOString(), // Default - API should provide this
+        periodEnd: new Date().toISOString(), // Default - API should provide this
+        teacher: classroom.teacher
+          ? {
+              id: '', // Not provided in MyClassroomResponse
+              firstName: '',
+              lastName: '',
+              displayName: classroom.teacher.displayName,
+              avatarUrl: undefined,
+            }
+          : undefined,
+        _count: classroom._count,
+      }))
+    },
   })
 }
 
