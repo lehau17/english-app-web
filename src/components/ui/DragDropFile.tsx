@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react'
+import toast from 'react-hot-toast'
 import { uploadFile } from '../../services/upload.api'
 
 interface Props {
@@ -59,7 +60,7 @@ const DragDropFile: React.FC<Props> = ({
         onUploaded(normalized)
       } catch (err) {
         console.error('Upload failed', err)
-        alert('Upload thất bại')
+        toast.error('Upload thất bại')
       } finally {
         setUploading(false)
       }
@@ -78,7 +79,7 @@ const DragDropFile: React.FC<Props> = ({
   }
 
   return (
-    <div>
+    <div className="w-full">
       {label && <div className="text-sm font-medium mb-2">{label}</div>}
       <div
         onDragOver={(e) => {
