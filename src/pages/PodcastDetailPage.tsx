@@ -338,14 +338,14 @@ const PodcastDetailPage: React.FC = () => {
                           await saveRating.mutateAsync(payload)
                           refetch()
                         }}
-                        disabled={!!hasRated}
-                        className={`text-sm font-medium px-4 py-2 rounded-lg ${hasRated ? 'bg-gray-200 text-gray-500' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                        disabled={userRatings.overallRating === 0}
+                        className={`text-sm font-medium px-4 py-2 rounded-lg ${
+                          userRatings.overallRating === 0
+                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
                       >
-                        {myRating
-                          ? 'Cập nhật'
-                          : hasRated
-                            ? 'Bạn đã đánh giá'
-                            : 'Gửi đánh giá'}
+                        {myRating?.data ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
                       </button>
                     </div>
                   </div>
@@ -487,14 +487,17 @@ const PodcastDetailPage: React.FC = () => {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-sm">
-                          {(r.user?.displayName || 'U').charAt(0)}
+                          {(
+                            r.user?.firstName + ' ' + r.user?.lastName || 'U'
+                          ).charAt(0)}
                         </div>
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-gray-900">
-                          {r.user?.displayName || 'Người dùng'}
+                          {r.user?.firstName + ' ' + r.user?.lastName ||
+                            'Người dùng'}
                         </div>
                         <div className="text-sm text-gray-500">
                           {new Date(r.createdAt).toLocaleDateString('vi-VN')}

@@ -1,15 +1,25 @@
 import {
   BookOpen,
+  CheckCircle,
   ChevronRight,
+  Clock,
+  CreditCard,
   Crown,
   FileText,
   PlayCircle,
   Users,
 } from 'lucide-react'
-import { type JSX } from 'react'
+import { type JSX, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useMyClassrooms } from '../hooks/useMyClassrooms'
+import { PaymentNotificationModal } from '../components/classroom/PaymentNotificationModal'
+import {
+  getPaymentStatusDisplayInfo,
+  getStatusDisplayInfo,
+  useClassroomsGroupedByStatus,
+} from '../hooks/useClassroomStatus'
+import { useClassroomLeaderboard } from '../hooks/useLeaderboard'
 import { useNextLesson } from '../hooks/useNextLesson'
+import { usePaymentFlow } from '../hooks/usePaymentFlow'
 import { useUserInfo } from '../hooks/useUserInfo'
 
 const LoadingState = () => (
@@ -27,14 +37,120 @@ export default function HomePage(): JSX.Element {
   const isStudent = role === 'student'
   const isTeacher = role === 'teacher'
 
-  const { data: classroomsData, isLoading: isLoadingClassrooms } =
-    useMyClassrooms(role, !!role)
+  const {
+    groupedData: classroomsGrouped,
+    counts: classroomCounts,
+    isLoading: isLoadingClassrooms,
+  } = useClassroomsGroupedByStatus(role, !!role)
+
+  const classrooms = classroomsGrouped
+    ? [
+        ...classroomsGrouped.ongoing,
+        ...classroomsGrouped.upcoming,
+        ...classroomsGrouped.completed,
+        ...classroomsGrouped.unpaid,
+      ]
+    : []
+
+  // Tabs for filtering classrooms
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'ongoing' | 'upcoming' | 'completed' | 'unpaid'
+  >('all')
+
+  // Payment flow
+  const {
+    selectedClassroom: paymentClassroom,
+    showPaymentModal: showPaymentNotification,
+    handleClassroomClick,
+    closePaymentModal: closePaymentNotification,
+  } = usePaymentFlow()
 
   const { data: nextLesson, isLoading: isLoadingNextLesson } = useNextLesson(
     !!role && isStudent
   )
 
-  const classrooms = classroomsData ?? []
+  const primaryClassroom = classrooms[0]
+  const [selectedClassId, setSelectedClassId] = useState<string>(
+    primaryClassroom?.id ?? ''
+  )
+
+  // Get classrooms for current tab
+  const getClassroomsForTab = () => {
+    if (!classroomsGrouped) return []
+    switch (activeTab) {
+      case 'ongoing':
+        return classroomsGrouped.ongoing
+      case 'upcoming':
+        return classroomsGrouped.upcoming
+      case 'completed':
+        return classroomsGrouped.completed
+      case 'unpaid':
+        return classroomsGrouped.unpaid
+      default:
+        return classrooms
+    }
+  }
+
+  const currentTabClassrooms = getClassroomsForTab()
+
+  useEffect(() => {
+    if (classrooms.length === 0) {
+      setSelectedClassId('')
+      return
+    }
+
+    const exists = classrooms.some((c) => c.id === selectedClassId)
+    if ((!selectedClassId || !exists) && classrooms[0]?.id) {
+      setSelectedClassId(classrooms[0].id)
+    }
+  }, [classrooms, selectedClassId])
+
+  const now = useMemo(() => new Date(), [])
+  const [periodType, setPeriodType] = useState<'month' | 'all'>('month')
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    now.getUTCMonth() + 1
+  )
+  const [selectedYear, setSelectedYear] = useState<number>(now.getUTCFullYear())
+
+  const allTimeRange = useMemo(
+    () => ({
+      from: '1970-01-01T00:00:00.000Z',
+      to: new Date().toISOString(),
+    }),
+    []
+  )
+
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => ({
+        value: index + 1,
+        label: `Tháng ${index + 1}`,
+      })),
+    []
+  )
+
+  const yearOptions = useMemo(() => {
+    const current = new Date().getUTCFullYear()
+    return Array.from({ length: 6 }, (_, index) => current - index)
+  }, [])
+
+  const selectedClassroom =
+    classrooms.find((c) => c.id === selectedClassId) ?? primaryClassroom
+
+  const {
+    data: leaderboardData,
+    isLoading: isLoadingLeaderboard,
+    isError: isLeaderboardError,
+  } = useClassroomLeaderboard({
+    classroomId: selectedClassId,
+    year: periodType === 'month' ? selectedYear : undefined,
+    month: periodType === 'month' ? selectedMonth : undefined,
+    from: periodType === 'all' ? allTimeRange.from : undefined,
+    to: periodType === 'all' ? allTimeRange.to : undefined,
+    enabled: !!selectedClassId && (isStudent || isTeacher),
+  })
+
+  const leaderboardEntries = leaderboardData?.entries ?? []
 
   const waitingForUser = isLoadingUser || !role
   const isLoading =
@@ -65,16 +181,20 @@ export default function HomePage(): JSX.Element {
     ? 'Bạn chưa được phân công lớp nào. Hãy liên hệ quản trị viên để được cấp lớp.'
     : 'Bạn chưa tham gia lớp nào. Hãy liên hệ giáo viên để được thêm vào lớp học.'
 
-  const leaderboard = isStudent
-    ? [
-        { id: 'student-1', name: 'Bé Ong', xp: 480 },
-        { id: 'student-2', name: 'Bé Gấu', xp: 430 },
-        { id: 'student-3', name: 'Bé Thỏ', xp: 405 },
-      ]
-    : [
-        { id: 'teacher-1', name: 'Cô Lan', summary: 'Lớp 5A • 28 học viên' },
-        { id: 'teacher-2', name: 'Thầy Minh', summary: 'Lớp 4B • 24 học viên' },
-      ]
+  const baseLeaderboardTitle = isTeacher
+    ? 'Bảng xếp hạng học viên'
+    : 'Bảng xếp hạng'
+  const leaderboardTitle = selectedClassroom?.name
+    ? `${baseLeaderboardTitle} • ${selectedClassroom.name}`
+    : baseLeaderboardTitle
+
+  const noLeaderboardMessage = !selectedClassId
+    ? classrooms.length === 0
+      ? isTeacher
+        ? 'Bạn chưa có lớp để hiển thị bảng xếp hạng.'
+        : 'Tham gia một lớp học để xem bảng xếp hạng của bạn.'
+      : 'Hãy chọn một lớp để xem bảng xếp hạng.'
+    : 'Chưa có dữ liệu hiển thị cho bộ lọc này.'
 
   return (
     <div className="space-y-6">
@@ -184,32 +304,128 @@ export default function HomePage(): JSX.Element {
               </Link>
             </div>
 
-            {classrooms.length === 0 ? (
+            {/* Classroom Tabs */}
+            {classrooms.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'all'
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Tất cả ({classroomCounts?.total || 0})
+                </button>
+                <button
+                  onClick={() => setActiveTab('ongoing')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'ongoing'
+                      ? 'bg-green-100 text-green-700 border border-green-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <CheckCircle className="w-4 h-4 inline mr-1" />
+                  Đang diễn ra ({classroomCounts?.ongoing || 0})
+                </button>
+                <button
+                  onClick={() => setActiveTab('upcoming')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'upcoming'
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  Sắp diễn ra ({classroomCounts?.upcoming || 0})
+                </button>
+                <button
+                  onClick={() => setActiveTab('completed')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'completed'
+                      ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <CheckCircle className="w-4 h-4 inline mr-1" />
+                  Đã hoàn thành ({classroomCounts?.completed || 0})
+                </button>
+                {isStudent && classroomCounts && classroomCounts.unpaid > 0 && (
+                  <button
+                    onClick={() => setActiveTab('unpaid')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'unpaid'
+                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4 inline mr-1" />
+                    Chưa thanh toán ({classroomCounts.unpaid})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {currentTabClassrooms.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
-                {emptyClassMessage}
+                {activeTab === 'all'
+                  ? emptyClassMessage
+                  : `Không có lớp học nào ${activeTab === 'ongoing' ? 'đang diễn ra' : activeTab === 'upcoming' ? 'sắp diễn ra' : activeTab === 'completed' ? 'đã hoàn thành' : 'chưa thanh toán'}.`}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {classrooms.map((c) => {
-                  const studentCount = c._count?.students ?? c.students ?? 0
-                  const assignmentCount =
-                    c._count?.assignments ?? c.assignments ?? 0
+                {currentTabClassrooms.map((c) => {
+                  const studentCount =
+                    c._count?.students ?? c.students?.length ?? 0
+                  const assignmentCount = c._count?.assignments ?? 0
                   const thirdLabel = isTeacher
                     ? `Mã lớp: ${c.classCode ?? '—'}`
-                    : c.teacher?.displayName || c.teacherName || 'Giáo viên'
+                    : c.teacher?.displayName || 'Giáo viên'
+
+                  const statusInfo = getStatusDisplayInfo(c.status)
+                  const paymentInfo = getPaymentStatusDisplayInfo(
+                    c.needsPayment || false,
+                    c.isPurchased || false
+                  )
 
                   return (
                     <button
                       key={c.id}
-                      onClick={() => navigate(`/classroom-detail/${c.id}`)}
-                      className="group relative overflow-hidden rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
+                      onClick={() => {
+                        // Check if payment is required and handle accordingly
+                        const shouldShowPaymentModal = handleClassroomClick(c)
+                        if (!shouldShowPaymentModal) {
+                          navigate(`/classroom-detail/${c.id}`)
+                        }
+                      }}
+                      className={`group relative overflow-hidden rounded-2xl p-5 text-left shadow-sm ring-1 transition hover:shadow-md ${
+                        c.needsPayment && !c.isPurchased
+                          ? 'bg-yellow-50 ring-yellow-200 border border-yellow-200'
+                          : 'bg-white ring-black/5'
+                      }`}
                     >
-                      <div className="flex h-28 flex-col justify-between">
+                      <div className="flex h-32 flex-col justify-between">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-bold leading-tight text-gray-900 line-clamp-2">
                             {c.name}
                           </h3>
                           <ChevronRight className="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5" />
+                        </div>
+
+                        {/* Status badges */}
+                        <div className="flex gap-2 mt-2">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor}`}
+                          >
+                            {statusInfo.label}
+                          </span>
+                          {isStudent && c.needsPayment && (
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.bgColor} ${paymentInfo.textColor}`}
+                            >
+                              {paymentInfo.label}
+                            </span>
+                          )}
                         </div>
 
                         <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600">
@@ -221,9 +437,9 @@ export default function HomePage(): JSX.Element {
                             <FileText className="h-4 w-4" />
                             {assignmentCount} bài tập
                           </div>
-                          <div className="inline-flex items-center gap-1">
-                            <BookOpen className="h-4 w-4" />
-                            {thirdLabel}
+                          <div className="inline-flex items-center gap-1 truncate">
+                            <BookOpen className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{thirdLabel}</span>
                           </div>
                         </div>
 
@@ -241,27 +457,106 @@ export default function HomePage(): JSX.Element {
 
         <div className="space-y-6">
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <Crown className="h-5 w-5 text-yellow-500" />
-              {isTeacher ? 'Giáo viên nổi bật' : 'Bảng xếp hạng tuần này'}
-            </h3>
+            <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+                <Crown className="h-5 w-5 text-yellow-500" />
+                {leaderboardTitle}
+              </h3>
 
-            {leaderboard.length === 0 ? (
-              <p className="text-sm text-gray-500">Chưa có dữ liệu hiển thị.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {classrooms.length > 0 && (
+                  <select
+                    value={selectedClassId}
+                    onChange={(event) => setSelectedClassId(event.target.value)}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Chọn lớp"
+                  >
+                    {classrooms.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <select
+                  value={periodType}
+                  onChange={(event) =>
+                    setPeriodType(event.target.value as 'month' | 'all')
+                  }
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Chọn khoảng thời gian"
+                >
+                  <option value="month">Theo tháng</option>
+                  <option value="all">Toàn bộ thời gian</option>
+                </select>
+
+                {periodType === 'month' && (
+                  <>
+                    <select
+                      value={selectedMonth}
+                      onChange={(event) =>
+                        setSelectedMonth(Number(event.target.value))
+                      }
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Chọn tháng"
+                    >
+                      {monthOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedYear}
+                      onChange={(event) =>
+                        setSelectedYear(Number(event.target.value))
+                      }
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Chọn năm"
+                    >
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {!selectedClassId ? (
+              <p className="text-sm text-gray-500">{noLeaderboardMessage}</p>
+            ) : isLoadingLeaderboard ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                Đang tải bảng xếp hạng...
+              </div>
+            ) : isLeaderboardError ? (
+              <p className="text-sm text-red-500">
+                Không thể tải bảng xếp hạng. Vui lòng thử lại sau.
+              </p>
+            ) : leaderboardEntries.length === 0 ? (
+              <p className="text-sm text-gray-500">{noLeaderboardMessage}</p>
             ) : (
               <div className="space-y-3">
-                {leaderboard.map((item, index) => (
+                {leaderboardEntries.map((item) => (
                   <div
-                    key={item.id}
+                    key={`${item.userId}-${item.rank}`}
                     className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white font-semibold text-gray-700">
-                        {index + 1}
+                        {item.rank}
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-900">
-                          {item.name}
+                          {item.displayName || 'Chưa rõ'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {Number(item.totalScore ?? 0).toLocaleString()} điểm
                         </p>
                       </div>
                     </div>
@@ -293,6 +588,30 @@ export default function HomePage(): JSX.Element {
           </div>
         </div>
       </section>
+
+      {/* Payment Notification Modal */}
+      {paymentClassroom && (
+        <PaymentNotificationModal
+          isOpen={showPaymentNotification}
+          onClose={closePaymentNotification}
+          classroom={{
+            id: paymentClassroom.id,
+            name: paymentClassroom.name,
+            course: paymentClassroom.course
+              ? {
+                  title: paymentClassroom.course.title,
+                  price: paymentClassroom.course.price || 0,
+                  currency: paymentClassroom.course.currency,
+                }
+              : undefined,
+            teacher: paymentClassroom.teacher
+              ? {
+                  displayName: paymentClassroom.teacher.displayName,
+                }
+              : undefined,
+          }}
+        />
+      )}
     </div>
   )
 }

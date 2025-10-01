@@ -1,8 +1,6 @@
 import {
   BookOpen,
   Clock,
-  Coins,
-  Flame,
   Gift,
   Settings,
   TrendingUp,
@@ -13,6 +11,7 @@ import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useParentDashboardQuery } from '../hooks/parent.queries'
+import { ParentPaymentSection } from '../components/parent'
 
 function ProgressRing({ value }: { value: number }) {
   const radius = 28
@@ -78,7 +77,7 @@ export default function ParentHomePage() {
     (sum, child) => sum + child.totalActivities,
     0
   )
-  const unreadNotifications = notifications.filter((n) => !n.read).length
+  const unreadNotifications = notifications.filter((n) => !n.readAt).length
 
   if (isLoading) {
     return (
@@ -156,6 +155,9 @@ export default function ParentHomePage() {
         </div>
       </section>
 
+      {/* Payment Section */}
+      <ParentPaymentSection />
+
       {/* Main Grid */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Column */}
@@ -192,40 +194,17 @@ export default function ParentHomePage() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-sm text-green-600">
-                        <Flame className="h-4 w-4" />
-                        {child.streak} ngày
-                      </div>
-                    </div>
                   </div>
 
                   <div className="mt-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        XP: {child.xp}/{child.xpToNext}
-                      </span>
-                      <span className="text-gray-600">
-                        {Math.round((child.xp / child.xpToNext) * 100)}%
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full bg-green-500 transition-all"
-                        style={{
-                          width: `${(child.xp / child.xpToNext) * 100}%`,
-                        }}
-                      />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-blue-500" />
                         <span>{child.todayStudyTime} phút</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Coins className="h-4 w-4 text-yellow-500" />
-                        <span>{child.coins} xu</span>
+                        <Trophy className="h-4 w-4 text-green-500" />
+                        <span>{child.completedActivities} bài</span>
                       </div>
                     </div>
 
@@ -316,11 +295,10 @@ export default function ParentHomePage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium">{reward.cost}</span>
-                    {reward.claimed && (
+                    <span className="text-sm font-medium">{reward.type}</span>
+                    {reward.isActive && (
                       <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                        Đã nhận
+                        Hoạt động
                       </span>
                     )}
                   </div>
@@ -352,7 +330,7 @@ export default function ParentHomePage() {
                 <div
                   key={notification.id}
                   className={`rounded-xl border p-3 ${
-                    notification.read
+                    notification.readAt
                       ? 'border-black/5 bg-gray-50'
                       : 'border-blue-200 bg-blue-50'
                   }`}
@@ -360,18 +338,20 @@ export default function ParentHomePage() {
                   <div className="flex items-start gap-2">
                     <div
                       className={`mt-0.5 h-2 w-2 rounded-full ${
-                        notification.read ? 'bg-gray-400' : 'bg-blue-500'
+                        notification.readAt ? 'bg-gray-400' : 'bg-blue-500'
                       }`}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">
-                        {notification.title}
+                        {notification.type}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
-                        {notification.message}
+                        {notification.body}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {notification.time}
+                        {new Date(notification.createdAt).toLocaleDateString(
+                          'vi-VN'
+                        )}
                       </p>
                     </div>
                   </div>

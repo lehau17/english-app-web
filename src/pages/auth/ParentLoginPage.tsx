@@ -198,7 +198,7 @@ const ParentLoginPage: React.FC = () => {
           <p className="text-gray-600">
             Bạn là học sinh?{' '}
             <a
-              href="/auth/login"
+              href="/login"
               className="inline-flex items-center gap-2 font-semibold text-purple-600 transition-colors hover:text-purple-800 hover:underline"
             >
               <Sparkles className="h-4 w-4" />

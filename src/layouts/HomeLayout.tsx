@@ -1,13 +1,25 @@
-import { Bell, Globe, LogOut, Menu, Search, UserIcon } from 'lucide-react'
-import { useState, useEffect, useMemo } from 'react'
-import { onUnreadCount } from '../lib/notificationBus'
-import { listNotifications } from '../services/notifications.api'
+import {
+  BarChart3,
+  Bell,
+  BookOpen,
+  Gift,
+  Globe,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  UserIcon,
+  Users,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, NavLink } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
 import ConversationWidget from '../components/conversation/ConversationWidget'
-import { resolveSocketUrl } from '../lib/socket'
 import { useAuth } from '../context/AuthContext'
+import { onUnreadCount } from '../lib/notificationBus'
+import { resolveSocketUrl } from '../lib/socket'
+import { listNotifications } from '../services/notifications.api'
 
 function Avatar({ src, alt }: { src?: string; alt?: string }) {
   return (
@@ -79,44 +91,125 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
               <button className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-100 md:hidden">
                 <Menu className="h-5 w-5" />
               </button>
-              <Link to="/" className="text-xl font-extrabold tracking-tight">
+              <Link
+                to={user?.role === 'parent' ? '/parent-home' : '/'}
+                className="text-xl font-extrabold tracking-tight"
+              >
                 <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   EnglishApp
                 </span>
               </Link>
               <nav className="hidden items-center gap-4 md:flex">
-                <NavLink
-                  to="/learn"
-                  className={({ isActive }) =>
-                    `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                  }
-                >
-                  Hoc
-                </NavLink>
-                <NavLink
-                  to="/listening-practice"
-                  className={({ isActive }) =>
-                    `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                  }
-                >
-                  Luyen nghe
-                </NavLink>
-                <NavLink
-                  to="/practice"
-                  className={({ isActive }) =>
-                    `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                  }
-                >
-                  Luyen tap
-                </NavLink>
-                <NavLink
-                  to="/shop"
-                  className={({ isActive }) =>
-                    `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                  }
-                >
-                  Cua hang
-                </NavLink>
+                {user?.role === 'parent' ? (
+                  // Parent navigation
+                  <>
+                    <NavLink
+                      to="/parent-home"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      <Users className="h-4 w-4 inline mr-1" />
+                      Tổng quan
+                    </NavLink>
+                    <NavLink
+                      to="/parent-activities"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      <BookOpen className="h-4 w-4 inline mr-1" />
+                      Hoạt động
+                    </NavLink>
+                    <NavLink
+                      to="/parent-reports"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      <BarChart3 className="h-4 w-4 inline mr-1" />
+                      Báo cáo
+                    </NavLink>
+                    <NavLink
+                      to="/parent-rewards"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      <Gift className="h-4 w-4 inline mr-1" />
+                      Phần thưởng
+                    </NavLink>
+                    <NavLink
+                      to="/parent-settings"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      <Settings className="h-4 w-4 inline mr-1" />
+                      Cài đặt
+                    </NavLink>
+                  </>
+                ) : (
+                  // Student/Teacher navigation
+                  <>
+                    <NavLink
+                      to="/learn"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Hoc
+                    </NavLink>
+                    <NavLink
+                      to="/listening-practice"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Luyen nghe
+                    </NavLink>
+                    <NavLink
+                      to="/ai-speaking"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Luyen noi AI
+                    </NavLink>
+                    <NavLink
+                      to="/playlists"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Playlist
+                    </NavLink>
+                    <NavLink
+                      to="/schedule"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Lịch Học
+                    </NavLink>
+                    <NavLink
+                      to="/practice"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Luyen tap
+                    </NavLink>
+                    <NavLink
+                      to="/shop"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Cua hang
+                    </NavLink>
+                  </>
+                )}
               </nav>
             </div>
 
@@ -124,7 +217,11 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
               <div className="hidden items-center gap-2 rounded-full border border-black/5 bg-white/60 px-2 py-1 backdrop-blur md:flex">
                 <Search className="h-4 w-4 text-gray-400" />
                 <input
-                  placeholder="Tim bai hoc, khoa hoc..."
+                  placeholder={
+                    user?.role === 'parent'
+                      ? 'Tìm con, hoạt động...'
+                      : 'Tim bai hoc, khoa hoc...'
+                  }
                   className="w-56 bg-transparent text-sm outline-none placeholder:text-gray-400"
                 />
               </div>

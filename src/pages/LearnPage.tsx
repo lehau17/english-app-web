@@ -29,7 +29,15 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+} from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -38,7 +46,14 @@ import {
   useLessonAndActivities,
   useNextLesson,
   useStartActivity,
+  useUnlockNextLesson,
 } from '../hooks/learn.hooks'
+import {
+  evaluatePronunciation,
+  evaluateSpeaking,
+  evaluateWriting,
+  type EvaluationResult,
+} from '../services/evaluation.api'
 import type {
   Activity,
   ConversationContent,
@@ -80,6 +95,60 @@ import type {
  * ======================== */
 function classNames(...xs: Array<string | false | undefined>): string {
   return xs.filter(Boolean).join(' ')
+}
+
+const PASSING_SCORE = 70
+const MIN_AUDIO_VOLUME = 0.012 // RMS threshold to detect silence
+
+type ActivityCompletePayload = {
+  score?: number
+  feedback?: string
+  detail?: Record<string, unknown> | null
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      const base64 = result.includes(',')
+        ? (result.split(',').pop() ?? '')
+        : result
+      resolve(base64)
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function analyzeAudioRms(blob: Blob): Promise<number | null> {
+  if (typeof window === 'undefined') return null
+  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+  if (!AudioCtx) return null
+
+  const audioContext = new AudioCtx()
+  try {
+    const arrayBuffer = await blob.arrayBuffer()
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0))
+    if (!audioBuffer.numberOfChannels || audioBuffer.length === 0) {
+      return 0
+    }
+
+    const channelData = audioBuffer.getChannelData(0)
+    const stride = Math.max(1, Math.floor(channelData.length / 48000))
+    let total = 0
+    let samples = 0
+    for (let i = 0; i < channelData.length; i += stride) {
+      total += Math.abs(channelData[i])
+      samples++
+    }
+    return samples ? total / samples : 0
+  } catch (err) {
+    console.error('Không thể phân tích âm thanh:', err)
+    return null
+  } finally {
+    audioContext.close().catch(() => {})
+  }
 }
 
 /** ========================
@@ -270,10 +339,10 @@ function FillBlankActivity({
   onPass,
 }: {
   data: import('../types/learn.type').FillBlankContent
-  onPass: () => void
+  onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
-  const placeholderReGlobal = /(\[_{2,}\])/g
-  const placeholderTokenRe = /^\[_{2,}\]$/
+  const placeholderReGlobal = /(\[_{2,}\]|_{3,})/g
+  const placeholderTokenRe = /^(\[_{2,}\]|_{3,})$/
   const tokens = useMemo(
     () => (data.passage || '').split(placeholderReGlobal),
     [data.passage]
@@ -282,76 +351,219 @@ function FillBlankActivity({
     () => tokens.filter((t) => placeholderTokenRe.test(t)).length,
     [tokens]
   )
-  const [answers, setAnswers] = useState<string[]>(() =>
-    Array.from({ length: Math.max(1, placeholderCount) }, () => '')
+
+  // State for drag & drop
+  const [droppedAnswers, setDroppedAnswers] = useState<(string | null)[]>(
+    Array(placeholderCount).fill(null)
   )
+  const [availableWords, setAvailableWords] = useState<string[]>([])
+  const [checked, setChecked] = useState(false)
+  const [result, setResult] = useState<boolean[]>([])
+
+  // Initialize available words (shuffle blanks + some distractors)
   useEffect(() => {
-    if (answers.length !== placeholderCount) {
-      setAnswers((prev) => {
-        const next = [...prev]
-        next.length = placeholderCount
-        for (let i = 0; i < placeholderCount; i++)
-          if (next[i] === undefined) next[i] = ''
-        return next
-      })
+    if (data.blanks?.length) {
+      const correctAnswers = [...data.blanks]
+      // Add some simple distractors if we have fewer blanks than placeholders
+      const distractors = [
+        'the',
+        'and',
+        'is',
+        'are',
+        'was',
+        'were',
+        'have',
+        'has',
+      ]
+      const shuffledWords = [
+        ...correctAnswers,
+        ...distractors.slice(0, Math.max(0, 3)),
+      ]
+      // Shuffle the words
+      for (let i = shuffledWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffledWords[i], shuffledWords[j]] = [
+          shuffledWords[j],
+          shuffledWords[i],
+        ]
+      }
+      setAvailableWords(shuffledWords)
+    }
+  }, [data.blanks])
+
+  useEffect(() => {
+    if (placeholderCount === 0) {
+      onPass({ score: 100 })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placeholderCount])
 
-  const [checked, setChecked] = useState(false)
-  const [result, setResult] = useState<boolean[]>([])
-
   const normalize = (s: string) => s.trim().toLowerCase()
 
   const handleCheck = () => {
-    const expected = (data.blanks ?? []).map(normalize)
-    const got = answers.map(normalize)
-    const n = Math.max(expected.length, answers.length)
-    const per: boolean[] = []
-    for (let i = 0; i < n; i++) {
-      per[i] =
-        (expected[i] ?? '') === (got[i] ?? '') && (expected[i] ?? '') !== ''
-    }
+    const expectedRaw = (data.blanks ?? []).slice(0, placeholderCount)
+    const expected = expectedRaw.map(normalize)
+    const got = droppedAnswers
+      .slice(0, placeholderCount)
+      .map((answer) => (answer ? normalize(answer) : ''))
+    const per = Array.from({ length: placeholderCount }, (_, i) => {
+      const expectedAnswer = expected[i] ?? ''
+      const given = got[i] ?? ''
+      return expectedAnswer !== '' && expectedAnswer === given
+    })
     setResult(per)
     setChecked(true)
     const okAll =
-      expected.length > 0 &&
-      expected.length === answers.length &&
-      expected.every((e, i) => e === got[i])
-    if (okAll) onPass()
+      placeholderCount === 0 ||
+      (expected.length === placeholderCount &&
+        per.every(Boolean) &&
+        got.every((ans) => ans !== ''))
+    if (okAll) onPass({ score: 100 })
+  }
+
+  const handleRetry = () => {
+    // Reset all dropped answers
+    setDroppedAnswers(Array(placeholderCount).fill(null))
+    setChecked(false)
+    setResult([])
+
+    // Restore all words to available list
+    if (data.blanks?.length) {
+      const correctAnswers = [...data.blanks]
+      const distractors = [
+        'the',
+        'and',
+        'is',
+        'are',
+        'was',
+        'were',
+        'have',
+        'has',
+      ]
+      const shuffledWords = [
+        ...correctAnswers,
+        ...distractors.slice(0, Math.max(0, 3)),
+      ]
+      for (let i = shuffledWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffledWords[i], shuffledWords[j]] = [
+          shuffledWords[j],
+          shuffledWords[i],
+        ]
+      }
+      setAvailableWords(shuffledWords)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent, blankIndex: number) => {
+    e.preventDefault()
+    const word = e.dataTransfer.getData('text/plain')
+
+    // Update dropped answers
+    const newDroppedAnswers = [...droppedAnswers]
+    const oldWord = newDroppedAnswers[blankIndex]
+    newDroppedAnswers[blankIndex] = word
+    setDroppedAnswers(newDroppedAnswers)
+
+    // Update available words
+    setAvailableWords((prev) => {
+      const updated = prev.filter((w) => w !== word)
+      if (oldWord) updated.push(oldWord) // Return the old word to available list
+      return updated
+    })
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleWordDragStart = (e: React.DragEvent, word: string) => {
+    e.dataTransfer.setData('text/plain', word)
+  }
+
+  const removeWordFromBlank = (blankIndex: number) => {
+    const word = droppedAnswers[blankIndex]
+    if (word) {
+      const newDroppedAnswers = [...droppedAnswers]
+      newDroppedAnswers[blankIndex] = null
+      setDroppedAnswers(newDroppedAnswers)
+      setAvailableWords((prev) => [...prev, word])
+    }
   }
 
   let blankIdx = 0
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Available words to drag */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <h4 className="font-semibold mb-3 text-sm text-gray-700">
+          Kéo các từ vào chỗ trống:
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {availableWords.map((word, index) => (
+            <div
+              key={`${word}-${index}`}
+              draggable
+              onDragStart={(e) => handleWordDragStart(e, word)}
+              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 cursor-move hover:bg-blue-100 transition-colors select-none"
+            >
+              {word}
+            </div>
+          ))}
+        </div>
+        {availableWords.length === 0 && (
+          <p className="text-sm text-gray-500 italic">
+            Tất cả từ đã được sử dụng
+          </p>
+        )}
+      </div>
+
+      {/* Passage with drop zones */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 leading-8">
-        <h3 className="font-semibold mb-2">Điền vào chỗ trống</h3>
-        <div className="text-gray-800 flex flex-wrap">
+        <h3 className="font-semibold mb-4">
+          Điền vào chỗ trống bằng cách kéo thả
+        </h3>
+        <div className="text-gray-800 text-lg leading-relaxed">
           {tokens.map((tk, i) => {
             if (placeholderTokenRe.test(tk)) {
               const ok = checked ? result[blankIdx] : undefined
               const idx = blankIdx
+              const droppedWord = droppedAnswers[idx]
               blankIdx++
               return (
-                <input
+                <span
                   key={`blank-${i}`}
-                  value={answers[idx] ?? ''}
-                  onChange={(e) => {
-                    const arr = [...answers]
-                    arr[idx] = e.target.value
-                    setAnswers(arr)
-                  }}
-                  className={
-                    'mx-1 rounded-md border-b-2 bg-yellow-50 px-2 py-0.5 text-sm focus:outline-none ' +
-                    (ok === undefined
-                      ? 'border-yellow-400'
+                  onDrop={(e) => handleDrop(e, idx)}
+                  onDragOver={handleDragOver}
+                  className={`inline-flex items-center mx-1 min-w-[80px] min-h-[36px] px-3 py-1 rounded-lg border-2 border-dashed transition-all ${
+                    ok === undefined
+                      ? droppedWord
+                        ? 'border-blue-400 bg-blue-50 text-blue-800'
+                        : 'border-yellow-400 bg-yellow-50 hover:border-yellow-500'
                       : ok
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-red-500 bg-red-50')
-                  }
-                  placeholder={`#${idx + 1}`}
-                  style={{ minWidth: 60 }}
-                />
+                        ? 'border-green-500 bg-green-50 text-green-800'
+                        : 'border-red-500 bg-red-50 text-red-800'
+                  }`}
+                >
+                  {droppedWord ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{droppedWord}</span>
+                      {!checked && (
+                        <button
+                          onClick={() => removeWordFromBlank(idx)}
+                          className="text-gray-500 hover:text-red-500 text-xs"
+                          title="Xóa từ này"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400 select-none">
+                      #{idx + 1}
+                    </span>
+                  )}
+                </span>
               )
             }
             return (
@@ -362,18 +574,64 @@ function FillBlankActivity({
           })}
         </div>
         {checked && data.blanks && (
-          <div className="mt-2 text-xs text-gray-500">
-            Số chỗ trống: {answers.length} • Số đáp án: {data.blanks.length}
+          <div className="mt-4 text-xs text-gray-500">
+            Số chỗ trống: {droppedAnswers.length} • Số đáp án:{' '}
+            {data.blanks.length}
           </div>
         )}
       </div>
-      <div>
-        <button
-          onClick={handleCheck}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-        >
-          <ShieldCheck className="h-4 w-4" /> Kiểm tra
-        </button>
+
+      {/* Check button and results */}
+      <div className="flex items-center justify-between">
+        {!checked ? (
+          <button
+            onClick={handleCheck}
+            disabled={droppedAnswers.some((answer) => answer === null)}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-white transition ${
+              droppedAnswers.some((answer) => answer === null)
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4" /> Kiểm tra
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            {result.every(Boolean) ? (
+              <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+                <CheckCircle2 className="h-4 w-4" /> Chính xác!
+              </div>
+            ) : (
+              <button
+                onClick={handleRetry}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+              >
+                <RotateCcw className="h-4 w-4" /> Làm lại
+              </button>
+            )}
+          </div>
+        )}
+
+        {checked && (
+          <div className="text-sm">
+            <span className="text-gray-600">Kết quả: </span>
+            <span
+              className={`font-semibold ${
+                result.every(Boolean) ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {result.filter(Boolean).length}/{result.length} đúng
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Instructions */}
+      <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+        <p>
+          <strong>Hướng dẫn:</strong> Kéo các từ từ hộp trên vào các chỗ trống
+          trong đoạn văn. Nhấn nút X để xóa từ khỏi chỗ trống.
+        </p>
       </div>
     </div>
   )
@@ -412,6 +670,11 @@ function DictationActivity({
     }
   }
 
+  const handleRetry = () => {
+    setText('')
+    setChecked(false)
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-gray-200 bg-white p-5 flex items-center justify-between">
@@ -441,15 +704,50 @@ function DictationActivity({
           rows={8}
           placeholder="Nhập nội dung bạn nghe được..."
         />
-        <div className="pt-3">
-          <button
-            onClick={handleCheck}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-          >
-            <ShieldCheck className="h-4 w-4" /> Kiểm tra
-          </button>
+        <div className="flex items-center justify-between pt-3">
+          <div className="flex items-center gap-2">
+            {!checked ? (
+              <button
+                onClick={handleCheck}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+              >
+                <ShieldCheck className="h-4 w-4" /> Kiểm tra
+              </button>
+            ) : (
+              <>
+                {(() => {
+                  const target = normalizeWords(data.transcript || '')
+                  const got = normalizeWords(text)
+                  const setT = new Set(target)
+                  let matched = 0
+                  for (const w of got) {
+                    if (setT.has(w)) matched++
+                  }
+                  const ratio = target.length ? matched / target.length : 0
+                  const passByLen = (data.minWords ?? 0) <= got.length
+                  const passed =
+                    (ratio >= 0.8 || got.join(' ') === target.join(' ')) &&
+                    passByLen
+
+                  return passed ? (
+                    <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+                      <CheckCircle2 className="h-4 w-4" /> Chính xác!
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleRetry}
+                      className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+                    >
+                      <RotateCcw className="h-4 w-4" /> Làm lại
+                    </button>
+                  )
+                })()}
+              </>
+            )}
+          </div>
+
           {checked && (
-            <span className="ml-3 text-xs text-gray-500">
+            <span className="text-xs text-gray-500">
               Đáp án có thể khác đôi chút, hệ thống chấp nhận ~80% từ đúng
             </span>
           )}
@@ -467,7 +765,7 @@ function MatchingActivity({
 }): JSX.Element {
   const pairs = data.pairs ?? []
   const rights = useMemo(() => pairs.map((p) => p.right), [pairs])
-  const shuffled = useMemo(() => {
+  const shuffledRights = useMemo(() => {
     const arr = [...rights]
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
@@ -475,65 +773,354 @@ function MatchingActivity({
     }
     return arr
   }, [rights])
-  const [selected, setSelected] = useState<string[]>(
-    Array(pairs.length).fill('')
-  )
+
+  // State for connections - simpler approach with click-to-connect
+  const [selectedLeft, setSelectedLeft] = useState<number | null>(null)
+  const [connections, setConnections] = useState<
+    Array<{ leftIndex: number; rightIndex: number }>
+  >([])
   const [checked, setChecked] = useState(false)
 
-  const correctAll = pairs.every((p, i) => selected[i] === p.right)
+  const handleLeftClick = (leftIndex: number) => {
+    if (checked) return
+
+    // If this item is already connected, disconnect it
+    const existingConnection = connections.find(
+      (conn) => conn.leftIndex === leftIndex
+    )
+    if (existingConnection) {
+      setConnections((prev) =>
+        prev.filter((conn) => conn.leftIndex !== leftIndex)
+      )
+      return
+    }
+
+    setSelectedLeft(leftIndex)
+  }
+
+  const handleRightClick = (rightIndex: number) => {
+    if (checked || selectedLeft === null) return
+
+    // Remove any existing connection to this right item
+    setConnections((prev) =>
+      prev.filter((conn) => conn.rightIndex !== rightIndex)
+    )
+
+    // Add new connection
+    setConnections((prev) => [...prev, { leftIndex: selectedLeft, rightIndex }])
+    setSelectedLeft(null)
+  }
+
   const handleCheck = () => {
     setChecked(true)
+    const correctAll =
+      connections.length === pairs.length &&
+      connections.every((conn) => {
+        const leftItem = pairs[conn.leftIndex]
+        const rightItem = shuffledRights[conn.rightIndex]
+        return leftItem.right === rightItem
+      })
     if (correctAll) onPass()
+  }
+
+  const handleRetry = () => {
+    setConnections([])
+    setSelectedLeft(null)
+    setChecked(false)
+  }
+
+  const getConnectionResult = (leftIndex: number) => {
+    if (!checked) return null
+    const connection = connections.find((conn) => conn.leftIndex === leftIndex)
+    if (!connection) return null
+    const leftItem = pairs[leftIndex]
+    const rightItem = shuffledRights[connection.rightIndex]
+    return leftItem.right === rightItem
   }
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <h3 className="font-semibold mb-3">Ghép cặp tương ứng</h3>
-        <div className="space-y-3">
-          {pairs.map((p, i) => {
-            const ok = checked ? selected[i] === p.right : undefined
-            return (
-              <div key={i} className="grid gap-2 md:grid-cols-3 items-center">
-                <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
-                  {p.left}
-                </div>
-                <div className="md:col-span-2">
-                  <select
-                    className={
-                      'w-full rounded-lg border px-3 py-2 text-sm ' +
-                      (ok === undefined
-                        ? 'border-gray-300'
-                        : ok
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-red-500 bg-red-50')
-                    }
-                    value={selected[i]}
-                    onChange={(e) => {
-                      const arr = [...selected]
-                      arr[i] = e.target.value
-                      setSelected(arr)
-                    }}
+      <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <h3 className="font-semibold mb-4">Nhấn để ghép cặp tương ứng</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Nhấn vào một từ bên trái, sau đó nhấn vào nghĩa tương ứng bên phải để
+          tạo kết nối.
+        </p>
+
+        <div className="relative">
+          {/* Main content grid */}
+          <div className="grid grid-cols-2 gap-24">
+            {/* Left column */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-600 mb-3">
+                Từ/Cụm từ
+              </h4>
+              {pairs.map((pair, leftIndex) => {
+                const isConnected = connections.some(
+                  (conn) => conn.leftIndex === leftIndex
+                )
+                const isSelected = selectedLeft === leftIndex
+                const connectionResult = getConnectionResult(leftIndex)
+
+                return (
+                  <div
+                    key={leftIndex}
+                    onClick={() => handleLeftClick(leftIndex)}
+                    className={`relative rounded-lg border-2 px-4 py-4 text-sm font-medium cursor-pointer transition-all flex items-center justify-between ${
+                      checked
+                        ? connectionResult === true
+                          ? 'border-green-500 bg-green-50 text-green-800'
+                          : connectionResult === false
+                            ? 'border-red-500 bg-red-50 text-red-800'
+                            : 'border-gray-300 bg-gray-50 text-gray-500'
+                        : isSelected
+                          ? 'border-blue-500 bg-blue-100 text-blue-800 ring-2 ring-blue-200'
+                          : isConnected
+                            ? 'border-blue-500 bg-blue-50 text-blue-800'
+                            : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50'
+                    }`}
                   >
-                    <option value="">-- Chọn --</option>
-                    {shuffled.map((r, idx) => (
-                      <option key={idx} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
+                    <span>{pair.left}</span>
+
+                    {/* Connection indicator */}
+                    <div className="flex items-center gap-2">
+                      {isSelected && !checked && (
+                        <div className="flex items-center gap-1 text-xs text-blue-600">
+                          <span className="animate-pulse">Chọn nghĩa →</span>
+                        </div>
+                      )}
+
+                      {isConnected && (
+                        <div
+                          className={`w-3 h-3 rounded-full ${
+                            checked
+                              ? connectionResult === true
+                                ? 'bg-green-500'
+                                : connectionResult === false
+                                  ? 'bg-red-500'
+                                  : 'bg-gray-400'
+                              : 'bg-blue-500'
+                          }`}
+                        />
+                      )}
+
+                      {!isConnected && !isSelected && (
+                        <div className="w-3 h-3 rounded-full border-2 border-gray-300" />
+                      )}
+                    </div>
+
+                    {/* Connection line endpoint */}
+                    <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-300 rounded-full" />
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Right column */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-600 mb-3">Nghĩa</h4>
+              {shuffledRights.map((rightItem, rightIndex) => {
+                const connection = connections.find(
+                  (conn) => conn.rightIndex === rightIndex
+                )
+                const isConnected = !!connection
+                const canConnect = selectedLeft !== null && !isConnected
+                const connectionResult = connection
+                  ? getConnectionResult(connection.leftIndex)
+                  : null
+
+                return (
+                  <div
+                    key={rightIndex}
+                    onClick={() => handleRightClick(rightIndex)}
+                    className={`relative rounded-lg border-2 px-4 py-4 text-sm cursor-pointer transition-all flex items-center justify-between ${
+                      checked
+                        ? connectionResult === true
+                          ? 'border-green-500 bg-green-50 text-green-800'
+                          : connectionResult === false
+                            ? 'border-red-500 bg-red-50 text-red-800'
+                            : 'border-gray-300 bg-gray-50 text-gray-500'
+                        : canConnect
+                          ? 'border-yellow-400 bg-yellow-50 hover:border-yellow-500 hover:bg-yellow-100'
+                          : isConnected
+                            ? 'border-blue-500 bg-blue-50 text-blue-800'
+                            : 'border-gray-300 bg-white hover:border-gray-400'
+                    }`}
+                  >
+                    {/* Connection line startpoint */}
+                    <div className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-300 rounded-full" />
+
+                    <div className="flex items-center gap-2">
+                      {/* Connection indicator */}
+                      {isConnected && (
+                        <div
+                          className={`w-3 h-3 rounded-full ${
+                            checked
+                              ? connectionResult === true
+                                ? 'bg-green-500'
+                                : connectionResult === false
+                                  ? 'bg-red-500'
+                                  : 'bg-gray-400'
+                              : 'bg-blue-500'
+                          }`}
+                        />
+                      )}
+
+                      {!isConnected && (
+                        <div
+                          className={`w-3 h-3 rounded-full border-2 ${
+                            canConnect
+                              ? 'border-yellow-400 bg-yellow-100'
+                              : 'border-gray-300'
+                          }`}
+                        />
+                      )}
+                    </div>
+
+                    <span className="flex-1">{rightItem}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Visual connection lines */}
+          <div className="absolute inset-0 pointer-events-none">
+            {connections.map((conn, index) => {
+              const leftY = 73 + conn.leftIndex * 68 // Approximate positioning
+              const rightY = 73 + conn.rightIndex * 68
+              const connectionResult = getConnectionResult(conn.leftIndex)
+              const lineColor = checked
+                ? connectionResult === true
+                  ? '#10b981'
+                  : connectionResult === false
+                    ? '#ef4444'
+                    : '#6b7280'
+                : '#3b82f6'
+
+              return (
+                <div key={index} className="absolute inset-0">
+                  <svg className="w-full h-full">
+                    {/* Dotted connection line */}
+                    <line
+                      x1="42%"
+                      y1={leftY}
+                      x2="58%"
+                      y2={rightY}
+                      stroke={lineColor}
+                      strokeWidth="1"
+                      strokeLinecap="round"
+                      strokeDasharray="4,6"
+                      className="drop-shadow-sm"
+                    />
+
+                    {/* Multiple connection dots along the line */}
+                    {Array.from({ length: 7 }).map((_, dotIndex) => {
+                      const progress = dotIndex / 6 // 0 to 1
+                      const dotX = 42 + (58 - 42) * progress // Interpolate X
+                      const dotY = leftY + (rightY - leftY) * progress // Interpolate Y
+                      const dotSize = dotIndex === 0 || dotIndex === 6 ? 8 : 4 // Larger dots at ends
+
+                      return (
+                        <circle
+                          key={dotIndex}
+                          cx={`${dotX}%`}
+                          cy={dotY}
+                          r={dotSize}
+                          fill={lineColor}
+                          className="drop-shadow-sm"
+                        />
+                      )
+                    })}
+                  </svg>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-        <div className="pt-3">
-          <button
-            onClick={handleCheck}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-          >
-            <ShieldCheck className="h-4 w-4" /> Kiểm tra
-          </button>
+
+        {/* Action buttons and results */}
+        <div className="flex items-center justify-between pt-6 border-t border-gray-200 mt-8">
+          <div className="flex items-center gap-2">
+            {!checked ? (
+              <button
+                onClick={handleCheck}
+                disabled={connections.length !== pairs.length}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-white transition ${
+                  connections.length !== pairs.length
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" /> Kiểm tra
+              </button>
+            ) : (
+              <>
+                {connections.every((conn) => {
+                  const leftItem = pairs[conn.leftIndex]
+                  const rightItem = shuffledRights[conn.rightIndex]
+                  return leftItem.right === rightItem
+                }) ? (
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+                    <CheckCircle2 className="h-4 w-4" /> Chính xác!
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRetry}
+                    className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+                  >
+                    <RotateCcw className="h-4 w-4" /> Làm lại
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Đã nối: {connections.length}/{pairs.length} cặp
+          </div>
+        </div>
+
+        {/* Results */}
+        {checked && (
+          <div className="mt-4 p-4 rounded-lg border-l-4 border-blue-500 bg-blue-50">
+            <div className="text-sm">
+              <span className="font-semibold text-blue-800">Kết quả: </span>
+              <span
+                className={`font-bold ${
+                  connections.every((conn) => {
+                    const leftItem = pairs[conn.leftIndex]
+                    const rightItem = shuffledRights[conn.rightIndex]
+                    return leftItem.right === rightItem
+                  })
+                    ? 'text-green-600'
+                    : 'text-red-600'
+                }`}
+              >
+                {
+                  connections.filter((conn) => {
+                    const leftItem = pairs[conn.leftIndex]
+                    const rightItem = shuffledRights[conn.rightIndex]
+                    return leftItem.right === rightItem
+                  }).length
+                }
+                /{pairs.length} đúng
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="mt-4 p-3 rounded-lg bg-gray-50 text-xs text-gray-600">
+          <p>
+            <strong>Hướng dẫn:</strong>
+          </p>
+          <ul className="mt-1 list-disc list-inside space-y-1">
+            <li>Nhấn vào một từ bên trái để chọn</li>
+            <li>Sau đó nhấn vào nghĩa tương ứng bên phải để tạo kết nối</li>
+            <li>Nhấn lại vào từ đã kết nối để hủy kết nối</li>
+            <li>Đường nối sẽ hiển thị khi bạn ghép cặp thành công</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -655,16 +1242,28 @@ function VocabActivity({
   onPass,
 }: {
   data: VocabContent
-  onPass: () => void
+  onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
   const items = data.items ?? []
   const [idx, setIdx] = useState(0)
   const [revealed, setRevealed] = useState(false)
+  const [completed, setCompleted] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     setRevealed(false)
   }, [idx]) // đổi từ thì ẩn nghĩa lại
+
+  useEffect(() => {
+    setCompleted(false)
+  }, [idx])
+
+  useEffect(() => {
+    if (!items.length) {
+      onPass({ score: 100 })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length])
 
   const canPrev = idx > 0
   const canNext = idx < items.length - 1
@@ -673,6 +1272,17 @@ function VocabActivity({
     ? Math.round(((idx + 1) / items.length) * 100)
     : 0
   const isLastItem = idx === items.length - 1
+
+  const handleNext = () => {
+    if (isLastItem) {
+      if (!completed) {
+        setCompleted(true)
+        onPass({ score: 100 })
+      }
+    } else {
+      setIdx((i) => Math.min(items.length - 1, i + 1))
+    }
+  }
 
   if (!items.length) {
     return (
@@ -801,27 +1411,28 @@ function VocabActivity({
               <div className="text-xs text-gray-500">
                 Dùng phím ← / → để chuyển
               </div>
-              {isLastItem ? (
-                <button
-                  onClick={onPass}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
-                >
-                  <CheckCircle2 className="h-4 w-4" /> Hoàn thành
-                </button>
-              ) : (
-                <button
-                  disabled={!canNext}
-                  onClick={() =>
-                    setIdx((i) => Math.min(items.length - 1, i + 1))
-                  }
-                  className={classNames(
-                    'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
-                    !canNext && 'opacity-50'
-                  )}
-                >
-                  Tiếp <ChevronRight className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                disabled={completed || (!canNext && !isLastItem)}
+                onClick={handleNext}
+                className={classNames(
+                  'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-white transition',
+                  isLastItem
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-blue-600 hover:bg-blue-700',
+                  (completed || (!canNext && !isLastItem)) &&
+                    'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {isLastItem ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" /> Hoàn tất
+                  </>
+                ) : (
+                  <>
+                    Tiếp <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </motion.div>
@@ -831,9 +1442,7 @@ function VocabActivity({
       <Hotkeys
         onFlip={() => setRevealed((r) => !r)}
         onPrev={() => canPrev && setIdx((i) => Math.max(0, i - 1))}
-        onNext={() =>
-          canNext && setIdx((i) => Math.min(items.length - 1, i + 1))
-        }
+        onNext={handleNext}
       />
     </div>
   )
@@ -868,111 +1477,379 @@ function ListeningActivity({
   onPass,
 }: {
   data: ListeningContent
-  onPass: () => void
+  onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
-  const [selected, setSelected] = useState<number | null>(null)
-  const [checked, setChecked] = useState(false)
-  const correct = selected === data.correctIndex
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [answers, setAnswers] = useState<Array<number | null>>(
+    Array(data.questions.length).fill(null)
+  )
+  const [checkedQuestions, setCheckedQuestions] = useState<boolean[]>(
+    Array(data.questions.length).fill(false)
+  )
+  const [allCompleted, setAllCompleted] = useState(false)
+
+  const currentQ = data.questions[currentQuestion]
+  const isAnswered = answers[currentQuestion] !== null
+  const isChecked = checkedQuestions[currentQuestion]
+  const isCorrect = answers[currentQuestion] === currentQ?.correctIndex
+
+  const totalQuestions = data.questions.length
+  const answeredCount = answers.filter((a) => a !== null).length
+  const correctCount = data.questions.filter(
+    (q, idx) => answers[idx] === q.correctIndex && checkedQuestions[idx]
+  ).length
+
+  const canNext = currentQuestion < totalQuestions - 1
+  const canPrev = currentQuestion > 0
+
+  const handleCheck = () => {
+    if (!isAnswered) return
+
+    const newChecked = [...checkedQuestions]
+    newChecked[currentQuestion] = true
+    setCheckedQuestions(newChecked)
+
+    // Check if all questions are answered and checked
+    const allAnswered = answers.every((a) => a !== null)
+    const allCheckedNow = newChecked.every((c) => c)
+
+    if (allAnswered && allCheckedNow && !allCompleted) {
+      setAllCompleted(true)
+      const finalScore = Math.round(
+        ((correctCount + (isCorrect ? 1 : 0)) / totalQuestions) * 100
+      )
+      onPass({
+        score: finalScore,
+        feedback: `Bạn đã trả lời đúng ${correctCount + (isCorrect ? 1 : 0)}/${totalQuestions} câu hỏi.`,
+      })
+    }
+  }
+
+  const handleAnswerSelect = (optionIndex: number) => {
+    if (isChecked) return
+    const newAnswers = [...answers]
+    newAnswers[currentQuestion] = optionIndex
+    setAnswers(newAnswers)
+  }
+
+  const goToQuestion = (questionIndex: number) => {
+    if (questionIndex >= 0 && questionIndex < totalQuestions) {
+      setCurrentQuestion(questionIndex)
+    }
+  }
+
   useEffect(() => {
-    if (checked && correct) onPass()
-  }, [checked, correct, onPass])
+    // Auto-advance to next question after checking (if not last question)
+    if (isChecked && canNext && !allCompleted) {
+      const timer = setTimeout(() => {
+        setCurrentQuestion(currentQuestion + 1)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [isChecked, canNext, currentQuestion, allCompleted])
+
   return (
     <div className="space-y-4">
+      {/* Audio và instructions */}
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-          <Headphones className="h-5 w-5" /> {data.prompt}
+          <Headphones className="h-5 w-5" /> Nghe và trả lời câu hỏi
         </h3>
+        <p className="text-sm text-gray-600 mb-3">{data.instructions}</p>
         <audio controls className="w-full">
           <source src={data.audioUrl} />
         </audio>
       </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <div className="grid gap-2">
-          {data.options.map((opt, idx) => {
-            const isSel = selected === idx
-            const showCorrect = checked && idx === data.correctIndex
-            const showWrong = checked && isSel && !showCorrect
-            return (
-              <button
-                key={idx}
-                onClick={() => !checked && setSelected(idx)}
-                className={classNames(
-                  'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
-                  isSel && !checked && 'border-blue-500 bg-blue-50',
-                  showCorrect && 'border-green-500 bg-green-50',
-                  showWrong && 'border-red-500 bg-red-50',
-                  !isSel && !checked && 'border-gray-200 hover:bg-gray-50'
-                )}
-              >
-                <span className="text-sm">{opt}</span>
-                {showCorrect && (
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                )}
-                {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
-              </button>
-            )
-          })}
+
+      {/* Progress indicator */}
+      <div className="rounded-xl border border-gray-200 bg-white p-3">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span>
+            Câu hỏi {currentQuestion + 1}/{totalQuestions}
+          </span>
+          <span>
+            Đã trả lời: {answeredCount}/{totalQuestions}
+          </span>
         </div>
-        <div className="mt-3">
-          <button
-            disabled={selected === null || checked}
-            onClick={() => setChecked(true)}
-            className={classNames(
-              'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
-              (selected === null || checked) && 'opacity-60'
-            )}
-          >
-            <ShieldCheck className="h-4 w-4" /> Kiểm tra
-          </button>
-          {checked && (
-            <span
+        <div className="flex gap-1">
+          {data.questions.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => goToQuestion(idx)}
               className={classNames(
-                'ml-3 text-sm',
-                correct ? 'text-green-700' : 'text-red-700'
+                'flex-1 h-3 rounded transition-colors',
+                idx === currentQuestion
+                  ? 'bg-blue-500'
+                  : answers[idx] !== null
+                    ? checkedQuestions[idx]
+                      ? answers[idx] === data.questions[idx].correctIndex
+                        ? 'bg-green-400'
+                        : 'bg-red-400'
+                      : 'bg-yellow-400'
+                    : 'bg-gray-200'
               )}
-            >
-              {correct ? 'Chính xác!' : 'Chưa đúng, thử lại nhé.'}
-            </span>
-          )}
+            />
+          ))}
         </div>
       </div>
+
+      {/* Current question */}
+      {currentQ && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h4 className="font-semibold mb-3">{currentQ.question}</h4>
+          <div className="grid gap-2">
+            {currentQ.options.map((opt, idx) => {
+              const isSel = answers[currentQuestion] === idx
+              const showCorrect = isChecked && idx === currentQ.correctIndex
+              const showWrong = isChecked && isSel && !showCorrect
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleAnswerSelect(idx)}
+                  disabled={isChecked}
+                  className={classNames(
+                    'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                    isSel && !isChecked && 'border-blue-500 bg-blue-50',
+                    showCorrect && 'border-green-500 bg-green-50',
+                    showWrong && 'border-red-500 bg-red-50',
+                    !isSel && !isChecked && 'border-gray-200 hover:bg-gray-50',
+                    isChecked && 'cursor-not-allowed'
+                  )}
+                >
+                  <span className="text-sm">{opt}</span>
+                  {showCorrect && (
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  )}
+                  {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                disabled={!canPrev}
+                onClick={() => goToQuestion(currentQuestion - 1)}
+                className={classNames(
+                  'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                  canPrev
+                    ? 'border-gray-300 hover:bg-gray-50'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                )}
+              >
+                <ChevronLeft className="h-4 w-4" /> Câu trước
+              </button>
+
+              {!isChecked ? (
+                <button
+                  disabled={!isAnswered}
+                  onClick={handleCheck}
+                  className={classNames(
+                    'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                    !isAnswered && 'opacity-60 cursor-not-allowed'
+                  )}
+                >
+                  <ShieldCheck className="h-4 w-4" /> Kiểm tra
+                </button>
+              ) : (
+                <div
+                  className={classNames(
+                    'inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg',
+                    isCorrect
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
+                  )}
+                >
+                  {isCorrect ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Chính xác!
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4" /> Chưa đúng
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              disabled={!canNext || !isChecked}
+              onClick={() => goToQuestion(currentQuestion + 1)}
+              className={classNames(
+                'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                canNext && isChecked
+                  ? 'border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+              )}
+            >
+              Câu tiếp <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Final results */}
+      {allCompleted && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-green-200 bg-green-50 p-5"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Trophy className="h-5 w-5 text-green-600" />
+            <span className="font-semibold text-green-800">
+              Hoàn thành bài nghe!
+            </span>
+          </div>
+          <p className="text-green-700">
+            Bạn đã trả lời đúng{' '}
+            <strong>
+              {correctCount}/{totalQuestions}
+            </strong>{' '}
+            câu hỏi. Điểm số:{' '}
+            <strong>
+              {Math.round((correctCount / totalQuestions) * 100)}/100
+            </strong>
+          </p>
+        </motion.div>
+      )}
     </div>
   )
 }
 
 function PronunciationActivity({
+  activityId,
   data,
   onPass,
 }: {
+  activityId: string
   data: PronunciationContent
-  onPass: () => void
+  onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
   const [recording, setRecording] = useState(false)
-  const [score, setScore] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<EvaluationResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const chunks = useRef<Blob[]>([])
   const mediaRecorder = useRef<MediaRecorder | null>(null)
+
+  const cleanupRecorder = () => {
+    const recorder = mediaRecorder.current
+    if (!recorder) return
+    mediaRecorder.current = null
+    const stream: MediaStream | undefined = (recorder as any).stream
+    stream?.getTracks().forEach((track) => track.stop())
+    recorder.ondataavailable = null as any
+    recorder.onstop = null as any
+    recorder.onerror = null as any
+  }
+
   const startRec = async () => {
     try {
+      setError(null)
+      setResult(null)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mr = new MediaRecorder(stream)
       mediaRecorder.current = mr
       chunks.current = []
-      mr.ondataavailable = (e) => chunks.current.push(e.data)
-      mr.onstop = () => {
-        const mock = Math.floor(60 + Math.random() * 35)
-        setScore(mock)
-        if (mock >= 70) onPass()
+      mr.ondataavailable = (event) => {
+        if (event.data?.size) {
+          chunks.current.push(event.data)
+        }
       }
+      mr.onerror = () => {
+        setError('Không thể ghi âm, vui lòng thử lại.')
+        setRecording(false)
+      }
+      mr.onstop = async () => {
+        setRecording(false)
+        const mimeType = mr.mimeType || 'audio/webm'
+        const blob = new Blob(chunks.current, { type: mimeType })
+        chunks.current = []
+        cleanupRecorder()
+
+        if (!blob.size) {
+          setError('Không có dữ liệu ghi âm, hãy thử lại.')
+          return
+        }
+
+        try {
+          setLoading(true)
+          const rms = await analyzeAudioRms(blob)
+          if (rms !== null && rms < MIN_AUDIO_VOLUME) {
+            setError('Âm lượng ghi âm quá nhỏ, vui lòng nói to hơn và thử lại.')
+            setResult(null)
+            return
+          }
+          const audioBase64 = await blobToBase64(blob)
+          const response = await evaluatePronunciation({
+            activityId,
+            audioBase64,
+            mimeType,
+            phrase: data.phrase,
+          })
+          const evaluation = response.data
+          setResult(evaluation)
+
+          if (evaluation.score >= PASSING_SCORE) {
+            toast.success('Bạn đã vượt qua bài phát âm!')
+            onPass({
+              score: evaluation.score,
+              feedback: evaluation.feedback,
+              detail: evaluation.detail ?? null,
+            })
+          } else {
+            toast.error('Điểm chưa đạt yêu cầu, hãy thử lại nhé.')
+          }
+        } catch (err: any) {
+          const message =
+            err?.response?.data?.message ??
+            'Không thể chấm phát âm, vui lòng thử lại.'
+          setError(message)
+        } finally {
+          setLoading(false)
+        }
+      }
+
       mr.start()
       setRecording(true)
-    } catch {
-      alert('Không thể truy cập microphone')
+    } catch (err) {
+      console.error(err)
+      setError('Không thể truy cập microphone.')
     }
   }
+
   const stopRec = () => {
-    mediaRecorder.current?.stop()
-    setRecording(false)
+    const recorder = mediaRecorder.current
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop()
+    }
   }
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorder.current) {
+        const recorder = mediaRecorder.current
+        if (recorder.state !== 'inactive') {
+          try {
+            recorder.stop()
+          } catch {
+            // ignore
+          }
+        }
+        cleanupRecorder()
+      }
+    }
+  }, [])
+
+  const mispronounced =
+    result?.detail && Array.isArray((result.detail as any).mispronounced)
+      ? ((result.detail as any).mispronounced as string[])
+      : []
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
       <h3 className="text-lg font-semibold">Nói theo: "{data.phrase}"</h3>
@@ -985,11 +1862,16 @@ function PronunciationActivity({
           </ul>
         </div>
       ) : null}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {!recording ? (
           <button
             onClick={startRec}
-            className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm text-white hover:bg-rose-700"
+            disabled={loading}
+            className={classNames(
+              'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-white transition',
+              'bg-rose-600 hover:bg-rose-700',
+              loading && 'opacity-60 hover:bg-rose-600'
+            )}
           >
             <Mic className="h-4 w-4" /> Bắt đầu ghi
           </button>
@@ -1002,32 +1884,80 @@ function PronunciationActivity({
           </button>
         )}
         {data.sampleUrl && (
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">
+          <button
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={() => window.open(data.sampleUrl, '_blank')}
+          >
             <Play className="h-4 w-4" /> Nghe mẫu
           </button>
         )}
+        {loading && (
+          <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+            <Loader2 className="h-4 w-4 animate-spin" /> Đang chấm bài...
+          </span>
+        )}
       </div>
-      {score !== null && (
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {result && (
         <motion.div
+          key={result.attemptId}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-2"
+          className="space-y-3"
         >
-          <div className="text-sm text-gray-700 mb-1">Điểm phát âm</div>
-          <div className="h-3 w-full rounded-full bg-gray-200 overflow-hidden">
-            <div
-              className={classNames(
-                'h-full',
-                score >= 85
-                  ? 'bg-green-500'
-                  : score >= 70
-                    ? 'bg-amber-500'
-                    : 'bg-red-500'
-              )}
-              style={{ width: `${score}%` }}
-            />
+          <div>
+            <div className="text-sm text-gray-700 mb-1">Điểm phát âm</div>
+            <div className="h-3 w-full rounded-full bg-gray-200 overflow-hidden">
+              <div
+                className={classNames(
+                  'h-full transition-all',
+                  result.score >= 85
+                    ? 'bg-green-500'
+                    : result.score >= PASSING_SCORE
+                      ? 'bg-amber-500'
+                      : 'bg-red-500'
+                )}
+                style={{ width: `${result.score}%` }}
+              />
+            </div>
+            <div className="mt-1 text-sm font-medium">{result.score}/100</div>
           </div>
-          <div className="mt-1 text-sm font-medium">{score}/100</div>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-line">
+            {result.feedback}
+          </div>
+          {result.categories?.length ? (
+            <div>
+              <h4 className="text-xs font-semibold uppercase text-gray-500">
+                Nhận xét chi tiết
+              </h4>
+              <ul className="mt-1 space-y-1 text-sm text-gray-700">
+                {result.categories.map((cat, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium text-gray-800">
+                      {cat.name}:
+                    </span>{' '}
+                    {cat.comment}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {mispronounced.length ? (
+            <div className="text-xs text-gray-600">
+              <span className="font-semibold text-gray-700">Từ cần luyện:</span>{' '}
+              {mispronounced.join(', ')}
+            </div>
+          ) : null}
+          {result.transcript && (
+            <div className="text-xs text-gray-500">
+              <span className="font-semibold text-gray-700">Bạn nói:</span>{' '}
+              {result.transcript}
+            </div>
+          )}
         </motion.div>
       )}
     </div>
@@ -1035,37 +1965,174 @@ function PronunciationActivity({
 }
 
 function SpeakingActivity({
+  activityId,
   data,
   onPass,
 }: {
+  activityId: string
   data: SpeakingContent
-  onPass: () => void
+  onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<EvaluationResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const timerRef = useRef<number | null>(null)
   const mediaRecorder = useRef<MediaRecorder | null>(null)
+  const chunks = useRef<Blob[]>([])
+  const minSeconds = data.minSeconds ?? 15
+
+  const cleanupRecorder = () => {
+    const recorder = mediaRecorder.current
+    if (!recorder) return
+    mediaRecorder.current = null
+    const stream: MediaStream | undefined = (recorder as any).stream
+    stream?.getTracks().forEach((track) => track.stop())
+    recorder.ondataavailable = null as any
+    recorder.onstop = null as any
+    recorder.onerror = null as any
+  }
+
   const start = async () => {
     try {
+      setError(null)
+      setResult(null)
+      setSeconds(0)
+      setRecordedBlob(null)
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mr = new MediaRecorder(stream)
       mediaRecorder.current = mr
+      chunks.current = []
+      mr.ondataavailable = (event) => {
+        if (event.data?.size) {
+          chunks.current.push(event.data)
+        }
+      }
+      mr.onerror = () => {
+        setError('Ghi âm bị lỗi, vui lòng thử lại.')
+        setRecording(false)
+      }
+      mr.onstop = () => {
+        if (timerRef.current) {
+          window.clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+        setRecording(false)
+        const mimeType = mr.mimeType || 'audio/webm'
+        const blob = new Blob(chunks.current, { type: mimeType })
+        chunks.current = []
+        cleanupRecorder()
+
+        if (!blob.size) {
+          setRecordedBlob(null)
+          setError('Không có dữ liệu ghi âm, hãy thử lại.')
+          return
+        }
+
+        setRecordedBlob(blob)
+      }
+
       mr.start()
       setRecording(true)
       timerRef.current = window.setInterval(
         () => setSeconds((s) => s + 1),
         1000
       )
-    } catch {
-      alert('Không thể truy cập microphone')
+    } catch (err) {
+      console.error(err)
+      setError('Không thể truy cập microphone.')
     }
   }
+
   const stop = () => {
-    mediaRecorder.current?.stop()
-    setRecording(false)
-    if (timerRef.current) window.clearInterval(timerRef.current)
+    const recorder = mediaRecorder.current
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop()
+    }
   }
-  const canSubmit = seconds >= (data.minSeconds ?? 15)
+
+  const handleSubmit = async () => {
+    if (!recordedBlob) {
+      setError('Vui lòng ghi âm trước khi nộp bài.')
+      return
+    }
+
+    if (seconds < minSeconds) {
+      setError(`Bài nói cần tối thiểu ${minSeconds} giây.`)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const rms = await analyzeAudioRms(recordedBlob)
+      if (rms !== null && rms < MIN_AUDIO_VOLUME) {
+        setError('Âm lượng ghi âm quá nhỏ, vui lòng nói to hơn và thử lại.')
+        setResult(null)
+        return
+      }
+      const audioBase64 = await blobToBase64(recordedBlob)
+      const response = await evaluateSpeaking({
+        activityId,
+        audioBase64,
+        mimeType: recordedBlob.type || 'audio/webm',
+        prompt: data.prompt,
+        minSeconds: data.minSeconds,
+      })
+      const evaluation = response.data
+      setResult(evaluation)
+
+      if (evaluation.score >= PASSING_SCORE) {
+        toast.success('Bạn đã vượt qua bài nói!')
+        onPass({
+          score: evaluation.score,
+          feedback: evaluation.feedback,
+          detail: evaluation.detail ?? null,
+        })
+      } else {
+        toast.error('Điểm chưa đạt yêu cầu, hãy thử lại nhé.')
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ?? 'Không thể chấm bài nói, hãy thử lại.'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+      }
+      if (mediaRecorder.current) {
+        const recorder = mediaRecorder.current
+        if (recorder.state !== 'inactive') {
+          try {
+            recorder.stop()
+          } catch {
+            // ignore
+          }
+        }
+        cleanupRecorder()
+      }
+    }
+  }, [])
+
+  const canSubmit = Boolean(recordedBlob) && seconds >= minSeconds && !loading
+  const suggestedPhrases =
+    result?.detail && Array.isArray((result.detail as any).suggestedPhrases)
+      ? ((result.detail as any).suggestedPhrases as string[])
+      : []
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
       <h3 className="text-lg font-semibold">Nhiệm vụ nói</h3>
@@ -1077,38 +2144,117 @@ function SpeakingActivity({
           ))}
         </ul>
       ) : null}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {!recording ? (
           <button
             onClick={start}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white"
+            disabled={loading}
+            className={classNames(
+              'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-white transition',
+              'bg-blue-600 hover:bg-blue-700',
+              loading && 'opacity-60 hover:bg-blue-600'
+            )}
           >
             <Mic className="h-4 w-4" /> Bắt đầu
           </button>
         ) : (
           <button
             onClick={stop}
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm text-white"
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm text-white hover:bg-gray-900"
           >
             <SquareIcon /> Dừng
           </button>
         )}
         <span className="text-sm text-gray-600">
-          Thời gian: {seconds}s (yêu cầu ≥ {data.minSeconds ?? 15}s)
+          Thời gian: {seconds}s (yêu cầu ≥ {minSeconds}s)
         </span>
         <button
           disabled={!canSubmit}
-          onClick={onPass}
+          onClick={handleSubmit}
           className={classNames(
-            'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white',
+            'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white transition',
             canSubmit
               ? 'bg-emerald-600 hover:bg-emerald-700'
               : 'bg-emerald-600 opacity-50'
           )}
         >
-          Nộp
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Đang chấm...
+            </>
+          ) : (
+            'Nộp bài'
+          )}
         </button>
+        {recordedBlob && !recording && !loading && (
+          <span className="text-xs text-gray-500">
+            Đã ghi âm xong, bạn có thể nghe lại trước khi nộp.
+          </span>
+        )}
       </div>
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {result && (
+        <motion.div
+          key={result.attemptId}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-3"
+        >
+          <div>
+            <div className="text-sm text-gray-700 mb-1">Điểm nói</div>
+            <div className="h-3 w-full rounded-full bg-gray-200 overflow-hidden">
+              <div
+                className={classNames(
+                  'h-full transition-all',
+                  result.score >= 85
+                    ? 'bg-green-500'
+                    : result.score >= PASSING_SCORE
+                      ? 'bg-amber-500'
+                      : 'bg-red-500'
+                )}
+                style={{ width: `${result.score}%` }}
+              />
+            </div>
+            <div className="mt-1 text-sm font-medium">{result.score}/100</div>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-line">
+            {result.feedback}
+          </div>
+          {result.categories?.length ? (
+            <div>
+              <h4 className="text-xs font-semibold uppercase text-gray-500">
+                Nhận xét chi tiết
+              </h4>
+              <ul className="mt-1 space-y-1 text-sm text-gray-700">
+                {result.categories.map((cat, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium text-gray-800">
+                      {cat.name}:
+                    </span>{' '}
+                    {cat.comment}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {result.transcript && (
+            <div className="text-xs text-gray-500">
+              <span className="font-semibold text-gray-700">Phiên âm:</span>{' '}
+              {result.transcript}
+            </div>
+          )}
+          {suggestedPhrases.length ? (
+            <div className="text-xs text-gray-600">
+              <span className="font-semibold text-gray-700">Cụm từ gợi ý:</span>{' '}
+              {suggestedPhrases.join(', ')}
+            </div>
+          ) : null}
+        </motion.div>
+      )}
     </div>
   )
 }
@@ -1167,9 +2313,16 @@ function ReadingActivity({
   const [selected, setSelected] = useState<number | null>(null)
   const [checked, setChecked] = useState(false)
   const correct = selected === data.correctIndex
+
   useEffect(() => {
     if (checked && correct) onPass()
-  }, [checked, correct, onPass])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, correct])
+
+  const handleRetry = () => {
+    setSelected(null)
+    setChecked(false)
+  }
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -1179,40 +2332,68 @@ function ReadingActivity({
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <h4 className="font-medium mb-2">{data.question}</h4>
         <div className="grid gap-2">
-          {data.options.map((o, i) => (
+          {data.options.map((o, i) => {
+            const isSel = selected === i
+            const showCorrect = checked && i === data.correctIndex
+            const showWrong = checked && isSel && !showCorrect
+            return (
+              <button
+                key={i}
+                onClick={() => !checked && setSelected(i)}
+                className={classNames(
+                  'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                  isSel && !checked && 'border-blue-500 bg-blue-50',
+                  showCorrect && 'border-green-500 bg-green-50',
+                  showWrong && 'border-red-500 bg-red-50',
+                  !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
+                  checked && 'cursor-not-allowed'
+                )}
+                disabled={checked}
+              >
+                <span className="text-sm">{o}</span>
+                {showCorrect && (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                )}
+                {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          {!checked ? (
             <button
-              key={i}
-              onClick={() => !checked && setSelected(i)}
+              disabled={selected === null}
+              onClick={() => setChecked(true)}
               className={classNames(
-                'rounded-lg border px-3 py-2 text-left',
-                selected === i && !checked
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:bg-gray-50'
+                'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                selected === null && 'opacity-60 cursor-not-allowed'
               )}
             >
-              {o}
+              <ShieldCheck className="h-4 w-4" /> Kiểm tra
             </button>
-          ))}
-        </div>
-        <button
-          disabled={selected === null || checked}
-          onClick={() => setChecked(true)}
-          className={classNames(
-            'mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
-            (selected === null || checked) && 'opacity-60'
+          ) : correct ? (
+            <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+              <CheckCircle2 className="h-4 w-4" /> Chính xác!
+            </div>
+          ) : (
+            <button
+              onClick={handleRetry}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+            >
+              <RotateCcw className="h-4 w-4" /> Làm lại
+            </button>
           )}
-        >
-          <ShieldCheck className="h-4 w-4" /> Kiểm tra
-        </button>
-        {checked && (
-          <span
-            className={classNames(
-              'ml-3 text-sm',
-              correct ? 'text-green-700' : 'text-red-700'
-            )}
-          >
-            {correct ? 'Chính xác!' : 'Chưa đúng.'}
-          </span>
+        </div>
+
+        {/* Hiển thị đáp án đúng khi sai */}
+        {checked && !correct && (
+          <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-800">Đáp án đúng:</span>
+            </div>
+            <p className="text-green-700">{data.options[data.correctIndex]}</p>
+          </div>
         )}
       </div>
     </div>
@@ -1220,15 +2401,71 @@ function ReadingActivity({
 }
 
 function WritingActivity({
+  activityId,
   data,
   onPass,
 }: {
+  activityId: string
   data: WritingContent
-  onPass: () => void
+  onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
   const [text, setText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<EvaluationResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
   const words = text.trim() ? text.trim().split(/ +/).length : 0
-  const ok = words >= data.minWords
+  const canSubmit = words >= data.minWords && !loading
+
+  const handleSubmit = async () => {
+    if (!canSubmit) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await evaluateWriting({
+        activityId,
+        submission: text,
+        prompt: data.prompt,
+        minWords: data.minWords,
+      })
+      const evaluation = response.data
+      setResult(evaluation)
+
+      if (evaluation.score >= PASSING_SCORE) {
+        toast.success('Bạn đã vượt qua bài viết!')
+        onPass({
+          score: evaluation.score,
+          feedback: evaluation.feedback,
+          detail: evaluation.detail ?? null,
+        })
+      } else {
+        toast.error('Điểm chưa đạt yêu cầu, hãy chỉnh sửa và thử lại.')
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ?? 'Không thể chấm bài viết, thử lại sau.'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const strengths =
+    result?.detail && Array.isArray((result.detail as any).strengths)
+      ? ((result.detail as any).strengths as string[])
+      : []
+  const improvements =
+    result?.detail && Array.isArray((result.detail as any).improvements)
+      ? ((result.detail as any).improvements as string[])
+      : []
+  const evaluatedWordCount =
+    result?.detail && typeof (result.detail as any).wordCount === 'number'
+      ? ((result.detail as any).wordCount as number)
+      : undefined
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
       <h3 className="text-lg font-semibold">Viết</h3>
@@ -1242,7 +2479,11 @@ function WritingActivity({
       ) : null}
       <textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value)
+          setResult(null)
+          setError(null)
+        }}
         rows={8}
         className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         placeholder="Viết bài của bạn ở đây..."
@@ -1250,20 +2491,96 @@ function WritingActivity({
       <div className="flex items-center justify-between text-sm">
         <span>
           Từ: <strong>{words}</strong> / yêu cầu ≥ {data.minWords}
+          {evaluatedWordCount ? (
+            <span className="ml-2 text-xs text-gray-500">
+              (AI ghi nhận {evaluatedWordCount} từ)
+            </span>
+          ) : null}
         </span>
         <button
-          disabled={!ok}
-          onClick={onPass}
+          disabled={!canSubmit}
+          onClick={handleSubmit}
           className={classNames(
-            'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white',
-            ok
+            'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white transition',
+            canSubmit
               ? 'bg-emerald-600 hover:bg-emerald-700'
               : 'bg-emerald-600 opacity-50'
           )}
         >
-          Nộp bài
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Đang chấm...
+            </>
+          ) : (
+            'Nộp bài'
+          )}
         </button>
       </div>
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {result && (
+        <motion.div
+          key={result.attemptId}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-3"
+        >
+          <div>
+            <div className="text-sm text-gray-700 mb-1">Điểm viết</div>
+            <div className="h-3 w-full rounded-full bg-gray-200 overflow-hidden">
+              <div
+                className={classNames(
+                  'h-full transition-all',
+                  result.score >= 85
+                    ? 'bg-green-500'
+                    : result.score >= PASSING_SCORE
+                      ? 'bg-amber-500'
+                      : 'bg-red-500'
+                )}
+                style={{ width: `${result.score}%` }}
+              />
+            </div>
+            <div className="mt-1 text-sm font-medium">{result.score}/100</div>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-line">
+            {result.feedback}
+          </div>
+          {result.categories?.length ? (
+            <div>
+              <h4 className="text-xs font-semibold uppercase text-gray-500">
+                Nhận xét chi tiết
+              </h4>
+              <ul className="mt-1 space-y-1 text-sm text-gray-700">
+                {result.categories.map((cat, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium text-gray-800">
+                      {cat.name}:
+                    </span>{' '}
+                    {cat.comment}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {strengths.length ? (
+            <div className="text-xs text-gray-600">
+              <span className="font-semibold text-gray-700">Điểm mạnh:</span>{' '}
+              {strengths.join(', ')}
+            </div>
+          ) : null}
+          {improvements.length ? (
+            <div className="text-xs text-gray-600">
+              <span className="font-semibold text-gray-700">
+                Cần cải thiện:
+              </span>{' '}
+              {improvements.join(', ')}
+            </div>
+          ) : null}
+        </motion.div>
+      )}
     </div>
   )
 }
@@ -1278,9 +2595,16 @@ function GrammarActivity({
   const [selected, setSelected] = useState<number | null>(null)
   const [checked, setChecked] = useState(false)
   const correct = selected === data.correctIndex
+
   useEffect(() => {
     if (checked && correct) onPass()
-  }, [checked, correct, onPass])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, correct])
+
+  const handleRetry = () => {
+    setSelected(null)
+    setChecked(false)
+  }
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="mb-3 rounded-lg bg-indigo-50 p-3 text-indigo-900 text-sm">
@@ -1288,41 +2612,67 @@ function GrammarActivity({
       </div>
       <h4 className="font-medium mb-2">{data.question}</h4>
       <div className="grid gap-2">
-        {data.options.map((o, i) => (
+        {data.options.map((o, i) => {
+          const isSel = selected === i
+          const showCorrect = checked && i === data.correctIndex
+          const showWrong = checked && isSel && !showCorrect
+          return (
+            <button
+              key={i}
+              onClick={() => !checked && setSelected(i)}
+              className={classNames(
+                'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                isSel && !checked && 'border-blue-500 bg-blue-50',
+                showCorrect && 'border-green-500 bg-green-50',
+                showWrong && 'border-red-500 bg-red-50',
+                !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
+                checked && 'cursor-not-allowed'
+              )}
+              disabled={checked}
+            >
+              <span className="text-sm">{o}</span>
+              {showCorrect && (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              )}
+              {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+            </button>
+          )
+        })}
+      </div>
+
+      {checked && selected !== data.correctIndex && (
+        <div className="mt-4 rounded-lg border-l-4 border-green-500 bg-green-50 px-4 py-3">
+          <p className="text-sm text-green-800">
+            <strong>Đáp án đúng:</strong> {data.options[data.correctIndex]}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        {!checked ? (
           <button
-            key={i}
-            onClick={() => !checked && setSelected(i)}
+            disabled={selected === null}
+            onClick={() => setChecked(true)}
             className={classNames(
-              'rounded-lg border px-3 py-2 text-left',
-              selected === i && !checked
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:bg-gray-50'
+              'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+              selected === null && 'opacity-60 cursor-not-allowed'
             )}
           >
-            {o}
+            <ShieldCheck className="h-4 w-4" /> Kiểm tra
           </button>
-        ))}
-      </div>
-      <button
-        disabled={selected === null || checked}
-        onClick={() => setChecked(true)}
-        className={classNames(
-          'mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
-          (selected === null || checked) && 'opacity-60'
+        ) : correct ? (
+          <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+            <CheckCircle2 className="h-4 w-4" /> Chính xác!
+          </div>
+        ) : (
+          <button
+            onClick={handleRetry}
+            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+          >
+            <RotateCcw className="h-4 w-4" /> Làm lại
+          </button>
         )}
-      >
-        <ShieldCheck className="h-4 w-4" /> Kiểm tra
-      </button>
-      {checked && (
-        <span
-          className={classNames(
-            'ml-3 text-sm',
-            correct ? 'text-green-700' : 'text-red-700'
-          )}
-        >
-          {correct ? 'Chính xác!' : 'Chưa đúng.'}
-        </span>
-      )}
+      </div>
     </div>
   )
 }
@@ -2108,6 +3458,7 @@ export default function LearnPlayerPage(): JSX.Element {
   const startActivityMutation = useStartActivity()
   const completeActivityMutation = useCompleteActivity()
   const canStartActivityMutation = useCanStartActivity()
+  const unlockNextLessonMutation = useUnlockNextLesson()
   const lessonAndActivitiesQuery = useLessonAndActivities(
     classroomId || '',
     lessonId || '',
@@ -2206,39 +3557,89 @@ export default function LearnPlayerPage(): JSX.Element {
     }
   }, [activeId, activities, user?.id])
 
-  const handlePass = async () => {
-    if (!activeId || !user?.id) return
+  const handlePass = useCallback(
+    async (payload?: ActivityCompletePayload) => {
+      if (!activeId || !user?.id) return
 
-    try {
-      // Mark activity as completed in local state
-      setActivities((prev) =>
-        prev.map((a) =>
-          a.id === activeId ? { ...a, state: 'done' as ProgressState } : a
+      try {
+        // Mark activity as completed in local state
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activeId
+              ? {
+                  ...a,
+                  state: 'done' as ProgressState,
+                  lastScore: payload?.score ?? 100,
+                  lastFeedback: payload?.feedback,
+                }
+              : a
+          )
         )
-      )
 
-      // Call API to complete activity using mutation
-      await completeActivityMutation.mutateAsync({
-        activityId: activeId,
-        userId: user.id,
-        score: 100, // You might want to calculate actual score based on performance
-      })
+        // Call API to complete activity using mutation
+        await completeActivityMutation.mutateAsync({
+          activityId: activeId,
+          userId: user.id,
+          score: payload?.score ?? 100,
+        })
 
-      // Clear any error message on successful completion
-      setErrorMessage(null)
-      setErrorDetails(null)
-    } catch (error) {
-      console.error('Failed to complete activity:', error)
-      // Revert local state on error
-      setActivities((prev) =>
-        prev.map((a) =>
+        // Clear any error message on successful completion
+        setErrorMessage(null)
+        setErrorDetails(null)
+
+        // Check if all activities are now completed after this completion
+        const updatedActivities = activities.map((a) =>
           a.id === activeId
-            ? { ...a, state: 'in_progress' as ProgressState }
+            ? {
+                ...a,
+                state: 'done' as ProgressState,
+                lastScore: payload?.score ?? 100,
+                lastFeedback: payload?.feedback,
+              }
             : a
         )
-      )
-    }
-  }
+
+        const allCompleted = updatedActivities.every(
+          (activity) =>
+            activity.state === 'done' || activity.state === 'mastered'
+        )
+
+        // If all activities are completed, try to unlock next lesson
+        if (allCompleted && lessonId) {
+          try {
+            const unlockResult =
+              await unlockNextLessonMutation.mutateAsync(lessonId)
+            // Show success message with the unlock result
+            if (unlockResult.data.message) {
+              // You could show a toast or notification here
+              console.log('🎉 Lesson completed!', unlockResult.data.message)
+            }
+          } catch (unlockError) {
+            // Don't fail the main flow if unlock fails
+            console.error('Failed to unlock next lesson:', unlockError)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to complete activity:', error)
+        // Revert local state on error
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activeId
+              ? { ...a, state: 'in_progress' as ProgressState }
+              : a
+          )
+        )
+      }
+    },
+    [
+      activeId,
+      user?.id,
+      activities,
+      lessonId,
+      completeActivityMutation,
+      unlockNextLessonMutation,
+    ]
+  )
 
   const handleStartActivity = async (activityId: string) => {
     if (!user?.id) return
@@ -2509,12 +3910,14 @@ export default function LearnPlayerPage(): JSX.Element {
                   )}
                   {active.content.kind === 'pronunciation' && (
                     <PronunciationActivity
+                      activityId={active.id}
                       data={active.content.data}
                       onPass={handlePass}
                     />
                   )}
                   {active.content.kind === 'speaking' && (
                     <SpeakingActivity
+                      activityId={active.id}
                       data={active.content.data}
                       onPass={handlePass}
                     />
@@ -2533,6 +3936,7 @@ export default function LearnPlayerPage(): JSX.Element {
                   )}
                   {active.content.kind === 'writing' && (
                     <WritingActivity
+                      activityId={active.id}
                       data={active.content.data}
                       onPass={handlePass}
                     />

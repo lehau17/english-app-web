@@ -5,6 +5,7 @@ import {
   FileText,
   Mic,
   Settings,
+  Sparkles,
   Tag,
   Upload,
   Volume2,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -27,6 +29,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { useCreatePodcast } from '../hooks/podcast.hooks'
+import { podcastApi } from '../services/podcast.api'
 import { apiTranSlation } from '../services/translate.api'
 import type { CreatePodcastData } from '../types/podcast.type'
 import {
@@ -56,6 +59,12 @@ export const CreatePodcastPageUpdated: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [gapPreview, setGapPreview] = useState<string>('')
   const [audioDuration, setAudioDuration] = useState<number>(0)
+  const [ttsStatus, setTtsStatus] = useState<
+    'idle' | 'generating' | 'completed' | 'error'
+  >('idle')
+  const [queuedForTTS, setQueuedForTTS] = useState(false)
+  const podcastPollRef = React.useRef<number | null>(null)
+  const podcastTimeoutRef = React.useRef<number | null>(null)
 
   const {
     register,
@@ -74,6 +83,23 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     },
   })
 
+  const clearPodcastPolling = React.useCallback(() => {
+    if (podcastPollRef.current) {
+      clearInterval(podcastPollRef.current)
+      podcastPollRef.current = null
+    }
+    if (podcastTimeoutRef.current) {
+      clearTimeout(podcastTimeoutRef.current)
+      podcastTimeoutRef.current = null
+    }
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      clearPodcastPolling()
+    }
+  }, [clearPodcastPolling])
+
   // Format seconds to mm:ss
   const formatDuration = (sec: number) => {
     if (!sec || !Number.isFinite(sec)) return 'Unknown'
@@ -86,6 +112,42 @@ export const CreatePodcastPageUpdated: React.FC = () => {
   const watchContent = watch('content')
   const tagInput = (watch('__tag_input') as string) || ''
   const isLoading = createPodcastMutation.isPending
+
+  const startPodcastAudioPolling = React.useCallback(
+    (podcastId: string) => {
+      clearPodcastPolling()
+      podcastPollRef.current = setInterval(async () => {
+        try {
+          const podcast = await podcastApi.getById(podcastId)
+          const audioUrl = (podcast as any)?.audioUrl
+          if (audioUrl) {
+            clearPodcastPolling()
+            setValue('audioUrl', audioUrl)
+            setPreviewUrl(audioUrl)
+            setTtsStatus('completed')
+            setQueuedForTTS(false)
+            toast.success('Audio podcast đã sẵn sàng và được cập nhật!')
+          }
+        } catch (error) {
+          console.error('Error polling podcast audio status:', error)
+        }
+      }, 7000)
+
+      podcastTimeoutRef.current = setTimeout(
+        () => {
+          if (podcastPollRef.current) {
+            clearPodcastPolling()
+            setTtsStatus('error')
+            toast.error(
+              'Audio podcast chưa sẵn sàng sau 5 phút. Vui lòng kiểm tra lại sau.'
+            )
+          }
+        },
+        5 * 60 * 1000
+      )
+    },
+    [clearPodcastPolling, setValue]
+  )
 
   const voiceOptions = [
     { value: 'female_en_us', label: 'Nữ (Mỹ)' },
@@ -123,6 +185,69 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     }
   }, [watchContent])
 
+  // Auto-generate gaps helper
+  const [autoDifficulty, setAutoDifficulty] = useState<string>('intermediate')
+  const [autoMode, setAutoMode] = useState<'percent' | 'count'>('percent')
+  const [autoCount, setAutoCount] = useState<number | ''>('')
+
+  // Count available candidate words for gap generation
+  const getAvailableCandidates = (content: string): number => {
+    try {
+      if (!content || !content.trim()) return 0
+
+      // Strip existing brackets
+      content = content.replace(/\[+\s*([^\]]+?)\s*\]+/g, '$1')
+
+      const parts = content.split(/(\b\w+\b)/)
+      let candidates = 0
+      for (let i = 0; i < parts.length; i++) {
+        const token = parts[i]
+        if (!token) continue
+        if (/^\w+$/.test(token)) {
+          // Accept ALL words regardless of length or type
+          candidates++
+        }
+      }
+      return candidates
+    } catch (error) {
+      console.warn('Error counting candidates:', error)
+      return 0
+    }
+  }
+  const handleAutoGenerate = async () => {
+    const plain = (watch('content') as string) || ''
+    if (!plain.trim()) {
+      toast.error('Vui lòng nhập nội dung trước khi tự động tạo gaps')
+      return
+    }
+    try {
+      const mod = await import('../utils/gapExtractor')
+      const arg: any =
+        autoMode === 'count' && autoCount !== ''
+          ? Number(autoCount)
+          : (autoDifficulty as any)
+      const newContent = mod.generateAutoGaps(plain, arg)
+      setValue('content', newContent)
+
+      // Show helpful message when user requested more than available
+      if (autoMode === 'count' && autoCount !== '') {
+        const available = getAvailableCandidates(plain)
+        if (available > 0 && Number(autoCount) > available) {
+          toast.success(
+            `Đã tạo ${available} gaps (tối đa có thể với văn bản này)`
+          )
+        } else {
+          toast.success('Đã tạo gaps tự động!')
+        }
+      } else {
+        toast.success('Đã tạo gaps tự động!')
+      }
+    } catch (err) {
+      console.error('Auto generate error', err)
+      toast.error('Không thể tự động tạo gaps')
+    }
+  }
+
   // Handle tags
   const handleAddTag = () => {
     const t = (tagInput || '').trim()
@@ -147,28 +272,46 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     const content = watch('content')
 
     if (!content.trim()) {
-      alert('Vui lòng nhập nội dung để tạo audio')
+      toast.error('Vui lòng nhập nội dung để tạo audio')
       return
     }
 
     setIsGenerating(true)
+    setTtsStatus('generating')
     try {
       const response = await apiTranSlation(content)
 
-      setPreviewUrl(response.data.url)
-      setValue('audioUrl', response.data.url)
-      // Load duration from generated audio
-      try {
-        const audio = new Audio(response.data.url)
-        audio.addEventListener('loadedmetadata', () => {
-          setAudioDuration(audio.duration || 0)
-        })
-      } catch {
-        // fallback: duration will be set by <audio onLoadedMetadata>
+      if (response.data.url) {
+        // Audio generated successfully
+        setPreviewUrl(response.data.url)
+        setValue('audioUrl', response.data.url)
+        setTtsStatus('completed')
+
+        // Load duration from generated audio
+        try {
+          const audio = new Audio(response.data.url)
+          audio.addEventListener('loadedmetadata', () => {
+            setAudioDuration(Math.floor(audio.duration) || 0)
+          })
+        } catch {
+          // fallback: duration will be set by <audio onLoadedMetadata>
+        }
+        toast.success('Tạo audio thành công!')
+      } else if (
+        (response.data as any).queued ||
+        (response.data as any).status === 'queued'
+      ) {
+        // Audio is being generated in background
+        setTtsStatus('generating')
+        setQueuedForTTS(true)
+        toast.success(
+          'Audio đang được tạo trong nền. Bạn có thể tiếp tục tạo podcast.'
+        )
       }
     } catch (error) {
       console.error('Generate audio error:', error)
-      alert('Có lỗi xảy ra khi tạo audio')
+      setTtsStatus('error')
+      toast.error('Có lỗi xảy ra khi tạo audio')
     } finally {
       setIsGenerating(false)
     }
@@ -176,8 +319,9 @@ export const CreatePodcastPageUpdated: React.FC = () => {
 
   // Handle form submission
   const onSubmit = async (formData: FormData) => {
-    if (!formData.audioUrl) {
-      alert('Vui lòng cung cấp audio (upload file hoặc generate từ text)')
+    // Allow submission even if audio is being generated in background
+    if (!formData.audioUrl && !queuedForTTS) {
+      toast.error('Vui lòng cung cấp audio (upload file hoặc generate từ text)')
       return
     }
 
@@ -188,7 +332,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
       title: formData.title,
       description: formData.description,
       content: cleanContent,
-      audioUrl: formData.audioUrl,
+      audioUrl: formData.audioUrl || '', // Allow empty if queued for TTS
       thumbnailUrl: formData.thumbnailUrl,
       category: formData.category,
       difficulty: formData.difficulty,
@@ -197,15 +341,31 @@ export const CreatePodcastPageUpdated: React.FC = () => {
       speechSpeed: formData.speechSpeed,
       duration: audioDuration,
       gaps,
+      // Add metadata for background processing
+      ...(queuedForTTS && {
+        ttsQueued: true,
+        ttsStatus: ttsStatus,
+        originalContent: formData.content, // Keep original content for TTS processing
+      }),
     }
 
     try {
-      await createPodcastMutation.mutateAsync(createData)
-      alert('Tạo podcast thành công!')
+      const createdPodcast = await createPodcastMutation.mutateAsync(createData)
+
+      if (queuedForTTS) {
+        if (createdPodcast?.id) {
+          startPodcastAudioPolling(createdPodcast.id)
+        }
+        toast.success(
+          'Tạo podcast thành công! Audio sẽ được cập nhật khi hoàn thành.'
+        )
+      } else {
+        toast.success('Tạo podcast thành công!')
+      }
       navigate('/listening-practice')
     } catch (error) {
       console.error('Create podcast error:', error)
-      alert('Có lỗi xảy ra khi tạo podcast')
+      toast.error('Có lỗi xảy ra khi tạo podcast')
     }
   }
 
@@ -381,6 +541,135 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                     rows={12}
                     className="leading-6 transition-all focus:ring-2 focus:ring-green-500/20"
                   />
+                  {/* Auto Gap Generator */}
+                  <div className="mt-4 rounded-lg border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <Sparkles className="h-4 w-4 text-white" />
+                      </div>
+                      <h4 className="font-semibold text-emerald-800">
+                        Tự động tạo gaps
+                      </h4>
+                      <div className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
+                        Random selection
+                      </div>
+                    </div>
+
+                    {/* Mode Selection */}
+                    <div className="mb-4">
+                      <div className="inline-flex bg-white rounded-lg p-1 border border-emerald-200">
+                        <button
+                          type="button"
+                          onClick={() => setAutoMode('percent')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                            autoMode === 'percent'
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'text-emerald-700 hover:text-emerald-900'
+                          }`}
+                        >
+                          Theo độ khó
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAutoMode('count')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                            autoMode === 'count'
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'text-emerald-700 hover:text-emerald-900'
+                          }`}
+                        >
+                          Theo số lượng
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-emerald-700">
+                          {autoMode === 'percent' ? 'Độ khó' : 'Số gaps'}
+                        </label>
+                        {autoMode === 'percent' ? (
+                          <select
+                            value={autoDifficulty}
+                            onChange={(e) => setAutoDifficulty(e.target.value)}
+                            className="w-full h-9 rounded-md border border-emerald-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          >
+                            {difficultyOptions.map((d) => (
+                              <option key={d.value} value={d.value}>
+                                {d.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div>
+                            <input
+                              type="number"
+                              min={0}
+                              max={getAvailableCandidates(watchContent) || 999}
+                              value={autoCount === '' ? '' : String(autoCount)}
+                              onChange={(e) => {
+                                const v =
+                                  e.target.value === ''
+                                    ? ''
+                                    : Math.max(0, Number(e.target.value))
+                                setAutoCount(v === '' ? '' : Number(v))
+                              }}
+                              placeholder={`Tối đa ${getAvailableCandidates(watchContent) || 0} gaps`}
+                              className="w-full h-9 rounded-md border border-emerald-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            />
+                            {autoCount !== '' &&
+                              getAvailableCandidates(watchContent) > 0 &&
+                              autoCount >
+                                getAvailableCandidates(watchContent) && (
+                                <div className="mt-1 text-xs text-amber-600">
+                                  ⚠️ Chỉ có{' '}
+                                  {getAvailableCandidates(watchContent)} từ khả
+                                  dụng
+                                </div>
+                              )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-emerald-700">
+                          {autoMode === 'percent' ? 'Phần trăm' : 'Tối đa'}
+                        </label>
+                        <div className="h-9 rounded-md border border-emerald-200 bg-emerald-50 px-3 flex items-center text-sm text-emerald-700">
+                          {autoMode === 'percent' ? (
+                            <>
+                              {autoDifficulty === 'beginner' && '40%'}
+                              {autoDifficulty === 'elementary' && '50%'}
+                              {autoDifficulty === 'intermediate' && '60%'}
+                              {autoDifficulty === 'upper_intermediate' && '70%'}
+                              {autoDifficulty === 'advanced' && '90%'}
+                              <span className="ml-1">ký tự</span>
+                            </>
+                          ) : (
+                            <span>
+                              {getAvailableCandidates(watchContent) || 0} từ khả
+                              dụng
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={handleAutoGenerate}
+                        className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                        disabled={autoMode === 'count' && autoCount === ''}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Tạo gaps
+                      </Button>
+                    </div>
+
+                    <div className="mt-3 text-xs text-emerald-600">
+                      💡 Hoặc dùng [từ] để chọn thủ công trong văn bản
+                    </div>
+                  </div>
                   {errors.content && (
                     <div className="text-sm text-red-600 mt-1">
                       {errors.content.message}
@@ -581,6 +870,16 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                           Đang tạo audio...
                         </div>
+                      ) : ttsStatus === 'generating' && queuedForTTS ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Audio đang được tạo...
+                        </div>
+                      ) : ttsStatus === 'completed' ? (
+                        <div className="flex items-center gap-2">
+                          <Mic className="h-4 w-4" />
+                          Tạo lại Audio
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <Mic className="h-4 w-4" />
@@ -588,6 +887,34 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                         </div>
                       )}
                     </Button>
+
+                    {/* TTS Status Indicator */}
+                    {ttsStatus !== 'idle' && queuedForTTS && (
+                      <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                        <div className="flex items-center gap-2 text-amber-800">
+                          {ttsStatus === 'generating' && (
+                            <>
+                              <div className="w-4 h-4 border-2 border-amber-600/30 border-t-amber-600 rounded-full animate-spin"></div>
+                              <span className="text-sm font-medium">
+                                Audio đang được tạo trong nền...
+                              </span>
+                            </>
+                          )}
+                          {ttsStatus === 'error' && (
+                            <>
+                              <span className="text-red-500">⚠️</span>
+                              <span className="text-sm font-medium text-red-700">
+                                Có lỗi khi tạo audio
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Bạn có thể tiếp tục tạo podcast. Audio sẽ được cập
+                          nhật khi hoàn thành.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -875,7 +1202,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                       isLoading ||
                       !(watch('title') as string)?.trim() ||
                       !(watch('content') as string)?.trim() ||
-                      !previewUrl
+                      (!previewUrl && !queuedForTTS)
                     }
                     className="h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -883,6 +1210,11 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                         Đang tạo...
+                      </div>
+                    ) : queuedForTTS && ttsStatus === 'generating' ? (
+                      <div className="flex items-center gap-2">
+                        <Mic className="h-4 w-4" />
+                        Tạo Podcast (Audio đang xử lý)
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
