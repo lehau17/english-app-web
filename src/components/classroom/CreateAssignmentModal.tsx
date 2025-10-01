@@ -1,16 +1,37 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Clock, Plus, Trash2, Trophy, X } from 'lucide-react'
-import React, { useEffect } from 'react'
+import {
+  Clock,
+  Download,
+  FileUp,
+  Plus,
+  Trash2,
+  Trophy,
+  Upload,
+  X,
+} from 'lucide-react'
+import React, { useEffect, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { createAssignment } from '../../services/assignment.api'
+import {
+  createAssignment,
+  downloadAssignmentTemplate,
+  previewAssignmentImport,
+} from '../../services/assignment.api'
 import type { AssignmentCreateRequest } from '../../types/assignment.type'
 import type { ActivityType } from '../../types/learn.type'
+import { AudioGenerationOptions } from '../ui/AudioGenerationOptions'
 
 type Props = {
   isOpen: boolean
   classroomId: string
   onClose: () => void
+}
+
+interface ImportPreviewResult {
+  assignment: Partial<AssignmentCreateRequest>
+  activities: any[]
+  errors: string[]
+  warnings: string[]
 }
 
 type ExtendedActivityType =
@@ -102,6 +123,10 @@ export default function CreateAssignmentModal({
   onSubmitted?: () => void
 }) {
   const mode = rest.mode ?? 'create'
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [importPreview, setImportPreview] =
+    useState<ImportPreviewResult | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   console.log('🚀 CreateAssignmentModal render:', {
     isOpen,
@@ -168,6 +193,89 @@ export default function CreateAssignmentModal({
     })
   }, [actFields])
 
+  // Import handlers
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadAssignmentTemplate()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'assignment-import-template.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Template downloaded successfully')
+    } catch (error) {
+      console.error('Download template error:', error)
+      toast.error('Failed to download template')
+    }
+  }
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      toast.error('Please upload an Excel file (.xlsx or .xls)')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const result = await previewAssignmentImport(file)
+      setImportPreview(result.data)
+
+      if (result.data.errors.length === 0) {
+        toast.success('File processed successfully')
+      } else {
+        toast.error('File processed with errors')
+      }
+    } catch (error: any) {
+      console.error('Import preview error:', error)
+      toast.error(error?.response?.data?.message || 'Failed to process file')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleImportConfirm = () => {
+    if (!importPreview) return
+
+    // Merge imported data with current form values
+    const currentValues = watch()
+
+    // Update form values with imported assignment data
+    if (importPreview.assignment.title) {
+      setValue('title', importPreview.assignment.title)
+    }
+    if (importPreview.assignment.description) {
+      setValue('description', importPreview.assignment.description)
+    }
+    if (importPreview.assignment.instructions) {
+      setValue('instructions', importPreview.assignment.instructions)
+    }
+    if (importPreview.assignment.totalPoints) {
+      setValue('totalPoints', importPreview.assignment.totalPoints)
+    }
+    if (importPreview.assignment.timeLimit) {
+      setValue('timeLimit', importPreview.assignment.timeLimit)
+    }
+    if (importPreview.assignment.maxAttempts) {
+      setValue('maxAttempts', importPreview.assignment.maxAttempts)
+    }
+    if (typeof importPreview.assignment.isPublished === 'boolean') {
+      setValue('isPublished', importPreview.assignment.isPublished)
+    }
+
+    // Add imported activities to existing ones
+    const existingActivities = currentValues.activities || []
+    const newActivities = [...existingActivities, ...importPreview.activities]
+    replaceActivities(newActivities)
+
+    setShowImportDialog(false)
+    setImportPreview(null)
+    toast.success(`Imported ${importPreview.activities.length} activities`)
+  }
+
   const mutation = useMutation({
     mutationFn: (payload: AssignmentCreateRequest) =>
       mode === 'edit' && rest.assignmentId
@@ -215,9 +323,13 @@ export default function CreateAssignmentModal({
       case 'listening':
         ;(base as any).content = {
           audioUrl: '',
-          prompt: '',
-          options: ['', ''],
-          correctIndex: 0,
+          questions: [
+            {
+              question: '',
+              options: ['', ''],
+              correctIndex: 0,
+            },
+          ],
         }
         break
       case 'vocab':
@@ -283,12 +395,24 @@ export default function CreateAssignmentModal({
           <h3 className="text-xl font-semibold">
             {mode === 'edit' ? 'Chỉnh sửa bài tập' : 'Tạo bài tập'}
           </h3>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 hover:bg-gray-100"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {mode === 'create' && (
+              <button
+                type="button"
+                onClick={() => setShowImportDialog(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+              >
+                <FileUp className="h-4 w-4" />
+                Import Excel
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-2 hover:bg-gray-100"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -501,6 +625,152 @@ export default function CreateAssignmentModal({
           </div>
         </form>
       </div>
+
+      {/* Import Dialog */}
+      {showImportDialog && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold">
+                Import Assignment from Excel
+              </h4>
+              <button
+                onClick={() => {
+                  setShowImportDialog(false)
+                  setImportPreview(null)
+                }}
+                className="rounded-lg p-2 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Step 1: Download Template */}
+              <div className="rounded-xl border border-gray-200 p-4">
+                <h5 className="font-medium mb-2">Step 1: Download Template</h5>
+                <p className="text-sm text-gray-600 mb-3">
+                  Download the Excel template, fill in your assignment data, and
+                  upload it below.
+                </p>
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Template
+                </button>
+              </div>
+
+              {/* Step 2: Upload File */}
+              <div className="rounded-xl border border-gray-200 p-4">
+                <h5 className="font-medium mb-2">
+                  Step 2: Upload Completed File
+                </h5>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition">
+                  <input
+                    accept=".xlsx,.xls"
+                    style={{ display: 'none' }}
+                    id="excel-file-upload"
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        handleFileUpload(file)
+                      }
+                    }}
+                  />
+                  <label htmlFor="excel-file-upload" className="cursor-pointer">
+                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      Click to upload Excel file
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Supports .xlsx and .xls files
+                    </p>
+                  </label>
+                </div>
+
+                {isUploading && (
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <Clock className="h-4 w-4 animate-spin" />
+                      Processing file...
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Import Preview */}
+              {importPreview && (
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <h5 className="font-medium mb-2">Import Preview</h5>
+
+                  {importPreview.errors.length > 0 && (
+                    <div className="rounded-lg bg-red-50 border border-red-200 p-3 mb-3">
+                      <p className="text-sm font-medium text-red-800 mb-1">
+                        Errors:
+                      </p>
+                      <ul className="text-sm text-red-700 space-y-1">
+                        {importPreview.errors.map((error, index) => (
+                          <li key={index}>• {error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {importPreview.warnings.length > 0 && (
+                    <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 mb-3">
+                      <p className="text-sm font-medium text-yellow-800 mb-1">
+                        Warnings:
+                      </p>
+                      <ul className="text-sm text-yellow-700 space-y-1">
+                        {importPreview.warnings.map((warning, index) => (
+                          <li key={index}>• {warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {importPreview.errors.length === 0 && (
+                    <div className="rounded-lg bg-green-50 border border-green-200 p-3 mb-3">
+                      <p className="text-sm font-medium text-green-800 mb-1">
+                        Ready to Import:
+                      </p>
+                      <ul className="text-sm text-green-700 space-y-1">
+                        <li>• Assignment: {importPreview.assignment.title}</li>
+                        <li>
+                          • Activities: {importPreview.activities.length} found
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Dialog Actions */}
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowImportDialog(false)
+                    setImportPreview(null)
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImportConfirm}
+                  disabled={!importPreview || importPreview.errors.length > 0}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Import Data
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -605,64 +875,158 @@ function TypeSpecificFields({
       )
     case 'listening':
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Labeled label="Audio URL">
-            <TextInput {...register(`${basePath}.audioUrl` as const)} />
-          </Labeled>
-          <Labeled label="Prompt">
-            <TextInput {...register(`${basePath}.prompt` as const)} />
-          </Labeled>
-          <div className="md:col-span-2">
-            <Labeled label="Phương án">
-              <div className="space-y-2">
-                {((val('options') as string[]) || []).map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <TextInput
-                      defaultValue={opt}
-                      onChange={(e) => {
-                        const arr = [...((val('options') as string[]) || [])]
-                        arr[i] = e.target.value
-                        setValue(`${basePath}.options` as any, arr)
-                      }}
-                    />
+        <div className="space-y-4">
+          {/* Audio Section with Generation Options */}
+          <AudioGenerationOptions
+            value={val('audioUrl')}
+            onChange={(audioUrl) =>
+              setValue(`${basePath}.audioUrl` as any, audioUrl)
+            }
+            label="Audio for Listening Activity"
+            required
+          />
+
+          {/* Questions Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">
+                Questions
+              </span>
+              <button
+                type="button"
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+                onClick={() =>
+                  addTo('questions', {
+                    question: '',
+                    options: ['', ''],
+                    correctIndex: 0,
+                  })
+                }
+              >
+                <Plus className="h-4 w-4 inline mr-1" /> Add Question
+              </button>
+            </div>
+
+            {((val('questions') as any[]) || []).map((q, qIndex) => (
+              <div
+                key={qIndex}
+                className="rounded-lg border border-gray-200 p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-600">
+                    Question {qIndex + 1}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 hover:bg-gray-100 text-red-600"
+                    onClick={() => removeAt('questions', qIndex)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <Labeled label="Question Text">
+                  <TextInput
+                    defaultValue={q.question}
+                    onChange={(e) => {
+                      const arr = [...((val('questions') as any[]) || [])]
+                      arr[qIndex] = { ...arr[qIndex], question: e.target.value }
+                      setValue(`${basePath}.questions` as any, arr)
+                    }}
+                    placeholder="Enter the question..."
+                  />
+                </Labeled>
+
+                <Labeled label="Answer Options">
+                  <div className="space-y-2">
+                    {(q.options || []).map((opt: string, optIndex: number) => (
+                      <div key={optIndex} className="flex items-center gap-2">
+                        <TextInput
+                          defaultValue={opt}
+                          onChange={(e) => {
+                            const questions = [
+                              ...((val('questions') as any[]) || []),
+                            ]
+                            const options = [
+                              ...(questions[qIndex].options || []),
+                            ]
+                            options[optIndex] = e.target.value
+                            questions[qIndex] = {
+                              ...questions[qIndex],
+                              options,
+                            }
+                            setValue(`${basePath}.questions` as any, questions)
+                          }}
+                          placeholder={`Option ${optIndex + 1}`}
+                        />
+                        <button
+                          type="button"
+                          className="rounded-lg p-2 hover:bg-gray-100"
+                          onClick={() => {
+                            const questions = [
+                              ...((val('questions') as any[]) || []),
+                            ]
+                            const options = [
+                              ...(questions[qIndex].options || []),
+                            ]
+                            options.splice(optIndex, 1)
+                            questions[qIndex] = {
+                              ...questions[qIndex],
+                              options,
+                            }
+                            setValue(`${basePath}.questions` as any, questions)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
                     <button
                       type="button"
-                      className="rounded-lg p-2 hover:bg-gray-100"
-                      onClick={() => removeAt('options', i)}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+                      onClick={() => {
+                        const questions = [
+                          ...((val('questions') as any[]) || []),
+                        ]
+                        const options = [
+                          ...(questions[qIndex].options || []),
+                          '',
+                        ]
+                        questions[qIndex] = { ...questions[qIndex], options }
+                        setValue(`${basePath}.questions` as any, questions)
+                      }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Plus className="h-4 w-4 inline mr-1" /> Add Option
                     </button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-                  onClick={() => addTo('options', '')}
-                >
-                  <Plus className="h-4 w-4 inline mr-1" /> Thêm phương án
-                </button>
+                </Labeled>
+
+                <Labeled label="Correct Answer Index">
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={Math.max(0, (q.options || []).length - 1)}
+                    defaultValue={q.correctIndex}
+                    onChange={(e) => {
+                      const questions = [...((val('questions') as any[]) || [])]
+                      questions[qIndex] = {
+                        ...questions[qIndex],
+                        correctIndex: parseInt(e.target.value) || 0,
+                      }
+                      setValue(`${basePath}.questions` as any, questions)
+                    }}
+                    placeholder="0"
+                  />
+                </Labeled>
               </div>
-            </Labeled>
+            ))}
+
+            {((val('questions') as any[]) || []).length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No questions added yet. Click "Add Question" to get started.
+              </p>
+            )}
           </div>
-          <Labeled label="Đáp án đúng (index)">
-            <TextInput
-              type="number"
-              min={0}
-              max={Math.max(0, ((val('options') as string[]) || []).length - 1)}
-              {...register(`${basePath}.correctIndex` as const, {
-                valueAsNumber: true,
-                validate: (value: number) => {
-                  const options = val('options') as string[]
-                  if (!options || options.length === 0)
-                    return 'Cần có ít nhất 1 lựa chọn'
-                  if (value < 0 || value >= options.length) {
-                    return `Index phải từ 0 đến ${options.length - 1}`
-                  }
-                  return true
-                },
-              })}
-            />
-          </Labeled>
         </div>
       )
     case 'vocab':
