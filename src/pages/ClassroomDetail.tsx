@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion' // <-- NEW
 import {
   AlertCircle,
@@ -8,6 +9,8 @@ import {
   CheckCircle,
   Clock,
   Copy,
+  Download,
+  Eye,
   FileText,
   Gamepad2,
   Headphones,
@@ -24,26 +27,30 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
-import { useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
+import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
+import ConversationWidget from '../components/conversation/ConversationWidget'
+import UserDetailModal from '../components/user/UserDetailModel'
 import { useAuth } from '../context/AuthContext'
+import { useConversation } from '../context/useConversation'
 import { useClassroomAnnouncements } from '../hooks/useClassroomAnnouncements'
 import { useClassroomDetail } from '../hooks/useClassroomDetail'
-import {
-  deleteAssignment,
-  setAssignmentPublish,
-} from '../services/assignment.api'
-import { useQueryClient } from '@tanstack/react-query'
 import { useNextLesson } from '../hooks/useNextLesson'
 import { useStudentDetail, useTeacherDetail } from '../hooks/useUserDetail'
+import {
+  deleteAssignment,
+  downloadAssignmentPdf,
+  downloadPdfFromBlob,
+  setAssignmentPublish,
+} from '../services/assignment.api'
 import { createClassroomAnnouncement } from '../services/classroom-detail.api'
+import { createClassroomConversation } from '../services/conversation.api'
 import type {
   ClassroomAnnouncement,
   ClassroomDetailResponse,
 } from '../types/classroom-detail.type'
-import UserDetailModal from '../components/user/UserDetailModel'
-import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
 
 interface StudentRecord {
   joinedAt: string // ISO
@@ -113,7 +120,6 @@ interface LessonUI {
   orderNo: number
   estimatedTime?: number
   difficulty?: 'beginner' | 'elementary' | 'intermediate'
-  isLocked?: boolean
   activities: ActivityUI[]
 }
 
@@ -130,6 +136,181 @@ type AssignmentCardProps = {
   onTogglePublish?: (a: Assignment) => void
   onEdit?: (a: Assignment) => void
   onDelete?: (a: Assignment) => void
+  onDownloadPdf?: (a: Assignment) => void
+}
+
+type StudentAssignmentCardProps = {
+  assignment: Assignment
+  submission?: {
+    id: string
+    score: number | null
+    status: 'submitted' | 'graded' | 'late' | 'missing'
+    attempt: number
+    submittedAt: string | null
+  } | null
+  onStartAssignment?: (id: string) => void
+  onViewResult?: (id: string) => void
+  onDownloadPdf?: (a: Assignment) => void
+}
+
+function StudentAssignmentCard({
+  assignment,
+  submission,
+  onStartAssignment,
+  onViewResult,
+  onDownloadPdf,
+}: StudentAssignmentCardProps): JSX.Element {
+  const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
+  const isOverdue = !!dueDate && dueDate < new Date()
+
+  // Use real submission data instead of mock data
+  const hasSubmitted = !!submission
+  const score = submission?.score || null
+  const attempts = submission?.attempt || 0 // này là attemptCount từ backend
+
+  const getStatusColor = () => {
+    if (hasSubmitted && score !== null) {
+      if (score >= 80) return 'bg-green-100 text-green-700'
+      if (score >= 60) return 'bg-yellow-100 text-yellow-700'
+      return 'bg-red-100 text-red-700'
+    }
+    if (isOverdue) return 'bg-red-100 text-red-700'
+    return 'bg-blue-100 text-blue-700'
+  }
+
+  const getStatusText = () => {
+    if (hasSubmitted && score !== null) {
+      return `Đã nộp - ${score} điểm`
+    }
+    if (isOverdue) return 'Quá hạn'
+    return 'Chưa làm'
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 hover:shadow-sm transition">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-medium text-gray-900">{assignment.title}</h4>
+            <div
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${getStatusColor()}`}
+            >
+              {hasSubmitted && score !== null ? (
+                <CheckCircle className="h-3 w-3" />
+              ) : isOverdue ? (
+                <XCircle className="h-3 w-3" />
+              ) : (
+                <Clock className="h-3 w-3" />
+              )}
+              {getStatusText()}
+            </div>
+          </div>
+
+          {assignment.description && (
+            <p className="text-sm text-gray-600 mb-2">
+              {assignment.description}
+            </p>
+          )}
+
+          <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+            <div className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              {dueDate ? (
+                <>
+                  Hạn nộp: {dueDate.toLocaleDateString('vi-VN')} lúc{' '}
+                  {dueDate.toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </>
+              ) : (
+                <span>Không hạn</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <Trophy className="h-4 w-4" />
+              {assignment.totalPoints} điểm
+            </div>
+            {assignment.timeLimit && (
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                {assignment.timeLimit} phút
+              </div>
+            )}
+          </div>
+
+          {assignment.instructions && (
+            <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded mb-2">
+              <strong>Hướng dẫn:</strong> {assignment.instructions}
+            </p>
+          )}
+
+          {hasSubmitted && score !== null && (
+            <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+              <strong>Kết quả:</strong> Lần {attempts}/{assignment.maxAttempts}{' '}
+              - Điểm: {score}/100 -
+              {score >= 80 ? 'Xuất sắc' : score >= 60 ? 'Khá' : 'Cần cải thiện'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-gray-100 pt-3">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            {assignment.maxAttempts > 1 && (
+              <>Cho phép làm tối đa {assignment.maxAttempts} lần</>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onDownloadPdf?.(assignment)}
+              className="inline-flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-sm text-green-700 hover:bg-green-100"
+            >
+              <Download className="h-4 w-4" />
+              Tải PDF
+            </button>
+
+            {hasSubmitted ? (
+              <>
+                <button
+                  onClick={() => onViewResult?.(assignment.id)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+                >
+                  <Eye className="h-4 w-4" />
+                  Xem kết quả
+                </button>
+
+                {attempts < assignment.maxAttempts && !isOverdue && (
+                  <button
+                    onClick={() => onStartAssignment?.(assignment.id)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100"
+                  >
+                    <Play className="h-4 w-4" />
+                    Làm lại ({attempts}/{assignment.maxAttempts})
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => onStartAssignment?.(assignment.id)}
+                disabled={isOverdue && !assignment.isPublished}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
+                  isOverdue && !assignment.isPublished
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                <Play className="h-4 w-4" />
+                Bắt đầu làm
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function AssignmentCard({
@@ -139,6 +320,7 @@ function AssignmentCard({
   onTogglePublish,
   onEdit,
   onDelete,
+  onDownloadPdf,
 }: AssignmentCardProps): JSX.Element {
   const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
   const isOverdue = !!dueDate && dueDate < new Date()
@@ -236,6 +418,13 @@ function AssignmentCard({
             {assignment._count.submissions})
           </button>
           <button
+            onClick={() => onDownloadPdf?.(assignment)}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-blue-700 hover:bg-blue-100"
+          >
+            <Download className="h-4 w-4" />
+            Tải PDF
+          </button>
+          <button
             onClick={() => onTogglePublish?.(assignment)}
             className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 ${assignment.isPublished ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-white hover:bg-black'}`}
           >
@@ -317,14 +506,96 @@ function AnnouncementCard({
   )
 }
 
-type StudentCardProps = { student: Student; onClick?: (id: string) => void }
+// Dropdown component cho student actions
+function StudentActionDropdown({
+  onViewInfo,
+  onSendMessage,
+  isOpen,
+  onToggle,
+  onClose,
+}: {
+  onViewInfo: () => void
+  onSendMessage: () => void
+  isOpen: boolean
+  onToggle: () => void
+  onClose: () => void
+}): JSX.Element {
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-function StudentCard({ student, onClick }: StudentCardProps): JSX.Element {
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        onClose()
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen, onClose])
+
   return (
-    <div
-      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition cursor-pointer"
-      onClick={() => onClick?.(student.id)}
-    >
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+        className="p-1 rounded-lg hover:bg-gray-100 transition"
+      >
+        <MoreVertical className="h-4 w-4 text-gray-500" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg ring-1 ring-black/5 z-10 min-w-[140px]">
+          <div className="py-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onViewInfo()
+                onClose()
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+            >
+              <Eye className="h-4 w-4" />
+              Xem thông tin
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSendMessage()
+                onClose()
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Nhắn tin riêng
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+type StudentCardProps = {
+  student: Student
+  onViewInfo?: (id: string) => void
+  onSendMessage?: (student: Student) => void
+}
+
+function StudentCard({
+  student,
+  onViewInfo,
+  onSendMessage,
+}: StudentCardProps): JSX.Element {
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition">
       <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200">
         <img
           src={student.avatarUrl}
@@ -355,6 +626,15 @@ function StudentCard({ student, onClick }: StudentCardProps): JSX.Element {
         <span className="text-xs text-gray-500">
           {student.studentRecord.isActive ? 'Hoạt động' : 'Không hoạt động'}
         </span>
+
+        {/* Dropdown menu */}
+        <StudentActionDropdown
+          onViewInfo={() => onViewInfo?.(student.id)}
+          onSendMessage={() => onSendMessage?.(student)}
+          isOpen={dropdownOpen}
+          onToggle={() => setDropdownOpen(!dropdownOpen)}
+          onClose={() => setDropdownOpen(false)}
+        />
       </div>
     </div>
   )
@@ -446,11 +726,6 @@ function LessonRow({
               <span className="text-xs rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">
                 #{lesson.orderNo}
               </span>
-              {lesson.isLocked && (
-                <span className="text-xs rounded-full bg-red-100 px-2 py-0.5 text-red-700">
-                  Locked
-                </span>
-              )}
             </div>
             <h4 className="font-medium text-gray-900">{lesson.title}</h4>
             <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -613,6 +888,7 @@ export default function ClassroomDetail(props: {
 }): JSX.Element {
   const { onBack } = props
   const { user } = useAuth()
+  const { openWidget } = useConversation()
   const classroomIdFromUrl =
     typeof window !== 'undefined'
       ? window.location.pathname.split('/').pop() || undefined
@@ -688,6 +964,24 @@ export default function ClassroomDetail(props: {
     }
   }
 
+  const handleDownloadPdf = async (assignment: Assignment): Promise<void> => {
+    try {
+      toast.promise(
+        downloadAssignmentPdf(assignment.id).then((blob) => {
+          const filename = `${assignment.title.replace(/[^a-zA-Z0-9]/g, '_')}_Assignment.pdf`
+          downloadPdfFromBlob(blob, filename)
+        }),
+        {
+          loading: 'Đang tạo PDF...',
+          success: 'Tải PDF thành công!',
+          error: 'Không thể tải PDF. Vui lòng thử lại.',
+        }
+      )
+    } catch (err) {
+      console.error('Failed to download PDF:', err)
+    }
+  }
+
   // Handle null displayName for students
   const filteredStudents =
     detail?.students
@@ -725,6 +1019,60 @@ export default function ClassroomDetail(props: {
       toast.error(e?.response?.data?.message || 'Gửi thông báo thất bại')
     } finally {
       setAnnLoading(false)
+    }
+  }
+
+  // Handler để mở chat riêng với học sinh
+  const handleSendMessageToStudent = async (student: Student) => {
+    if (!classroomIdFromParams || !user?.id) return
+
+    try {
+      // Tạo personal conversation
+      const newConversation = await createClassroomConversation(
+        classroomIdFromParams,
+        {
+          type: 'personal',
+          name: `Chat với ${student.displayName || student.firstName + ' ' + student.lastName}`,
+          participantIds: [student.id],
+        }
+      )
+
+      // Mở widget chat và chọn conversation vừa tạo
+      openWidget(classroomIdFromParams, newConversation.id)
+
+      toast.success(
+        `Đã mở chat riêng với ${student.displayName || student.firstName + ' ' + student.lastName}`
+      )
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Không thể tạo chat')
+    }
+  }
+
+  // Handler để nhắn tin với giáo viên
+  const handleSendMessageToTeacher = async () => {
+    if (!classroomIdFromParams || !user?.id || !detail?.teacher) return
+
+    try {
+      // Tạo personal conversation với giáo viên
+      const newConversation = await createClassroomConversation(
+        classroomIdFromParams,
+        {
+          type: 'personal',
+          name: `Chat với giáo viên ${detail.teacher.displayName || detail.teacher.firstName + ' ' + detail.teacher.lastName}`,
+          participantIds: [detail.teacher.id],
+        }
+      )
+
+      // Mở widget chat và chọn conversation vừa tạo
+      openWidget(classroomIdFromParams, newConversation.id)
+
+      toast.success(
+        `Đã mở chat riêng với giáo viên ${detail.teacher.displayName || detail.teacher.firstName + ' ' + detail.teacher.lastName}`
+      )
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || 'Không thể tạo chat với giáo viên'
+      )
     }
   }
 
@@ -1016,95 +1364,135 @@ export default function ClassroomDetail(props: {
 
               {/* Existing: Bài tập gần đây */}
               <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-                <h3 className="text-lg font-semibold mb-4">Bài tập gần đây</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  {isTeacher ? 'Bài tập gần đây' : 'Bài tập cần làm'}
+                </h3>
                 <div className="space-y-4">
-                  {detail?.assignments?.slice(0, 3).map((assignment) => (
-                    <AssignmentCard
-                      key={assignment.id}
-                      assignment={assignment}
-                      detail={detail}
-                      onViewSubmissions={(aid) =>
-                        navigate(
-                          `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
-                        )
-                      }
-                      onTogglePublish={async (a) => {
-                        try {
-                          await setAssignmentPublish(
-                            detail.id,
-                            a.id,
-                            !a.isPublished
-                          )
-                          toast.success(
-                            a.isPublished
-                              ? 'Đã chuyển sang Nháp'
-                              : 'Đã xuất bản'
-                          )
-                          await queryClient.invalidateQueries({
-                            queryKey: ['classroom-detail', detail.id],
-                          })
-                        } catch (e: any) {
-                          toast.error(
-                            e?.response?.data?.message ||
-                              'Cập nhật trạng thái thất bại'
-                          )
-                        }
-                      }}
-                      onEdit={(a) => {
-                        const initial = {
-                          title: a.title,
-                          description: a.description || '',
-                          instructions: a.instructions || '',
-                          dueDate: a.dueDate
-                            ? new Date(a.dueDate).toISOString().slice(0, 16)
-                            : '',
-                          isPublished: a.isPublished,
-                          totalPoints: a.totalPoints || 100,
-                          timeLimit: a.timeLimit || undefined,
-                          maxAttempts: a.maxAttempts || 1,
-                          activities: (a.activities || []).map((ac: any) => ({
-                            type: ac.type,
-                            title: ac.title,
-                            instructions: ac.instructions || '',
-                            points: ac.points || 0,
-                            timeLimit: ac.timeLimit || undefined,
-                            maxAttempts: ac.maxAttempts || undefined,
-                            passingScore: ac.passingScore || undefined,
-                            difficulty: ac.difficulty || undefined,
-                            hints: ac.hints || [],
-                            content: { kind: ac.type, data: ac.content },
-                          })),
-                        }
-                        setEditInitial(initial)
-                        setEditAssignmentId(a.id)
-                        setShowEditAssignment(true)
-                      }}
-                      onDelete={async (a) => {
-                        if (
-                          !confirm(
-                            'Xoá bài tập này? Hành động không thể hoàn tác.'
-                          )
-                        )
-                          return
-                        try {
-                          await deleteAssignment(detail.id, a.id)
-                          toast.success('Đã xoá bài tập')
-                          await queryClient.invalidateQueries({
-                            queryKey: ['classroom-detail', detail.id],
-                          })
-                        } catch (e: any) {
-                          toast.error(
-                            e?.response?.data?.message || 'Xoá thất bại'
-                          )
-                        }
-                      }}
-                    />
-                  ))}
+                  {isTeacher
+                    ? // Teacher view - Show recent assignments with management actions
+                      detail?.assignments?.slice(0, 3).map((assignment) => (
+                        <AssignmentCard
+                          key={assignment.id}
+                          assignment={assignment}
+                          detail={detail}
+                          onViewSubmissions={(aid) =>
+                            navigate(
+                              `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
+                            )
+                          }
+                          onDownloadPdf={handleDownloadPdf}
+                          onTogglePublish={async (a) => {
+                            try {
+                              await setAssignmentPublish(
+                                detail.id,
+                                a.id,
+                                !a.isPublished
+                              )
+                              toast.success(
+                                a.isPublished
+                                  ? 'Đã chuyển sang Nháp'
+                                  : 'Đã xuất bản'
+                              )
+                              await queryClient.invalidateQueries({
+                                queryKey: ['classroom-detail', detail.id],
+                              })
+                            } catch (e: any) {
+                              toast.error(
+                                e?.response?.data?.message ||
+                                  'Cập nhật trạng thái thất bại'
+                              )
+                            }
+                          }}
+                          onEdit={(a) => {
+                            const initial = {
+                              title: a.title,
+                              description: a.description || '',
+                              instructions: a.instructions || '',
+                              dueDate: a.dueDate
+                                ? new Date(a.dueDate).toISOString().slice(0, 16)
+                                : '',
+                              isPublished: a.isPublished,
+                              totalPoints: a.totalPoints || 100,
+                              timeLimit: a.timeLimit || undefined,
+                              maxAttempts: a.maxAttempts || 1,
+                              activities: (a.activities || []).map(
+                                (ac: any) => ({
+                                  type: ac.type,
+                                  title: ac.title,
+                                  instructions: ac.instructions || '',
+                                  points: ac.points || 0,
+                                  timeLimit: ac.timeLimit || undefined,
+                                  maxAttempts: ac.maxAttempts || undefined,
+                                  passingScore: ac.passingScore || undefined,
+                                  difficulty: ac.difficulty || undefined,
+                                  hints: ac.hints || [],
+                                  content: ac.content,
+                                })
+                              ),
+                            }
+                            setEditInitial(initial)
+                            setEditAssignmentId(a.id)
+                            setShowEditAssignment(true)
+                          }}
+                          onDelete={async (a) => {
+                            if (
+                              !confirm(
+                                'Xoá bài tập này? Hành động không thể hoàn tác.'
+                              )
+                            )
+                              return
+                            try {
+                              await deleteAssignment(detail.id, a.id)
+                              toast.success('Đã xoá bài tập')
+                              await queryClient.invalidateQueries({
+                                queryKey: ['classroom-detail', detail.id],
+                              })
+                            } catch (e: any) {
+                              toast.error(
+                                e?.response?.data?.message || 'Xoá thất bại'
+                              )
+                            }
+                          }}
+                        />
+                      ))
+                    : // Student view - Show published assignments that need attention
+                      detail?.assignments
+                        ?.filter((assignment) => assignment.isPublished)
+                        ?.slice(0, 3)
+                        ?.map((assignment) => (
+                          <StudentAssignmentCard
+                            key={assignment.id}
+                            assignment={assignment}
+                            submission={assignment.submission ?? null}
+                            onDownloadPdf={handleDownloadPdf}
+                            onStartAssignment={(aid) => {
+                              navigate(
+                                `/classroom/${detail.id}/assignment/${aid}`
+                              )
+                            }}
+                            onViewResult={(aid) => {
+                              navigate(
+                                `/classroom/${detail.id}/assignment/${aid}/result`
+                              )
+                            }}
+                          />
+                        ))}
                   {detail?.assignments?.length === 0 && (
                     <p className="text-gray-500 text-center py-8">
-                      Chưa có bài tập nào
+                      {isTeacher
+                        ? 'Chưa có bài tập nào'
+                        : 'Chưa có bài tập nào'}
                     </p>
                   )}
+                  {isStudent &&
+                    detail?.assignments &&
+                    detail.assignments.length > 0 &&
+                    detail.assignments.filter((a) => a.isPublished).length ===
+                      0 && (
+                      <p className="text-gray-500 text-center py-8">
+                        Giáo viên chưa xuất bản bài tập nào
+                      </p>
+                    )}
                 </div>
               </div>
             </div>
@@ -1113,8 +1501,10 @@ export default function ClassroomDetail(props: {
           {activeTab === 'assignments' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Danh sách bài tập</h3>
-                {user?.role === 'teacher' && (
+                <h3 className="text-lg font-semibold">
+                  {isTeacher ? 'Quản lý bài tập' : 'Danh sách bài tập'}
+                </h3>
+                {isTeacher && (
                   <button
                     onClick={() => setShowCreateAssignment(true)}
                     className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition"
@@ -1125,99 +1515,144 @@ export default function ClassroomDetail(props: {
                 )}
               </div>
               <div className="space-y-4">
-                {detail?.assignments?.map((assignment) => (
-                  <AssignmentCard
-                    key={assignment.id}
-                    assignment={assignment}
-                    detail={detail}
-                    onViewSubmissions={(aid) =>
-                      navigate(
-                        `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
-                      )
-                    }
-                    onTogglePublish={async (a) => {
-                      try {
-                        await setAssignmentPublish(
-                          detail.id,
-                          a.id,
-                          !a.isPublished
-                        )
-                        toast.success(
-                          a.isPublished ? 'Đã chuyển sang Nháp' : 'Đã xuất bản'
-                        )
-                        await queryClient.invalidateQueries({
-                          queryKey: ['classroom-detail', detail.id],
-                        })
-                      } catch (e: any) {
-                        toast.error(
-                          e?.response?.data?.message ||
-                            'Cập nhật trạng thái thất bại'
-                        )
-                      }
-                    }}
-                    onEdit={(a) => {
-                      const initial = {
-                        title: a.title,
-                        description: a.description || '',
-                        instructions: a.instructions || '',
-                        dueDate: a.dueDate
-                          ? new Date(a.dueDate).toISOString().slice(0, 16)
-                          : '',
-                        isPublished: a.isPublished,
-                        totalPoints: a.totalPoints || 100,
-                        timeLimit: a.timeLimit || undefined,
-                        maxAttempts: a.maxAttempts || 1,
-                        activities: (a.activities || []).map((ac: any) => ({
-                          type: ac.type,
-                          title: ac.title,
-                          instructions: ac.instructions || '',
-                          points: ac.points || 0,
-                          timeLimit: ac.timeLimit || undefined,
-                          maxAttempts: ac.maxAttempts || undefined,
-                          passingScore: ac.passingScore || undefined,
-                          difficulty: ac.difficulty || undefined,
-                          hints: ac.hints || [],
-                          content: { kind: ac.type, data: ac.content },
-                        })),
-                      }
-                      setEditInitial(initial)
-                      setEditAssignmentId(a.id)
-                      setShowEditAssignment(true)
-                    }}
-                    onDelete={async (a) => {
-                      if (
-                        !confirm(
-                          'Xoá bài tập này? Hành động không thể hoàn tác.'
-                        )
-                      )
-                        return
-                      try {
-                        await deleteAssignment(detail.id, a.id)
-                        toast.success('Đã xoá bài tập')
-                        await queryClient.invalidateQueries({
-                          queryKey: ['classroom-detail', detail.id],
-                        })
-                      } catch (e: any) {
-                        toast.error(
-                          e?.response?.data?.message || 'Xoá thất bại'
-                        )
-                      }
-                    }}
-                  />
-                ))}
+                {isTeacher
+                  ? // Teacher view - Assignment management
+                    detail?.assignments?.map((assignment) => (
+                      <AssignmentCard
+                        key={assignment.id}
+                        assignment={assignment}
+                        detail={detail}
+                        onViewSubmissions={(aid) =>
+                          navigate(
+                            `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
+                          )
+                        }
+                        onDownloadPdf={handleDownloadPdf}
+                        onTogglePublish={async (a) => {
+                          try {
+                            await setAssignmentPublish(
+                              detail.id,
+                              a.id,
+                              !a.isPublished
+                            )
+                            toast.success(
+                              a.isPublished
+                                ? 'Đã chuyển sang Nháp'
+                                : 'Đã xuất bản'
+                            )
+                            await queryClient.invalidateQueries({
+                              queryKey: ['classroom-detail', detail.id],
+                            })
+                          } catch (e: any) {
+                            toast.error(
+                              e?.response?.data?.message ||
+                                'Cập nhật trạng thái thất bại'
+                            )
+                          }
+                        }}
+                        onEdit={(a) => {
+                          const initial = {
+                            title: a.title,
+                            description: a.description || '',
+                            instructions: a.instructions || '',
+                            dueDate: a.dueDate
+                              ? new Date(a.dueDate).toISOString().slice(0, 16)
+                              : '',
+                            isPublished: a.isPublished,
+                            totalPoints: a.totalPoints || 100,
+                            timeLimit: a.timeLimit || undefined,
+                            maxAttempts: a.maxAttempts || 1,
+                            activities: (a.activities || []).map((ac: any) => ({
+                              type: ac.type,
+                              title: ac.title,
+                              instructions: ac.instructions || '',
+                              points: ac.points || 0,
+                              timeLimit: ac.timeLimit || undefined,
+                              maxAttempts: ac.maxAttempts || undefined,
+                              passingScore: ac.passingScore || undefined,
+                              difficulty: ac.difficulty || undefined,
+                              hints: ac.hints || [],
+                              content: ac.content,
+                            })),
+                          }
+                          setEditInitial(initial)
+                          setEditAssignmentId(a.id)
+                          setShowEditAssignment(true)
+                        }}
+                        onDelete={async (a) => {
+                          if (
+                            !confirm(
+                              'Xoá bài tập này? Hành động không thể hoàn tác.'
+                            )
+                          )
+                            return
+                          try {
+                            await deleteAssignment(detail.id, a.id)
+                            toast.success('Đã xoá bài tập')
+                            await queryClient.invalidateQueries({
+                              queryKey: ['classroom-detail', detail.id],
+                            })
+                          } catch (e: any) {
+                            toast.error(
+                              e?.response?.data?.message || 'Xoá thất bại'
+                            )
+                          }
+                        }}
+                      />
+                    ))
+                  : // Student view - Assignment doing
+                    detail?.assignments
+                      ?.filter((assignment) => assignment.isPublished) // Only show published assignments to students
+                      ?.map((assignment) => (
+                        <StudentAssignmentCard
+                          key={assignment.id}
+                          assignment={assignment}
+                          submission={assignment.submission ?? null}
+                          onDownloadPdf={handleDownloadPdf}
+                          onStartAssignment={(aid) => {
+                            // Navigate to assignment taking page
+                            navigate(
+                              `/classroom/${detail.id}/assignment/${aid}`
+                            )
+                          }}
+                          onViewResult={(aid) => {
+                            // Navigate to assignment result page
+                            navigate(
+                              `/classroom/${detail.id}/assignment/${aid}/result`
+                            )
+                          }}
+                        />
+                      ))}
                 {detail?.assignments?.length === 0 && (
                   <div className="text-center py-12">
                     <FileText className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-4 text-lg font-medium text-gray-900">
-                      Chưa có bài tập
+                      {isTeacher ? 'Chưa có bài tập' : 'Chưa có bài tập'}
                     </h3>
                     <p className="mt-2 text-sm text-gray-500">
-                      {user?.role == 'teacher'
+                      {isTeacher
                         ? 'Tạo bài tập đầu tiên cho lớp học này'
                         : 'Giáo viên chưa tạo bài tập nào'}
                     </p>
                   </div>
                 )}
+                {/* Special case for students: No published assignments */}
+                {isStudent &&
+                  detail?.assignments &&
+                  detail.assignments.length > 0 &&
+                  detail.assignments.filter((a) => a.isPublished).length ===
+                    0 && (
+                    <div className="text-center py-12">
+                      <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-4 text-lg font-medium text-gray-900">
+                        Chưa có bài tập được xuất bản
+                      </h3>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Giáo viên đã tạo bài tập nhưng chưa xuất bản cho học
+                        sinh
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
           )}
@@ -1388,7 +1823,8 @@ export default function ClassroomDetail(props: {
                               : student.studentRecord.notes,
                         },
                       }}
-                      onClick={(id) => setOpenStudentId(id)}
+                      onViewInfo={(id) => setOpenStudentId(id)}
+                      onSendMessage={handleSendMessageToStudent}
                     />
                   ))}
                   {filteredStudents.length === 0 && searchStudent && (
@@ -1447,9 +1883,19 @@ export default function ClassroomDetail(props: {
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
             <h3 className="text-base font-semibold mb-4">Thao tác nhanh</h3>
             <div className="space-y-2">
-              <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-gray-50 transition">
+              <button
+                onClick={handleSendMessageToTeacher}
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-gray-50 transition"
+              >
                 <MessageSquare className="h-4 w-4 text-gray-600" />
                 <span className="text-sm">Nhắn tin cho giáo viên</span>
+              </button>
+              <button
+                onClick={() => setOpenTeacherId(detail?.teacher?.id || null)}
+                className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-gray-50 transition"
+              >
+                <Eye className="h-4 w-4 text-gray-600" />
+                <span className="text-sm">Xem thông tin giáo viên</span>
               </button>
               <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-gray-50 transition">
                 <Calendar className="h-4 w-4 text-gray-600" />
@@ -1567,6 +2013,7 @@ export default function ClassroomDetail(props: {
       )}
       {detail?.id && (
         <CreateAssignmentModal
+          key={`edit-${editAssignmentId}-${showEditAssignment}`}
           isOpen={showEditAssignment}
           classroomId={detail.id}
           mode="edit"
@@ -1576,6 +2023,11 @@ export default function ClassroomDetail(props: {
           onClose={() => setShowEditAssignment(false)}
         />
       )}
+
+      {/* Conversation Widget có sẵn */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <ConversationWidget />
+      </div>
     </div>
   )
 }
