@@ -114,8 +114,15 @@ const AiSpeakingPracticePage: React.FC = () => {
 
   const connectSocket = useCallback(
     (sessionId: string) => {
-      if (!sessionId) return
+      console.log('🔌 Connecting to WebSocket:', { sessionId, socketUrl })
+
+      if (!sessionId) {
+        console.error('❌ No sessionId provided to connectSocket')
+        return
+      }
+
       if (socketRef.current) {
+        console.log('🔄 Disconnecting existing socket')
         socketRef.current.disconnect()
       }
 
@@ -124,7 +131,13 @@ const AiSpeakingPracticePage: React.FC = () => {
         query: { sessionId },
       })
 
+      console.log('📡 Socket connection initiated with query:', { sessionId })
+
       socket.on('connect', () => {
+        console.log(
+          '✅ WebSocket connected successfully with sessionId:',
+          sessionId
+        )
         setSilenceWarnings(0)
       })
 
@@ -418,6 +431,8 @@ const AiSpeakingPracticePage: React.FC = () => {
         maxTurns: params.maxTurns,
       })
 
+      console.log('🎯 Session created successfully:', created)
+
       setSession(created)
       setSelectedConversationId(conversationId)
       setViewMode('session')
@@ -428,8 +443,10 @@ const AiSpeakingPracticePage: React.FC = () => {
       if (initialTurn) {
         setCurrentTurnId(initialTurn.id)
         setCurrentTurn(initialTurn)
+        console.log('📋 Initial turn set:', initialTurn)
       }
 
+      console.log('🔌 About to connect socket with session ID:', created.id)
       connectSocket(created.id)
       setSessionSummary(null)
       setSessionAnalytics(null)

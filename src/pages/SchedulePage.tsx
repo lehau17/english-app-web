@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import SessionDetailModal from '../components/schedule/SessionDetailModal'
 import { useAuth } from '../context/AuthContext'
 import { useStudentWeeklySchedule } from '../hooks/useStudentWeeklySchedule'
 import type {
@@ -81,12 +82,27 @@ const formatWeekRange = (startDate: Date, timezone: string) => {
 }
 
 const getWeekStart = (date: Date) => {
-  const result = new Date(date)
-  const day = result.getDay() || 7
-  if (day !== 1) {
-    result.setDate(result.getDate() - (day - 1))
-  }
+  // Create a new date to avoid mutating the original
+  const result = new Date(date.getTime())
+  const day = result.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+  console.log('🔧 getWeekStart Debug:')
+  console.log('  Input date:', date.toISOString())
+  console.log('  Day of week:', day, '(0=Sun, 1=Mon, 5=Fri)')
+
+  // Calculate days to subtract to get to Monday (day 1)
+  const daysToSubtract = day === 0 ? 6 : day - 1 // If Sunday (0), go back 6 days to Monday
+
+  console.log('  Days to subtract:', daysToSubtract)
+
+  result.setDate(result.getDate() - daysToSubtract)
   result.setHours(0, 0, 0, 0)
+
+  console.log('  Result Monday:', result.toISOString())
+  console.log(
+    '  Expected for Oct 3: Should be 2025-09-30 (Monday of current week)'
+  )
+
   return result
 }
 
@@ -119,6 +135,9 @@ const SchedulePage = () => {
   const [weekStartDate, setWeekStartDate] = useState(() =>
     getWeekStart(new Date())
   )
+  const [selectedSession, setSelectedSession] =
+    useState<StudentScheduleSession | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const timezone = user?.timezone || DEFAULT_TIMEZONE
 
   const {
@@ -129,6 +148,65 @@ const SchedulePage = () => {
   } = useStudentWeeklySchedule(weekStartDate.toISOString(), {
     timezone,
   })
+
+  // Debug logging - detailed
+  console.log('🔍 FE Debug - SchedulePage:')
+  console.log('  Current date (now):', new Date().toISOString())
+  console.log('  Current day of week:', new Date().getDay()) // 0=Sunday, 5=Friday (today is Oct 3)
+  console.log('  weekStartDate:', weekStartDate.toISOString())
+  console.log('  weekStartDate day of week:', weekStartDate.getDay())
+  console.log('  Sending to API:', weekStartDate.toISOString())
+
+  // Manual calculation check for current week
+  const today = new Date()
+  const todayDay = today.getDay() // Should be 5 (Friday) for Oct 3
+  const daysToMonday = todayDay === 0 ? 6 : todayDay - 1 // Should be 4 days back
+  const expectedMonday = new Date(today)
+  expectedMonday.setDate(today.getDate() - daysToMonday)
+  expectedMonday.setHours(0, 0, 0, 0)
+
+  console.log('  🧮 Manual calculation:')
+  console.log('    Today is day:', todayDay, '(5=Friday)')
+  console.log('    Days back to Monday:', daysToMonday, '(should be 4)')
+  console.log('    Expected Monday:', expectedMonday.toISOString())
+  console.log('    Expected Monday should be: 2025-09-30 (current week)')
+  console.log('  ')
+  console.log(
+    '  ❌ PROBLEM: If weekStartDate is 2025-09-28, it means getWeekStart is wrong!'
+  )
+  console.log('    2025-09-28 is LAST Sunday, not this week!')
+  console.log(
+    '  Match check:',
+    weekStartDate.getTime() === expectedMonday.getTime()
+  )
+
+  // Add function to force refresh to current week
+  const goToCurrentWeek = () => {
+    const currentWeekStart = getWeekStart(new Date())
+    console.log(
+      '🔄 Force refresh to current week:',
+      currentWeekStart.toISOString()
+    )
+    setWeekStartDate(currentWeekStart)
+  }
+
+  // Auto-fix if weekStartDate is too old (temporary fix)
+  const now = new Date()
+  const daysDiff = Math.floor(
+    (now.getTime() - weekStartDate.getTime()) / (1000 * 60 * 60 * 24)
+  )
+
+  if (daysDiff > 7) {
+    console.log(
+      '⚠️ weekStartDate is too old:',
+      daysDiff,
+      'days. Auto-correcting to current week.'
+    )
+    const correctedWeekStart = getWeekStart(now)
+    if (weekStartDate.getTime() !== correctedWeekStart.getTime()) {
+      setWeekStartDate(correctedWeekStart)
+    }
+  }
 
   const weekDates = useMemo(() => {
     const dates: Date[] = []
@@ -191,6 +269,16 @@ const SchedulePage = () => {
     setWeekStartDate(nextWeek)
   }
 
+  const handleSessionClick = (session: StudentScheduleSession) => {
+    setSelectedSession(session)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedSession(null)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -231,25 +319,36 @@ const SchedulePage = () => {
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await refetchWeekly()
-                toast.success('Đã cập nhật lịch học theo tuần')
-              } catch (error) {
-                toast.error('Không thể tải lại lịch học')
-              }
-            }}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50"
-          >
-            {isFetchingWeekly ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Làm mới
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={goToCurrentWeek}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-100"
+            >
+              <CalendarDays className="h-4 w-4" />
+              Tuần hiện tại
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await refetchWeekly()
+                  toast.success('Đã cập nhật lịch học theo tuần')
+                } catch (error) {
+                  toast.error('Không thể tải lại lịch học')
+                }
+              }}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50"
+            >
+              {isFetchingWeekly ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Làm mới
+            </button>
+          </div>
         </div>
       </div>
 
@@ -331,7 +430,8 @@ const SchedulePage = () => {
                                 return (
                                   <div
                                     key={session.sessionId}
-                                    className="space-y-1 rounded-lg border border-gray-100 bg-gray-50 p-2 text-xs text-gray-600 shadow-sm"
+                                    onClick={() => handleSessionClick(session)}
+                                    className="space-y-1 rounded-lg border border-gray-100 bg-gray-50 p-2 text-xs text-gray-600 shadow-sm cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
                                   >
                                     <div className="flex items-center justify-between gap-2">
                                       <p className="font-semibold text-gray-800">
@@ -353,6 +453,24 @@ const SchedulePage = () => {
                                     <div className="text-[11px] text-gray-500">
                                       {session.classroomName}
                                     </div>
+                                    {session.course && (
+                                      <div className="text-[11px] text-gray-600 font-medium">
+                                        Khóa học: {session.course.title}
+                                      </div>
+                                    )}
+                                    {session.sessionSchedule && (
+                                      <div className="text-[11px] text-purple-600">
+                                        Buổi{' '}
+                                        {session.sessionSchedule.sessionNumber}
+                                      </div>
+                                    )}
+                                    {session.activities &&
+                                      session.activities.length > 0 && (
+                                        <div className="text-[11px] text-green-600">
+                                          {session.activities.length} hoạt động
+                                          học tập
+                                        </div>
+                                      )}
                                     {session.instructor?.displayName && (
                                       <div className="flex items-center gap-1 text-[11px] text-gray-500">
                                         <UserIcon className="h-3 w-3 text-gray-400" />
@@ -392,6 +510,12 @@ const SchedulePage = () => {
           </>
         )}
       </div>
+
+      <SessionDetailModal
+        session={selectedSession}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   )
 }

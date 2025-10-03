@@ -11,6 +11,27 @@ export interface StudentScheduleInstructor {
   avatarUrl?: string | null
 }
 
+export interface StudentScheduleCourse {
+  id: string
+  title: string
+  description?: string | null
+}
+
+export interface StudentScheduleSessionSchedule {
+  courseSessionScheduleId: string
+  sessionNumber: number
+}
+
+export interface StudentScheduleActivity {
+  activityId: string
+  orderNo: number
+  activity: {
+    id: string
+    title: string
+    type: string
+  }
+}
+
 export interface StudentScheduleSession {
   sessionId: string
   classroomId: string
@@ -32,6 +53,10 @@ export interface StudentScheduleSession {
   stateLabel: string
   startsInMinutes: number | null
   endsInMinutes: number | null
+  // Thông tin course và giáo trình
+  course?: StudentScheduleCourse | null
+  sessionSchedule?: StudentScheduleSessionSchedule | null
+  activities?: StudentScheduleActivity[]
 }
 
 export interface StudentDailyScheduleSummary {

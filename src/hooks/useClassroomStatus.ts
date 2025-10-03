@@ -68,23 +68,41 @@ export const useMyClassroomsWithStatus = (role?: string, enabled = true) => {
       return res.data.map((classroom) => ({
         id: classroom.id,
         name: classroom.name,
-        description: undefined,
-        classCode: classroom.classCode || '',
-        status: 'ongoing' as ClassroomStatus, // Default status - API should provide this
+        description: classroom.description,
+        classCode: classroom.classCode,
+        status: classroom.status,
         maxStudents: classroom.maxStudents,
-        isActive: true, // Default - API should provide this
-        periodStart: new Date().toISOString(), // Default - API should provide this
-        periodEnd: new Date().toISOString(), // Default - API should provide this
+        isActive: classroom.isActive,
+        periodStart: classroom.periodStart,
+        periodEnd: classroom.periodEnd,
         teacher: classroom.teacher
           ? {
-              id: '', // Not provided in MyClassroomResponse
-              firstName: '',
-              lastName: '',
+              id: classroom.teacher.id,
+              firstName: classroom.teacher.firstName,
+              lastName: classroom.teacher.lastName,
               displayName: classroom.teacher.displayName,
-              avatarUrl: undefined,
+              avatarUrl: classroom.teacher.avatarUrl || undefined,
             }
           : undefined,
-        _count: classroom._count,
+        course: classroom.course,
+        students: classroom.students?.map((s) => ({
+          studentId: s.studentId,
+          isPurchased: s.isPurchased,
+          isActive: s.isActive,
+          student: s.student
+            ? {
+                id: s.student.id,
+                firstName: s.student.firstName,
+                lastName: s.student.lastName,
+                displayName: s.student.displayName || '',
+                avatarUrl: s.student.avatarUrl || undefined,
+              }
+            : undefined,
+        })),
+        _count: classroom._count || {
+          students: classroom.students?.length || 0,
+          assignments: 0,
+        },
       }))
     },
   })

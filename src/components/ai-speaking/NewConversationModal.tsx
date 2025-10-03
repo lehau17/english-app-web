@@ -100,11 +100,47 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
   )
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        backdropFilter: 'blur(2px)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
+      <div
+        className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          position: 'relative',
+          zIndex: 10000,
+          opacity: 1,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+        <div
+          className="flex items-center justify-between p-6 border-b"
+          style={{ borderBottom: '1px solid #e5e7eb' }}
+        >
+          <h2
+            className="text-xl font-semibold text-gray-900 flex items-center gap-2"
+            style={{ color: '#111827', fontSize: '1.25rem', fontWeight: '600' }}
+          >
             <MessageCircle className="h-6 w-6" />
             {existingConversationId
               ? 'Tiếp tục hội thoại'
@@ -113,15 +149,20 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            style={{ padding: '8px', borderRadius: '8px' }}
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 space-y-6"
+          style={{ padding: '24px' }}
+        >
           {/* Topic Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
               <Target className="h-4 w-4" />
               Chủ đề hội thoại *
             </label>
@@ -154,7 +195,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
 
           {/* Goal */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
               <Target className="h-4 w-4" />
               Mục tiêu cụ thể (tùy chọn)
             </label>
