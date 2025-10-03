@@ -1,4 +1,4 @@
-import { AlertCircle, CreditCard, X } from 'lucide-react'
+import { CreditCard, X } from 'lucide-react'
 import React from 'react'
 import { PaymentButton } from '../payment/PaymentButton'
 
