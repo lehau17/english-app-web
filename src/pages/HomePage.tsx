@@ -11,12 +11,14 @@ import {
 } from 'lucide-react'
 import { type JSX, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { DirectPaymentModal } from '../components/classroom/DirectPaymentModal'
 import { PaymentNotificationModal } from '../components/classroom/PaymentNotificationModal'
 import {
   getPaymentStatusDisplayInfo,
   getStatusDisplayInfo,
   useClassroomsGroupedByStatus,
 } from '../hooks/useClassroomStatus'
+import { useHasParent } from '../hooks/useHasParent'
 import { useClassroomLeaderboard } from '../hooks/useLeaderboard'
 import { useNextLesson } from '../hooks/useNextLesson'
 import { usePaymentFlow } from '../hooks/usePaymentFlow'
@@ -36,6 +38,10 @@ export default function HomePage(): JSX.Element {
   const role = userData?.role
   const isStudent = role === 'student'
   const isTeacher = role === 'teacher'
+
+  // Check if student has parent (only for students)
+  const { data: parentStatus, isLoading: isLoadingParentStatus } =
+    useHasParent(isStudent)
 
   const {
     groupedData: classroomsGrouped,
@@ -61,8 +67,10 @@ export default function HomePage(): JSX.Element {
   const {
     selectedClassroom: paymentClassroom,
     showPaymentModal: showPaymentNotification,
+    showDirectPaymentModal,
     handleClassroomClick,
     closePaymentModal: closePaymentNotification,
+    closeDirectPaymentModal,
   } = usePaymentFlow()
 
   const { data: nextLesson, isLoading: isLoadingNextLesson } = useNextLesson(
@@ -393,7 +401,10 @@ export default function HomePage(): JSX.Element {
                       key={c.id}
                       onClick={() => {
                         // Check if payment is required and handle accordingly
-                        const shouldShowPaymentModal = handleClassroomClick(c)
+                        const shouldShowPaymentModal = handleClassroomClick(
+                          c,
+                          parentStatus?.hasParent
+                        )
                         if (!shouldShowPaymentModal) {
                           navigate(`/classroom-detail/${c.id}`)
                         }
@@ -589,11 +600,36 @@ export default function HomePage(): JSX.Element {
         </div>
       </section>
 
-      {/* Payment Notification Modal */}
+      {/* Payment Notification Modal (for students with parents) */}
       {paymentClassroom && (
         <PaymentNotificationModal
           isOpen={showPaymentNotification}
           onClose={closePaymentNotification}
+          classroom={{
+            id: paymentClassroom.id,
+            name: paymentClassroom.name,
+            course: paymentClassroom.course
+              ? {
+                  id: paymentClassroom.course.id,
+                  title: paymentClassroom.course.title,
+                  price: paymentClassroom.course.price || 0,
+                  currency: paymentClassroom.course.currency,
+                }
+              : undefined,
+            teacher: paymentClassroom.teacher
+              ? {
+                  displayName: paymentClassroom.teacher.displayName,
+                }
+              : undefined,
+          }}
+        />
+      )}
+
+      {/* Direct Payment Modal (for students without parents) */}
+      {paymentClassroom && (
+        <DirectPaymentModal
+          isOpen={showDirectPaymentModal}
+          onClose={closeDirectPaymentModal}
           classroom={{
             id: paymentClassroom.id,
             name: paymentClassroom.name,

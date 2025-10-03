@@ -6,15 +6,30 @@ export const usePaymentFlow = () => {
   const [selectedClassroom, setSelectedClassroom] =
     useState<ClassroomWithStatus | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showDirectPaymentModal, setShowDirectPaymentModal] = useState(false)
   const { user } = useAuth()
 
-  const handleClassroomClick = (classroom: ClassroomWithStatus) => {
+  const handleClassroomClick = (
+    classroom: ClassroomWithStatus,
+    hasParent?: boolean
+  ) => {
     // Nếu classroom cần thanh toán và chưa thanh toán
     if (classroom.needsPayment && !classroom.isPurchased) {
-      // Nếu là học sinh hoặc phụ huynh, hiển thị modal thanh toán
-      if (user?.role === 'student' || user?.role === 'parent') {
+      if (user?.role === 'parent') {
+        // Phụ huynh: hiển thị modal thanh toán bình thường
         setSelectedClassroom(classroom)
         setShowPaymentModal(true)
+        return true
+      } else if (user?.role === 'student') {
+        setSelectedClassroom(classroom)
+
+        // Học sinh không có phụ huynh: hiển thị modal thanh toán trực tiếp
+        if (hasParent === false) {
+          setShowDirectPaymentModal(true)
+        } else {
+          // Học sinh có phụ huynh: hiển thị modal thông báo liên hệ phụ huynh
+          setShowPaymentModal(true)
+        }
         return true // Prevent navigation
       }
     }
@@ -23,6 +38,11 @@ export const usePaymentFlow = () => {
 
   const closePaymentModal = () => {
     setShowPaymentModal(false)
+    setSelectedClassroom(null)
+  }
+
+  const closeDirectPaymentModal = () => {
+    setShowDirectPaymentModal(false)
     setSelectedClassroom(null)
   }
 
@@ -35,8 +55,10 @@ export const usePaymentFlow = () => {
   return {
     selectedClassroom,
     showPaymentModal,
+    showDirectPaymentModal,
     handleClassroomClick,
     closePaymentModal,
+    closeDirectPaymentModal,
     handlePaymentSuccess,
   }
 }

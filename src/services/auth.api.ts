@@ -60,6 +60,22 @@ export const meApi = async (): Promise<User> => {
   return data.data
 }
 
+export interface HasParentResponse {
+  hasParent: boolean
+  parentInfo?: {
+    id: string
+    displayName?: string
+    email?: string
+  } | null
+}
+
+export const hasParentApi = async (): Promise<HasParentResponse> => {
+  const { data } = await api.get<BaseResponse<HasParentResponse>>(
+    'private/v1/auth/has-parent'
+  )
+  return data.data
+}
+
 // Update profile của current user
 export const updateProfileApi = async (
   userId: string,
