@@ -35,6 +35,15 @@ interface EvaluationState {
 
 type ViewMode = 'session' | 'conversations' | 'conversation-detail'
 
+interface ConversationMessage {
+  id: string
+  role: 'ai' | 'user'
+  turnId: string
+  audioUrl?: string | null
+  text?: string | null
+  createdAt: number
+}
+
 const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -65,6 +74,10 @@ const AiSpeakingPracticePage: React.FC = () => {
   const [ttsState, setTtsState] = useState<TtsState>('idle')
   const [ttsChunkCount, setTtsChunkCount] = useState(0)
   const [aiAudioUrl, setAiAudioUrl] = useState<string | null>(null)
+  const [aiStatusMessage, setAiStatusMessage] = useState(
+    'Chờ bạn ghi âm để AI phản hồi.'
+  )
+  const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null)
   const [partialTranscript, setPartialTranscript] = useState('')
   const [finalTranscript, setFinalTranscript] = useState('')
   const [evaluation, setEvaluation] = useState<EvaluationState | null>(null)
@@ -83,6 +96,9 @@ const AiSpeakingPracticePage: React.FC = () => {
     string,
     unknown
   > | null>(null)
+  const [conversationMessages, setConversationMessages] = useState<
+    ConversationMessage[]
+  >([])
 
   const socketRef = useRef<Socket | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -92,8 +108,66 @@ const AiSpeakingPracticePage: React.FC = () => {
   const waitingAckRef = useRef(false)
   const sequenceRef = useRef(0)
   const audioBuffersRef = useRef<Uint8Array[]>([])
+  const sessionRef = useRef<AiSpeakingSessionDto | null>(null)
+  const turnPromptRef = useRef<Map<string, string>>(new Map())
+  const isStoppingRef = useRef(false)
+
+  const upsertConversationMessage = useCallback(
+    (message: ConversationMessage) => {
+      setConversationMessages((prev) => {
+        const index = prev.findIndex((item) => item.id === message.id)
+        if (index !== -1) {
+          const next = [...prev]
+          next[index] = {
+            ...next[index],
+            ...message,
+            createdAt: next[index].createdAt ?? message.createdAt,
+          }
+          return next
+        }
+        return [...prev, message]
+      })
+    },
+    []
+  )
+
+  const appendAudioToConversation = useCallback(
+    (params: {
+      role: 'ai' | 'user'
+      turnId: string
+      audioUrl?: string | null
+      text?: string | null
+    }) => {
+      const { role, turnId, audioUrl, text } = params
+      const id = `${role}-${turnId}`
+
+      upsertConversationMessage({
+        id,
+        role,
+        turnId,
+        audioUrl: audioUrl ?? undefined,
+        text: text ?? null,
+        createdAt: Date.now(),
+      })
+    },
+    [upsertConversationMessage]
+  )
 
   const socketUrl = useMemo(() => `${resolveSocketUrl()}/ai-speaking`, [])
+
+  useEffect(() => {
+    sessionRef.current = session
+
+    if (session?.turns?.length) {
+      const nextMap = new Map<string, string>()
+      session.turns.forEach((turn) => {
+        if (turn.aiPrompt) {
+          nextMap.set(turn.id, turn.aiPrompt)
+        }
+      })
+      turnPromptRef.current = nextMap
+    }
+  }, [session])
 
   useEffect(() => {
     return () => {
@@ -106,11 +180,50 @@ const AiSpeakingPracticePage: React.FC = () => {
       if (timerRef.current) {
         window.clearInterval(timerRef.current)
       }
-      if (aiAudioUrl) {
-        URL.revokeObjectURL(aiAudioUrl)
-      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!aiAudioUrl) return () => {}
+
+    return () => {
+      URL.revokeObjectURL(aiAudioUrl)
     }
   }, [aiAudioUrl])
+
+  const sendNextChunk = useCallback(() => {
+    if (!session || !currentTurnId) return
+    if (waitingAckRef.current) return
+    const socket = socketRef.current
+    if (!socket) return
+
+    const next = chunkQueueRef.current.shift()
+    if (!next) return
+    waitingAckRef.current = true
+    socket.emit('ai-speaking:user-audio-chunk', {
+      sessionId: session.id,
+      turnId: currentTurnId,
+      chunk: next.base64,
+      sequence: next.sequence,
+      mimeType: recorderRef.current?.mimeType || 'audio/webm',
+    })
+  }, [currentTurnId, session])
+
+  const emitUserStop = useCallback(() => {
+    const socket = socketRef.current
+    if (!socket || !session || !currentTurnId) return false
+    if (waitingAckRef.current || chunkQueueRef.current.length > 0) {
+      return false
+    }
+
+    socket.emit('ai-speaking:user-stop', {
+      sessionId: session.id,
+      turnId: currentTurnId,
+      durationSec: durationRef.current,
+    })
+
+    return true
+  }, [currentTurnId, session])
 
   const connectSocket = useCallback(
     (sessionId: string) => {
@@ -128,6 +241,7 @@ const AiSpeakingPracticePage: React.FC = () => {
 
       const socket = io(socketUrl, {
         transports: ['websocket'],
+        auth: { sessionId },
         query: { sessionId },
       })
 
@@ -157,6 +271,8 @@ const AiSpeakingPracticePage: React.FC = () => {
         }
         audioBuffersRef.current = []
         setCurrentTurnId(payload.turnId)
+        setAiStatusMessage('AI đang chuẩn bị phản hồi cho bạn...')
+        setAiErrorMessage(null)
       })
 
       socket.on(
@@ -170,6 +286,7 @@ const AiSpeakingPracticePage: React.FC = () => {
             }
             audioBuffersRef.current.push(view)
             setTtsChunkCount((count) => count + 1)
+            setAiStatusMessage('AI đang gửi âm thanh, vui lòng chờ...')
           }
         }
       )
@@ -186,6 +303,39 @@ const AiSpeakingPracticePage: React.FC = () => {
               if (prev) URL.revokeObjectURL(prev)
               return mergedUrl
             })
+            setAiStatusMessage(
+              'AI đã phản hồi, hãy nhấn phát để nghe âm thanh.'
+            )
+            setAiErrorMessage(null)
+            const promptText =
+              turnPromptRef.current.get(payload.turnId) ??
+              sessionRef.current?.turns?.find(
+                (turn) => turn.id === payload.turnId
+              )?.aiPrompt ??
+              null
+            appendAudioToConversation({
+              role: 'ai',
+              turnId: payload.turnId,
+              audioUrl: mergedUrl,
+              text: promptText,
+            })
+          } else {
+            setAiStatusMessage('AI đã phản hồi nhưng không gửi được âm thanh.')
+            setAiErrorMessage(
+              'Không nhận được âm thanh từ AI. Vui lòng xem transcript hoặc thử lại.'
+            )
+            const promptText =
+              turnPromptRef.current.get(payload.turnId) ??
+              sessionRef.current?.turns?.find(
+                (turn) => turn.id === payload.turnId
+              )?.aiPrompt ??
+              null
+            appendAudioToConversation({
+              role: 'ai',
+              turnId: payload.turnId,
+              audioUrl: null,
+              text: promptText,
+            })
           }
         }
       )
@@ -193,6 +343,8 @@ const AiSpeakingPracticePage: React.FC = () => {
       socket.on('ai-speaking:tts-error', (payload: { message: string }) => {
         setTtsState('error')
         toast.error(payload?.message ?? 'Không thể phát âm AI')
+        setAiErrorMessage(payload?.message ?? 'Không thể phát âm AI.')
+        setAiStatusMessage('AI gặp lỗi khi phát âm thanh.')
       })
 
       socket.on(
@@ -202,6 +354,7 @@ const AiSpeakingPracticePage: React.FC = () => {
           text: string
           confidence?: number | null
         }) => {
+          console.log('[ASR Partial]', payload)
           setPartialTranscript(payload.text)
         }
       )
@@ -214,6 +367,43 @@ const AiSpeakingPracticePage: React.FC = () => {
           confidence?: number | null
         }) => {
           setFinalTranscript(payload.text)
+          appendAudioToConversation({
+            role: 'user',
+            turnId: payload.turnId,
+            text: payload.text,
+          })
+        }
+      )
+
+      socket.on(
+        'ai-speaking:asr-error',
+        (payload: { turnId: string; message?: string }) => {
+          const message =
+            payload?.message ?? 'Hệ thống gặp lỗi khi xử lý giọng nói.'
+          setAiErrorMessage(message)
+          setAiStatusMessage(
+            'Không thể xử lý âm thanh vừa ghi. Vui lòng thử lại.'
+          )
+          toast.error(message)
+        }
+      )
+
+      socket.on(
+        'ai-speaking:asr-silence',
+        (payload: {
+          turnId: string
+          averageEnergy?: number
+          durationSec?: number
+        }) => {
+          setAiErrorMessage(
+            'AI không nghe thấy bạn. Hãy thử nói to hơn hoặc kiểm tra micro.'
+          )
+          setAiStatusMessage(
+            'Không nhận được nội dung giọng nói. Hãy ghi âm lại nhé.'
+          )
+          toast('AI không nghe thấy bạn, hãy thử ghi âm lại.', {
+            icon: '🔇',
+          })
         }
       )
 
@@ -231,6 +421,7 @@ const AiSpeakingPracticePage: React.FC = () => {
                 }>)
               : undefined,
           })
+          setAiStatusMessage('AI đã phân tích câu trả lời của bạn.')
 
           setSession((prev) =>
             prev
@@ -263,6 +454,9 @@ const AiSpeakingPracticePage: React.FC = () => {
           setFinalTranscript('')
           setEvaluation(null)
           toast.success('AI đã gửi câu hỏi tiếp theo')
+          setAiStatusMessage('AI đang chuẩn bị câu hỏi mới cho bạn...')
+          setAiErrorMessage(null)
+          turnPromptRef.current.set(payload.turnId, payload.prompt)
         }
       )
 
@@ -273,6 +467,12 @@ const AiSpeakingPracticePage: React.FC = () => {
             setAiAudioUrl((prev) => {
               if (prev) URL.revokeObjectURL(prev)
               return payload.audioUrl ?? null
+            })
+            setAiStatusMessage('AI đã ghi lại câu trả lời của bạn.')
+            appendAudioToConversation({
+              role: 'user',
+              turnId: payload.turnId,
+              audioUrl: payload.audioUrl ?? null,
             })
           }
         }
@@ -299,6 +499,8 @@ const AiSpeakingPracticePage: React.FC = () => {
           toast.success('Phiên luyện nói đã kết thúc')
           setSessionSummary(payload.summary ?? null)
           setSessionAnalytics(payload.analytics ?? null)
+          setAiStatusMessage('Phiên luyện nói đã kết thúc.')
+          setAiErrorMessage(null)
         }
       )
 
@@ -314,7 +516,7 @@ const AiSpeakingPracticePage: React.FC = () => {
 
       socketRef.current = socket
     },
-    [aiAudioUrl, socketUrl]
+    [aiAudioUrl, appendAudioToConversation, sendNextChunk, socketUrl]
   )
 
   const detachRecorderStream = () => {
@@ -324,34 +526,26 @@ const AiSpeakingPracticePage: React.FC = () => {
     stream?.getTracks().forEach((track) => track.stop())
   }
 
-  const sendNextChunk = () => {
-    if (!session || !currentTurnId) return
-    if (waitingAckRef.current) return
-    const socket = socketRef.current
-    if (!socket) return
-
-    const next = chunkQueueRef.current.shift()
-    if (!next) return
-    waitingAckRef.current = true
-    socket.emit('ai-speaking:user-audio-chunk', {
-      sessionId: session.id,
-      turnId: currentTurnId,
-      chunk: next.base64,
-      sequence: next.sequence,
-      mimeType: recorderRef.current?.mimeType || 'audio/webm',
-    })
-  }
-
   const startRecording = useCallback(async () => {
     if (!session || !currentTurnId || recordingState === 'recording') return
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      })
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 128_000,
+      })
       recorderRef.current = recorder
       chunkQueueRef.current = []
       waitingAckRef.current = false
       sequenceRef.current = 0
       durationRef.current = 0
+      isStoppingRef.current = false // Reset stopping flag when starting
       setPartialTranscript('')
       setFinalTranscript('')
       setEvaluation(null)
@@ -359,6 +553,7 @@ const AiSpeakingPracticePage: React.FC = () => {
 
       recorder.ondataavailable = async (event) => {
         if (!event.data || !event.data.size) return
+        if (isStoppingRef.current) return // Don't send chunks if stopping
         const base64 = await blobToBase64(event.data)
         chunkQueueRef.current.push({
           base64,
@@ -380,14 +575,12 @@ const AiSpeakingPracticePage: React.FC = () => {
         }
         setRecordingState('processing')
         detachRecorderStream()
-        const socket = socketRef.current
-        if (socket && session && currentTurnId) {
-          socket.emit('ai-speaking:user-stop', {
-            sessionId: session.id,
-            turnId: currentTurnId,
-            durationSec: durationRef.current,
-          })
+        const tryEmit = () => {
+          if (!emitUserStop()) {
+            window.setTimeout(tryEmit, 150)
+          }
         }
+        tryEmit()
       }
 
       recorder.start(1000)
@@ -399,11 +592,17 @@ const AiSpeakingPracticePage: React.FC = () => {
       console.error(error)
       toast.error('Không thể truy cập microphone. Hãy kiểm tra quyền truy cập.')
     }
-  }, [currentTurnId, recordingState, session])
+  }, [currentTurnId, emitUserStop, recordingState, sendNextChunk, session])
 
   const stopRecording = useCallback(() => {
     const recorder = recorderRef.current
     if (recorder && recorder.state !== 'inactive') {
+      isStoppingRef.current = true // Set flag to prevent sending more chunks
+      try {
+        recorder.requestData()
+      } catch (error) {
+        console.warn('requestData failed before stop', error)
+      }
       recorder.stop()
     }
   }, [])
@@ -450,6 +649,15 @@ const AiSpeakingPracticePage: React.FC = () => {
       connectSocket(created.id)
       setSessionSummary(null)
       setSessionAnalytics(null)
+      setAiStatusMessage('AI đang chuẩn bị câu hỏi mở đầu...')
+      setAiErrorMessage(null)
+      setConversationMessages([])
+      turnPromptRef.current = new Map()
+      created.turns.forEach((turn) => {
+        if (turn.aiPrompt) {
+          turnPromptRef.current.set(turn.id, turn.aiPrompt)
+        }
+      })
 
       // Close modal if open
       setIsNewConversationModalOpen(false)
@@ -472,6 +680,8 @@ const AiSpeakingPracticePage: React.FC = () => {
       setSessionSummary(finalized.summary ?? null)
       setSessionAnalytics(finalized.analytics ?? null)
       toast.success('Đã tổng kết phiên luyện nói')
+      setAiStatusMessage('Phiên luyện nói đã được tổng kết.')
+      setAiErrorMessage(null)
     } catch (error: any) {
       const message =
         error?.response?.data?.message ?? 'Không thể kết thúc phiên'
@@ -492,11 +702,15 @@ const AiSpeakingPracticePage: React.FC = () => {
   const handleBackToConversations = () => {
     setViewMode('conversations')
     setSelectedConversationId(null)
+    setAiStatusMessage('Chọn một cuộc hội thoại để bắt đầu luyện nói.')
+    setAiErrorMessage(null)
   }
 
   const handleNewConversation = () => {
     setSelectedConversationId(null)
     setIsNewConversationModalOpen(true)
+    setAiStatusMessage('Hãy điền thông tin để bắt đầu cuộc hội thoại mới.')
+    setAiErrorMessage(null)
   }
 
   const canRecord = Boolean(session) && Boolean(currentTurnId)
@@ -554,6 +768,67 @@ const AiSpeakingPracticePage: React.FC = () => {
       {viewMode === 'session' && session && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Dòng hội thoại
+                </h2>
+                <span className="text-xs text-gray-500">
+                  {conversationMessages.length} lượt trao đổi
+                </span>
+              </div>
+              <div className="mt-4 max-h-72 overflow-y-auto space-y-3 pr-1">
+                {conversationMessages.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    Bắt đầu ghi âm để thêm nội dung vào hội thoại.
+                  </p>
+                ) : (
+                  conversationMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`rounded-lg border p-3 text-sm shadow-sm ${
+                        message.role === 'ai'
+                          ? 'border-blue-200 bg-blue-50'
+                          : 'border-emerald-200 bg-emerald-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide">
+                        <span
+                          className={
+                            message.role === 'ai'
+                              ? 'text-blue-700'
+                              : 'text-emerald-700'
+                          }
+                        >
+                          {message.role === 'ai' ? 'Trợ giảng AI' : 'Bạn'}
+                        </span>
+                        <span className="text-gray-500">
+                          {new Date(message.createdAt).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      {message.audioUrl ? (
+                        <audio
+                          src={message.audioUrl}
+                          controls
+                          className="mt-2 w-full"
+                        />
+                      ) : null}
+                      {message.text ? (
+                        <p className="mt-2 whitespace-pre-line text-sm text-gray-800">
+                          {message.text}
+                        </p>
+                      ) : null}
+                      {!message.audioUrl && !message.text ? (
+                        <p className="mt-2 text-sm text-gray-500">
+                          Chưa có nội dung hiển thị cho lượt này.
+                        </p>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -586,6 +861,7 @@ const AiSpeakingPracticePage: React.FC = () => {
                       )}
                       AI response
                     </div>
+                    <p className="text-xs text-blue-700">{aiStatusMessage}</p>
                     {aiAudioUrl ? (
                       <audio src={aiAudioUrl} controls className="w-full" />
                     ) : (
@@ -599,6 +875,11 @@ const AiSpeakingPracticePage: React.FC = () => {
                       <p className="text-xs text-blue-700">
                         Đã nhận {ttsChunkCount} đoạn âm thanh từ AI.
                       </p>
+                    )}
+                    {aiErrorMessage && (
+                      <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                        {aiErrorMessage}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -643,7 +924,10 @@ const AiSpeakingPracticePage: React.FC = () => {
                     Phiên âm tạm thời
                   </h3>
                   <p className="mt-2 text-sm text-gray-600 min-h-[48px] whitespace-pre-line">
-                    {partialTranscript || 'AI đang nghe và phân tích...'}
+                    {partialTranscript ||
+                      (recordingState === 'recording'
+                        ? '🎤 Đang ghi âm... (hãy nói to và rõ ràng)'
+                        : 'Chờ bạn bắt đầu ghi âm')}
                   </p>
                 </div>
                 <div className="rounded-lg border border-gray-200 bg-white p-4">
