@@ -513,12 +513,14 @@ function StudentActionDropdown({
   isOpen,
   onToggle,
   onClose,
+  showSendMessage = true,
 }: {
   onViewInfo: () => void
   onSendMessage: () => void
   isOpen: boolean
   onToggle: () => void
   onClose: () => void
+  showSendMessage?: boolean
 }): JSX.Element {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -563,17 +565,19 @@ function StudentActionDropdown({
               <Eye className="h-4 w-4" />
               Xem thông tin
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onSendMessage()
-                onClose()
-              }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-            >
-              <MessageSquare className="h-4 w-4" />
-              Nhắn tin riêng
-            </button>
+            {showSendMessage && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSendMessage()
+                  onClose()
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Nhắn tin riêng
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -585,14 +589,17 @@ type StudentCardProps = {
   student: Student
   onViewInfo?: (id: string) => void
   onSendMessage?: (student: Student) => void
+  currentUserId?: string
 }
 
 function StudentCard({
   student,
   onViewInfo,
   onSendMessage,
+  currentUserId,
 }: StudentCardProps): JSX.Element {
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const showSendMessage = currentUserId ? student.id !== currentUserId : true
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition">
@@ -634,6 +641,7 @@ function StudentCard({
           isOpen={dropdownOpen}
           onToggle={() => setDropdownOpen(!dropdownOpen)}
           onClose={() => setDropdownOpen(false)}
+          showSendMessage={showSendMessage}
         />
       </div>
     </div>
@@ -1825,6 +1833,7 @@ export default function ClassroomDetail(props: {
                       }}
                       onViewInfo={(id) => setOpenStudentId(id)}
                       onSendMessage={handleSendMessageToStudent}
+                      currentUserId={user?.id}
                     />
                   ))}
                   {filteredStudents.length === 0 && searchStudent && (
