@@ -85,11 +85,11 @@ export default function ClassroomCard({
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4" />
-              {data._count.students ?? data.students}/{data.maxStudents}
+              {data._count.students}/{data.maxStudents}
             </div>
             <div className="flex items-center gap-1">
               <FileText className="h-4 w-4" />
-              {data._count.assignments ?? data.assignments} bài tập
+              {data._count.assignments} bài tập
             </div>
             {data._count.announcements !== undefined && (
               <div className="flex items-center gap-1">

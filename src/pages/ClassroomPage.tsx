@@ -50,20 +50,28 @@ export default function ClassroomsPage({
 
   // Transform API data to match component interface
   const transformedClassrooms = useMemo(() => {
-    return classrooms.map((classroom: MyClassroomResponse) => ({
-      ...classroom,
-      isActive: true, // API doesn't return this field, default to true
-      description: '', // API doesn't return this field
-      teacher: {
-        id: classroom.teacherName || 'unknown',
-        displayName: classroom.teacher?.displayName || classroom.teacherName,
-      },
-      _count: {
-        students: classroom._count?.students || classroom.students,
-        assignments: classroom._count?.assignments || classroom.assignments,
-        announcements: 0, // API doesn't return this field
-      },
-    }))
+    return classrooms.map((classroom: MyClassroomResponse) => {
+      const studentsCount =
+        typeof classroom._count?.students === 'number'
+          ? classroom._count.students
+          : Array.isArray(classroom.students)
+            ? classroom.students.length
+            : 0
+
+      const assignmentsCount =
+        typeof classroom._count?.assignments === 'number'
+          ? classroom._count.assignments
+          : 0
+
+      return {
+        ...classroom,
+        _count: {
+          students: studentsCount,
+          assignments: assignmentsCount,
+          announcements: 0,
+        },
+      }
+    })
   }, [classrooms])
 
   const filtered = useMemo(() => {

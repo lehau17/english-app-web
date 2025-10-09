@@ -6,8 +6,8 @@ import {
   getConversation,
   deleteConversation,
   streamAgentChatFetch,
-  AgentConversation,
-  AgentMessage,
+  type AgentConversation,
+  type AgentMessage,
 } from '../../services/agent.api'
 
 interface AiChatboxProps {

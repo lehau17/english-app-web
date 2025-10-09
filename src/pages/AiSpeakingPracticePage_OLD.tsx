@@ -390,7 +390,7 @@ const AiSpeakingPracticePage: React.FC = () => {
 
       socket.on(
         'ai-speaking:asr-silence',
-        (payload: {
+        (_payload: {
           turnId: string
           averageEnergy?: number
           durationSec?: number
@@ -633,7 +633,7 @@ const AiSpeakingPracticePage: React.FC = () => {
       console.log('🎯 Session created successfully:', created)
 
       setSession(created)
-      setSelectedConversationId(conversationId)
+      setSelectedConversationId(conversationId ?? null)
       setViewMode('session')
 
       const initialTurn = [...created.turns].sort(
