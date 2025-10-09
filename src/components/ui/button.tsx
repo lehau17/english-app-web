@@ -23,7 +23,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               variant === 'default',
             'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90':
               variant === 'destructive',
-            'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground':
+            'border border-gray-300/60 bg-white shadow-sm hover:bg-gray-50 hover:text-gray-900':
               variant === 'outline',
             'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80':
               variant === 'secondary',

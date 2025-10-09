@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  Copyright,
   Gift,
   Globe,
   LogOut,
@@ -177,14 +178,6 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       Luyen noi AI
                     </NavLink>
                     <NavLink
-                      to="/playlists"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      Playlist
-                    </NavLink>
-                    <NavLink
                       to="/schedule"
                       className={({ isActive }) =>
                         `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
@@ -193,20 +186,12 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       Lịch Học
                     </NavLink>
                     <NavLink
-                      to="/practice"
+                      to="/dictionary"
                       className={({ isActive }) =>
                         `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
                       }
                     >
-                      Luyen tap
-                    </NavLink>
-                    <NavLink
-                      to="/shop"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      Cua hang
+                      Từ điển
                     </NavLink>
                   </>
                 )}
@@ -290,8 +275,9 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
 
         {/* Footer */}
         <footer className="border-t border-black/5 py-6">
-          <div className="mx-auto max-w-7xl px-4 text-center text-sm text-gray-500">
-            � {new Date().getFullYear()} EnglishApp
+          <div className="mx-auto max-w-7xl px-4 text-center text-sm text-gray-500 flex items-center justify-center gap-1">
+            <Copyright className="h-3 w-3" />
+            {new Date().getFullYear()} EnglishApp
           </div>
         </footer>
       </div>

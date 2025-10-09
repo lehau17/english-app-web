@@ -1,21 +1,28 @@
 import {
   ArrowLeft,
+  Award,
   Bell,
+  BookOpen,
+  Calendar,
   Check,
+  Clock,
+  FileText,
+  MessageCircle,
   MoreVertical,
   Search,
+  Settings as SettingsIcon,
   Trash2,
   X,
 } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
+import { useNotificationsPagination } from '../hooks/notifications.hooks'
 import {
   deleteNotification as apiDeleteNotification,
   markNotificationRead,
   type ApiNotification,
 } from '../services/notifications.api'
-import { useNotificationsPagination } from '../hooks/notifications.hooks'
 
 interface Notification {
   id: string
@@ -32,7 +39,7 @@ interface Notification {
   time: string
   timestamp: Date
   isRead: boolean
-  icon: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
   color: string
 }
 
@@ -57,10 +64,13 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1">
           <div
-            className="flex items-center justify-center w-10 h-10 rounded-full text-lg"
-            style={{ backgroundColor: notification.color + '20' }}
+            className="flex items-center justify-center w-10 h-10 rounded-full"
+            style={{
+              backgroundColor: notification.color + '20',
+              color: notification.color,
+            }}
           >
-            {notification.icon}
+            <notification.icon size={20} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
@@ -134,14 +144,17 @@ const NotificationsPage: React.FC = () => {
   function mapApi(n: ApiNotification): Notification {
     const created = new Date(n.createdAt)
     const type = (n.type as Notification['type']) || 'system'
-    const iconMap: Record<Notification['type'], string> = {
-      achievement: '🏆',
-      lesson: '📘',
-      reminder: '⏰',
-      assignment: '📝',
-      system: '⚙️',
-      social: '💬',
-      event: '📅',
+    const iconMap: Record<
+      Notification['type'],
+      React.ComponentType<{ size?: number; className?: string }>
+    > = {
+      achievement: Award,
+      lesson: BookOpen,
+      reminder: Clock,
+      assignment: FileText,
+      system: SettingsIcon,
+      social: MessageCircle,
+      event: Calendar,
     }
     const colorMap: Record<Notification['type'], string> = {
       achievement: '#10b981',

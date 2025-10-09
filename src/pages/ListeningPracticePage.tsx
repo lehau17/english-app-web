@@ -1,5 +1,13 @@
 import { motion } from 'framer-motion'
-import { Filter, Pause, Play, Search, SortAsc, Sparkles } from 'lucide-react'
+import {
+  Crown,
+  Filter,
+  Pause,
+  Play,
+  Search,
+  SortAsc,
+  Sparkles,
+} from 'lucide-react'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePodcasts } from '../hooks/podcast.hooks'
@@ -33,7 +41,7 @@ const ListeningPracticePage: React.FC = () => {
 
   const tabs = [
     { key: 'all', label: 'Tất cả', count: podcasts.length },
-    { key: 'recommended', label: 'Bài bạn đáng', icon: '👑' },
+    { key: 'recommended', label: 'Bài bạn đáng', icon: Crown },
     { key: 'listening', label: 'Bài đang nghe' },
     { key: 'completed', label: 'Bài đã nghe' },
   ]
@@ -89,15 +97,16 @@ const ListeningPracticePage: React.FC = () => {
               <motion.button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-6 py-3 text-sm font-medium rounded-lg transition-all ${
-                  activeTab === tab.key
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                }`}
+                className={`px-6 py-3 text-sm font-medium rounded-lg transition-all flex flex-row items-center
+                  ${
+                    activeTab === tab.key
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {tab.icon && <span className="mr-2">{tab.icon}</span>}
+                {tab.icon && <tab.icon size={16} className="mr-2" />}
                 {tab.label}
                 {tab.count && (
                   <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">

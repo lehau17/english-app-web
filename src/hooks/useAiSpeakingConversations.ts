@@ -93,11 +93,12 @@ export const useFinalizeAiSpeakingSession = () => {
   })
 }
 
-// Hook để tạo conversation ID mới
+// Hook để tạo conversation ID mới - KHÔNG CẦN THIẾT
+// Backend sẽ tự động tạo UUID nếu không truyền conversationId
+// Chỉ truyền conversationId khi tiếp tục conversation cũ
 export const useGenerateConversationId = () => {
   return () => {
-    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '')
-    const random = Math.random().toString(36).substring(2, 8)
-    return `conv_${timestamp}_${random}`
+    // Không generate ID nữa, để backend tự tạo UUID
+    return undefined
   }
 }

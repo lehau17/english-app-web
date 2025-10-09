@@ -9,9 +9,9 @@ import {
 } from 'lucide-react'
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ParentPaymentSection } from '../components/parent'
 import { useAuth } from '../context/AuthContext'
 import { useParentDashboardQuery } from '../hooks/parent.queries'
-import { ParentPaymentSection } from '../components/parent'
 
 function ProgressRing({ value }: { value: number }) {
   const radius = 28
@@ -184,7 +184,24 @@ export default function ParentHomePage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{child.avatar || '👦'}</span>
+                      <div className="h-12 w-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 flex items-center justify-center">
+                        {child.avatar &&
+                        (child.avatar.startsWith('http') ||
+                          child.avatar.startsWith('/')) ? (
+                          <img
+                            src={child.avatar}
+                            alt={child.name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(child.name)}&background=6366f1&color=fff&size=48`
+                            }}
+                          />
+                        ) : (
+                          <span className="text-2xl">
+                            {child.avatar || '👦'}
+                          </span>
+                        )}
+                      </div>
                       <div>
                         <h3 className="font-semibold text-gray-900">
                           {child.name}
@@ -230,6 +247,16 @@ export default function ParentHomePage() {
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <button
+              onClick={() => navigate('/parent-schedule')}
+              className="flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 p-4 text-center transition hover:shadow-md"
+            >
+              <Clock className="h-8 w-8 text-orange-600" />
+              <span className="text-sm font-medium text-gray-900">
+                Lịch học
+              </span>
+            </button>
+
+            <button
               onClick={() => navigate('/parent/rewards')}
               className="flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 p-4 text-center transition hover:shadow-md"
             >
@@ -248,7 +275,7 @@ export default function ParentHomePage() {
             </button>
 
             <button
-              onClick={() => navigate('/parent/reports')}
+              onClick={() => navigate('/parent-reports')}
               className="flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 p-4 text-center transition hover:shadow-md"
             >
               <TrendingUp className="h-8 w-8 text-green-600" />

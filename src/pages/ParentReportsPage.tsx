@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { toast } from 'react-hot-toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -20,7 +21,6 @@ import {
   useParentChildProgressQuery,
   useParentDashboardQuery,
 } from '../hooks/parent.queries'
-import { toast } from 'react-hot-toast'
 import type {
   ChildProgress,
   ParentChildProgressItem,
@@ -658,7 +658,7 @@ export default function ParentReportsPage() {
               onChange={(event) =>
                 setSelectedPeriod(event.target.value as PeriodKey)
               }
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm font-medium text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors cursor-pointer"
             >
               <option value="week">7 ngày qua</option>
               <option value="month">30 ngày qua</option>
@@ -675,7 +675,7 @@ export default function ParentReportsPage() {
               onChange={(event) =>
                 setSelectedChild(event.target.value as 'all' | string)
               }
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm font-medium text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors cursor-pointer"
             >
               <option value="all">Tất cả</option>
               {children.map((child) => (

@@ -1,5 +1,13 @@
 import { motion } from 'framer-motion'
-import { Crown, Play, Plus, Share2 } from 'lucide-react'
+import {
+  Crown,
+  FileEdit,
+  Link as LinkIcon,
+  Play,
+  Plus,
+  Radio,
+  Share2,
+} from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CommentSection } from '../components/podcast-comment/CommentSection'
@@ -17,7 +25,7 @@ import { usePodcast } from '../hooks/podcast.hooks'
 type Activity = {
   id: number
   title: string
-  icon: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
   bgColor: string
   iconBg: string
   locked: boolean
@@ -104,7 +112,7 @@ const PodcastDetailPage: React.FC = () => {
     {
       id: 1,
       title: 'Điền từ khuyết',
-      icon: '📝',
+      icon: FileEdit,
       bgColor: 'from-blue-200 to-blue-100',
       iconBg: 'bg-blue-200',
       locked: false,
@@ -154,8 +162,9 @@ const PodcastDetailPage: React.FC = () => {
                 <h2 className="text-lg font-semibold text-gray-900">
                   Luyện tập
                 </h2>
-                <span className="text-orange-500 text-sm">
-                  (Điền từ khuyết) <span className="text-blue-500">🔗</span>
+                <span className="text-orange-500 text-sm flex items-center gap-1">
+                  (Điền từ khuyết){' '}
+                  <LinkIcon size={14} className="text-blue-500" />
                 </span>
               </div>
               <p className="text-gray-600 text-sm mb-6 leading-relaxed">
@@ -193,9 +202,9 @@ const PodcastDetailPage: React.FC = () => {
                     </div>
                     <div className="flex flex-col items-center text-center mt-6">
                       <div
-                        className={`w-14 h-14 ${activity.iconBg} rounded-full flex items-center justify-center mb-3 text-2xl`}
+                        className={`w-14 h-14 ${activity.iconBg} rounded-full flex items-center justify-center mb-3`}
                       >
-                        {activity.icon}
+                        <activity.icon size={24} className="text-blue-600" />
                       </div>
                       <h3 className="font-semibold text-gray-800 text-sm">
                         {activity.title}
@@ -394,8 +403,8 @@ const PodcastDetailPage: React.FC = () => {
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <span className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center text-xs">
-                      📻
+                    <span className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
+                      <Radio size={14} className="text-white" />
                     </span>
                   )}
                 </div>

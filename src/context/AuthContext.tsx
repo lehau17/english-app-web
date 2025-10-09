@@ -48,23 +48,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refreshPromiseRef = useRef<Promise<string> | null>(null)
 
-  // Rehydrate từ localStorage
-  useEffect(() => {
+  // ✅ Rehydrate từ localStorage ĐỒNG BỘ (trước khi render)
+  // Dùng useState initial function để chạy TRƯỚC render đầu tiên
+  const [initialAuth] = useState(() => {
     const a = localStorage.getItem(ACCESS_KEY)
     const r = localStorage.getItem(REFRESH_KEY)
     const u = localStorage.getItem(USER_KEY)
-    if (a) setAccessToken(a)
-    if (r) setRefreshToken(r)
+
+    let parsedUser: User | null = null
     if (u) {
       try {
-        const parsed: User = JSON.parse(u)
-        queryClient.setQueryData(['me'], parsed)
+        parsedUser = JSON.parse(u)
       } catch {
         console.log('Failed to parse user from localStorage')
       }
     }
+
+    return { a, r, parsedUser }
+  })
+
+  // Set token và user từ initial state
+  useEffect(() => {
+    if (initialAuth.a) {
+      setAccessToken(initialAuth.a)
+      // ✅ Set header NGAY LẬP TỨC để request đầu tiên có token
+      api.defaults.headers.common['Authorization'] = `Bearer ${initialAuth.a}`
+    }
+    if (initialAuth.r) setRefreshToken(initialAuth.r)
+    if (initialAuth.parsedUser) {
+      queryClient.setQueryData(['me'], initialAuth.parsedUser)
+    }
     setRehydrated(true)
-  }, [queryClient])
+  }, [queryClient, initialAuth])
 
   // Sync header + persist access
   useEffect(() => {
@@ -130,6 +145,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setRefreshToken(null)
     queryClient.removeQueries({ queryKey: ['me'] })
     localStorage.removeItem(USER_KEY)
+
+    // ✅ Redirect về login nếu không đang ở trang login
+    if (
+      typeof window !== 'undefined' &&
+      !window.location.pathname.startsWith('/login')
+    ) {
+      const currentPath = window.location.pathname + window.location.search
+      const next =
+        currentPath !== '/' ? `?next=${encodeURIComponent(currentPath)}` : ''
+      navigate(`/login${next}`)
+    }
   }
 
   // Refresh token flow (dùng fn từ hooks)

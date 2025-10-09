@@ -40,8 +40,7 @@ export default function HomePage(): JSX.Element {
   const isTeacher = role === 'teacher'
 
   // Check if student has parent (only for students)
-  const { data: parentStatus, isLoading: isLoadingParentStatus } =
-    useHasParent(isStudent)
+  const { data: parentStatus } = useHasParent(isStudent)
 
   const {
     groupedData: classroomsGrouped,

@@ -6,47 +6,8 @@ const api = axios.create({
   withCredentials: true,
 })
 
-let isRedirecting401 = false
-
-api.interceptors.response.use(
-  (res) => res,
-  (error) => {
-    // Bỏ qua nếu request bị cancel hoặc lỗi mạng không có response
-    if (axios.isCancel?.(error) || !error?.response) {
-      return Promise.reject(error)
-    }
-
-    const status = error.response.status as number
-    if (status === 401 && !isRedirecting401) {
-      const url = (error.config?.url || '').toString()
-
-      const onLoginPage =
-        typeof window !== 'undefined' &&
-        window.location.pathname.startsWith('/login')
-      const isAuthApi = url.includes('/auth/') // ví dụ: /auth/login, /auth/refresh
-
-      if (!onLoginPage && !isAuthApi) {
-        isRedirecting401 = true
-
-        // Tuỳ bạn: clear local storage/session storage nếu có lưu token
-        // localStorage.removeItem('access_token');
-
-        const next =
-          typeof window !== 'undefined'
-            ? encodeURIComponent(
-                window.location.pathname + window.location.search
-              )
-            : ''
-
-        // Dùng assign để hard redirect (reset toàn bộ state)
-        if (typeof window !== 'undefined') {
-          window.location.assign(`/login${next ? `?next=${next}` : ''}`)
-        }
-      }
-    }
-
-    return Promise.reject(error)
-  }
-)
+// ✅ Bỏ global 401 interceptor - để AuthContext xử lý refresh token logic
+// AuthContext sẽ setup dynamic interceptor với refresh token flow
+// Nếu refresh fail thì AuthContext sẽ logout và redirect
 
 export default api

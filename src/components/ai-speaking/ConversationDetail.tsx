@@ -1,4 +1,4 @@
-import { Calendar, Clock, MessageCircle, User, Volume2 } from 'lucide-react'
+import { Calendar, Clock, MessageCircle, User } from 'lucide-react'
 import React from 'react'
 import { useAiSpeakingConversation } from '../../hooks/useAiSpeakingConversations'
 import { formatDate } from '../../utils/dateUtils'
@@ -143,50 +143,78 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
             {session.turns && session.turns.length > 0 && (
               <div className="mt-4 space-y-3">
                 <h4 className="text-sm font-medium text-gray-700">
-                  Các lượt hội thoại
+                  Lịch sử hội thoại
                 </h4>
-                <div className="max-h-48 overflow-y-auto space-y-2">
-                  {session.turns.slice(0, 3).map((turn) => (
-                    <div key={turn.id} className="rounded-lg bg-gray-50 p-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
-                            <Volume2 className="h-3 w-3" />
-                            AI Prompt
+                <div className="max-h-96 overflow-y-auto space-y-3 rounded-lg bg-gray-50 p-4">
+                  {session.turns.map((turn) => (
+                    <React.Fragment key={turn.id}>
+                      {/* AI Message - Left side */}
+                      {turn.aiPrompt && (
+                        <div className="flex items-start gap-2">
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
+                            <MessageCircle className="h-4 w-4 text-blue-600" />
                           </div>
-                          <p className="mt-1 text-sm text-gray-700 line-clamp-2">
-                            {turn.aiPrompt || 'Không có nội dung'}
-                          </p>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
-                            <User className="h-3 w-3" />
-                            User Response
-                          </div>
-                          <p className="mt-1 text-sm text-gray-700 line-clamp-2">
-                            {turn.userTranscript || 'Không có phản hồi'}
-                          </p>
-
-                          {turn.score !== null && turn.score !== undefined && (
-                            <div className="mt-1 text-xs">
-                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-800">
-                                Điểm: {turn.score}/100
-                              </span>
+                          <div className="flex-1 space-y-1">
+                            <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 shadow-sm max-w-[85%]">
+                              <p className="text-sm text-gray-800">
+                                {turn.aiPrompt}
+                              </p>
                             </div>
-                          )}
+                            {turn.aiAudioUrl && (
+                              <div className="flex items-center gap-2 pl-2">
+                                <audio
+                                  controls
+                                  className="h-8 max-w-xs"
+                                  src={turn.aiAudioUrl}
+                                  style={{ maxHeight: '32px' }}
+                                >
+                                  <track kind="captions" />
+                                </audio>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      )}
 
-                  {session.turns.length > 3 && (
-                    <div className="text-center">
-                      <span className="text-xs text-gray-500">
-                        + {session.turns.length - 3} lượt khác
-                      </span>
-                    </div>
-                  )}
+                      {/* User Message - Right side */}
+                      {(turn.userTranscript || turn.userAudioUrl) && (
+                        <div className="flex items-start justify-end gap-2">
+                          <div className="flex-1 flex flex-col items-end space-y-1">
+                            {turn.userTranscript && (
+                              <div className="rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5 shadow-sm max-w-[85%]">
+                                <p className="text-sm text-white">
+                                  {turn.userTranscript}
+                                </p>
+                              </div>
+                            )}
+                            {turn.userAudioUrl && (
+                              <div className="flex items-center gap-2 pr-2">
+                                <audio
+                                  controls
+                                  className="h-8 max-w-xs"
+                                  src={turn.userAudioUrl}
+                                  style={{ maxHeight: '32px' }}
+                                >
+                                  <track kind="captions" />
+                                </audio>
+                              </div>
+                            )}
+                            {turn.score !== null &&
+                              turn.score !== undefined && (
+                                <div className="pr-2">
+                                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                                    Điểm: {turn.score}/100
+                                  </span>
+                                </div>
+                              )}
+                          </div>
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600">
+                            <User className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
             )}

@@ -5,7 +5,9 @@ import { PaymentResultPage } from './components/payment/PaymentResultPage'
 import { AuthProvider } from './context/AuthContext'
 import { ConversationProvider } from './context/ConversationContext'
 import { HomeLayout } from './layouts/HomeLayout'
-import AiSpeakingPracticePage from './pages/AiSpeakingPracticePage'
+import AiSpeakingConversationDetailPage from './pages/AiSpeakingConversationDetailPage'
+import AiSpeakingConversationsPage from './pages/AiSpeakingConversationsPage'
+import AiSpeakingSessionPage from './pages/AiSpeakingSessionPage'
 import AssignmentResultPage from './pages/AssignmentResultPage'
 import AssignmentSubmissionsPage from './pages/AssignmentSubmissionsPage'
 import AssignmentTakingPage from './pages/AssignmentTakingPage'
@@ -15,6 +17,7 @@ import RegisterPage from './pages/auth/RegisterPage'
 import ClassroomDetail from './pages/ClassroomDetail'
 import ClassroomPage from './pages/ClassroomPage'
 import CreatePodcastPageUpdated from './pages/CreatePodcastPageBeautiful'
+import DictionaryPage from './pages/DictionaryPage'
 import HomePage from './pages/HomePage' // Import HomePage
 import LearnPlayerPage from './pages/LearnPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
@@ -24,6 +27,7 @@ import ParentActivitiesPage from './pages/ParentActivitiesPage'
 import ParentHomePage from './pages/ParentHomePage'
 import ParentReportsPage from './pages/ParentReportsPage'
 import ParentRewardsPage from './pages/ParentRewardsPage'
+import ParentSchedulePage from './pages/ParentSchedulePage'
 import ParentSettingsPage from './pages/ParentSettingsPage'
 import { PaymentDemoPage } from './pages/PaymentDemoPage'
 import PlaylistsPage from './pages/PlaylistsPage'
@@ -154,6 +158,14 @@ function App() {
               }
             />
             <Route
+              path="/dictionary"
+              element={
+                <HomeLayout>
+                  <DictionaryPage />
+                </HomeLayout>
+              }
+            />
+            <Route
               path="/notifications"
               element={
                 <HomeLayout>
@@ -202,6 +214,14 @@ function App() {
               }
             />
             <Route
+              path="/parent-schedule"
+              element={
+                <HomeLayout>
+                  <ParentSchedulePage />
+                </HomeLayout>
+              }
+            />
+            <Route
               path="/listening-practice"
               element={
                 <HomeLayout>
@@ -213,7 +233,23 @@ function App() {
               path="/ai-speaking"
               element={
                 <HomeLayout>
-                  <AiSpeakingPracticePage />
+                  <AiSpeakingConversationsPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/ai-speaking/conversations/:conversationId"
+              element={
+                <HomeLayout>
+                  <AiSpeakingConversationDetailPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/ai-speaking/session"
+              element={
+                <HomeLayout>
+                  <AiSpeakingSessionPage />
                 </HomeLayout>
               }
             />

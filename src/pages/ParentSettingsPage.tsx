@@ -12,8 +12,8 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import Button from '../components/Button'
 import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Switch } from '../components/ui/switch'
 import {
@@ -163,7 +163,22 @@ function ChildSettingsCard({ child }: { child: any }) {
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{child.avatar || '👦'}</span>
+          <div className="h-12 w-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 flex items-center justify-center">
+            {child.avatar &&
+            (child.avatar.startsWith('http') ||
+              child.avatar.startsWith('/')) ? (
+              <img
+                src={child.avatar}
+                alt={child.name}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(child.name)}&background=6366f1&color=fff&size=48`
+                }}
+              />
+            ) : (
+              <span className="text-2xl">{child.avatar || '👦'}</span>
+            )}
+          </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
               {child.name}
@@ -177,11 +192,7 @@ function ChildSettingsCard({ child }: { child: any }) {
           >
             {settings.notificationsEnabled ? 'Thông báo bật' : 'Thông báo tắt'}
           </Badge>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
+          <Button onClick={() => setIsExpanded(!isExpanded)}>
             {isExpanded ? (
               <EyeOff className="h-4 w-4" />
             ) : (
@@ -226,7 +237,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                       {NOTIFICATION_TYPES.map((type) => (
                         <div
                           key={type.key}
-                          className="flex items-center justify-between p-3 border border-gray-100 rounded-lg"
+                          className="flex items-center justify-between p-3 bg-gray-50/50 border border-gray-200/40 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           <div>
                             <p className="font-medium">{type.label}</p>
@@ -258,7 +269,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                         onChange={(e) =>
                           updateSetting('quietHoursStart', e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors"
                       />
                     </div>
                     <div>
@@ -271,7 +282,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                         onChange={(e) =>
                           updateSetting('quietHoursEnd', e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -318,7 +329,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                           parseInt(e.target.value)
                         )
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors"
                       min="0"
                       max="720"
                     />
@@ -336,7 +347,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                         onChange={(e) =>
                           updateSetting('bedtimeStart', e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors"
                       />
                     </div>
                     <div>
@@ -350,7 +361,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                         onChange={(e) =>
                           updateSetting('bedtimeEnd', e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200/60 rounded-lg text-sm text-gray-900 shadow-sm hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -374,7 +385,7 @@ function ChildSettingsCard({ child }: { child: any }) {
                 {ACTIVITY_TYPES.map((activity) => (
                   <div
                     key={activity.key}
-                    className="flex items-center justify-between p-2 border border-gray-100 rounded-lg"
+                    className="flex items-center justify-between p-2 bg-gray-50/50 border border-gray-200/40 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <span className="text-sm">{activity.label}</span>
                     <Switch
@@ -432,7 +443,7 @@ function ChildSettingsCard({ child }: { child: any }) {
           </div>
 
           {/* Save Button */}
-          <div className="flex justify-end pt-4 border-t border-gray-100">
+          <div className="flex justify-end pt-4 border-t border-gray-200/50">
             <Button
               onClick={handleSave}
               className="flex items-center gap-2"
