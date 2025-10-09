@@ -312,12 +312,23 @@ export default function CreateAssignmentModal({
     // seed minimal content per type
     switch (type) {
       case 'quiz':
-      case 'reading':
       case 'grammar':
         ;(base as any).content = {
           question: '',
           options: ['', ''],
           correctIndex: 0,
+        }
+        break
+      case 'reading':
+        ;(base as any).content = {
+          passage: '',
+          questions: [
+            {
+              question: '',
+              options: ['', ''],
+              correctIndex: 0,
+            },
+          ],
         }
         break
       case 'listening':
@@ -336,7 +347,9 @@ export default function CreateAssignmentModal({
         ;(base as any).content = { items: [{ word: '', definition: '' }] }
         break
       case 'pronunciation':
-        ;(base as any).content = { phrase: '', tips: [] }
+        ;(base as any).content = {
+          phrases: [{ text: '', sampleUrl: '' }],
+        }
         break
       case 'speaking':
         ;(base as any).content = { prompt: '', minSeconds: 10, tips: [] }
@@ -807,7 +820,6 @@ function TypeSpecificFields({
 
   switch (type) {
     case 'quiz':
-    case 'reading':
     case 'grammar':
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -871,6 +883,159 @@ function TypeSpecificFields({
               })}
             />
           </Labeled>
+        </div>
+      )
+    case 'reading':
+      return (
+        <div className="space-y-4">
+          {/* Reading Passage (optional) */}
+          <Labeled label="Đoạn văn (tuỳ chọn)">
+            <TextArea
+              rows={5}
+              {...register(`${basePath}.passage` as const)}
+              placeholder="Nhập đoạn văn để học sinh đọc..."
+            />
+          </Labeled>
+
+          {/* Questions Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Câu hỏi</span>
+              <button
+                type="button"
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+                onClick={() =>
+                  addTo('questions', {
+                    question: '',
+                    options: ['', ''],
+                    correctIndex: 0,
+                  })
+                }
+              >
+                <Plus className="h-4 w-4 inline mr-1" /> Thêm câu hỏi
+              </button>
+            </div>
+
+            {((val('questions') as any[]) || []).map((q, qIndex) => (
+              <div
+                key={qIndex}
+                className="rounded-lg border border-gray-200 p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-600">
+                    Câu hỏi {qIndex + 1}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 hover:bg-gray-100 text-red-600"
+                    onClick={() => removeAt('questions', qIndex)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <Labeled label="Nội dung câu hỏi">
+                  <TextInput
+                    defaultValue={q.question}
+                    onChange={(e) => {
+                      const arr = [...((val('questions') as any[]) || [])]
+                      arr[qIndex] = { ...arr[qIndex], question: e.target.value }
+                      setValue(`${basePath}.questions` as any, arr)
+                    }}
+                    placeholder="Nhập câu hỏi..."
+                  />
+                </Labeled>
+
+                <Labeled label="Phương án trả lời">
+                  <div className="space-y-2">
+                    {(q.options || []).map((opt: string, optIndex: number) => (
+                      <div key={optIndex} className="flex items-center gap-2">
+                        <TextInput
+                          defaultValue={opt}
+                          onChange={(e) => {
+                            const questions = [
+                              ...((val('questions') as any[]) || []),
+                            ]
+                            const options = [
+                              ...(questions[qIndex].options || []),
+                            ]
+                            options[optIndex] = e.target.value
+                            questions[qIndex] = {
+                              ...questions[qIndex],
+                              options,
+                            }
+                            setValue(`${basePath}.questions` as any, questions)
+                          }}
+                          placeholder={`Phương án ${optIndex + 1}`}
+                        />
+                        <button
+                          type="button"
+                          className="rounded-lg p-2 hover:bg-gray-100"
+                          onClick={() => {
+                            const questions = [
+                              ...((val('questions') as any[]) || []),
+                            ]
+                            const options = [
+                              ...(questions[qIndex].options || []),
+                            ]
+                            options.splice(optIndex, 1)
+                            questions[qIndex] = {
+                              ...questions[qIndex],
+                              options,
+                            }
+                            setValue(`${basePath}.questions` as any, questions)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+                      onClick={() => {
+                        const questions = [
+                          ...((val('questions') as any[]) || []),
+                        ]
+                        const options = [
+                          ...(questions[qIndex].options || []),
+                          '',
+                        ]
+                        questions[qIndex] = { ...questions[qIndex], options }
+                        setValue(`${basePath}.questions` as any, questions)
+                      }}
+                    >
+                      <Plus className="h-4 w-4 inline mr-1" /> Thêm phương án
+                    </button>
+                  </div>
+                </Labeled>
+
+                <Labeled label="Đáp án đúng (index)">
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={Math.max(0, (q.options || []).length - 1)}
+                    defaultValue={q.correctIndex}
+                    onChange={(e) => {
+                      const questions = [...((val('questions') as any[]) || [])]
+                      questions[qIndex] = {
+                        ...questions[qIndex],
+                        correctIndex: parseInt(e.target.value) || 0,
+                      }
+                      setValue(`${basePath}.questions` as any, questions)
+                    }}
+                    placeholder="0"
+                  />
+                </Labeled>
+              </div>
+            ))}
+
+            {((val('questions') as any[]) || []).length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                Chưa có câu hỏi. Click "Thêm câu hỏi" để bắt đầu.
+              </p>
+            )}
+          </div>
         </div>
       )
     case 'listening':
@@ -1080,45 +1245,62 @@ function TypeSpecificFields({
       )
     case 'pronunciation':
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Labeled label="Cụm từ">
-            <TextInput {...register(`${basePath}.phrase` as const)} />
-          </Labeled>
-          <Labeled label="Audio mẫu (tuỳ chọn)">
-            <TextInput {...register(`${basePath}.sampleUrl` as const)} />
-          </Labeled>
-          <div className="md:col-span-2">
-            <Labeled label="Mẹo phát âm">
-              <div className="space-y-2">
-                {((val('tips') as string[]) || []).map((t, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <TextInput
-                      defaultValue={t}
-                      onChange={(e) => {
-                        const arr = [...((val('tips') as string[]) || [])]
-                        arr[i] = e.target.value
-                        setValue(`${basePath}.tips` as any, arr)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="rounded-lg p-2 hover:bg-gray-100"
-                      onClick={() => removeAt('tips', i)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-                  onClick={() => addTo('tips', '')}
-                >
-                  <Plus className="h-4 w-4 inline mr-1" /> Thêm mẹo
-                </button>
-              </div>
-            </Labeled>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Cụm từ cần phát âm</span>
+            <button
+              type="button"
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+              onClick={() => addTo('phrases', { text: '', sampleUrl: '' })}
+            >
+              <Plus className="h-4 w-4 inline mr-1" /> Thêm cụm từ
+            </button>
           </div>
+          {((val('phrases') as any[]) || []).map((phrase, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border border-gray-200 rounded-lg p-3"
+            >
+              <div className="md:col-span-2">
+                <Labeled label="Cụm từ">
+                  <TextInput
+                    defaultValue={phrase.text}
+                    onChange={(e) => {
+                      const arr = [...((val('phrases') as any[]) || [])]
+                      arr[i] = { ...arr[i], text: e.target.value }
+                      setValue(`${basePath}.phrases` as any, arr)
+                    }}
+                    placeholder="Ví dụ: Hello world"
+                  />
+                </Labeled>
+              </div>
+              <div className="md:col-span-2">
+                <Labeled label="Audio mẫu (tuỳ chọn)">
+                  <TextInput
+                    defaultValue={phrase.sampleUrl}
+                    onChange={(e) => {
+                      const arr = [...((val('phrases') as any[]) || [])]
+                      arr[i] = { ...arr[i], sampleUrl: e.target.value }
+                      setValue(`${basePath}.phrases` as any, arr)
+                    }}
+                    placeholder="https://..."
+                  />
+                </Labeled>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-2 hover:bg-gray-100 text-red-600 justify-self-start"
+                onClick={() => removeAt('phrases', i)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {((val('phrases') as any[]) || []).length === 0 && (
+            <p className="text-sm text-gray-500 text-center py-4">
+              Chưa có cụm từ. Click "Thêm cụm từ" để bắt đầu.
+            </p>
+          )}
         </div>
       )
     case 'speaking':

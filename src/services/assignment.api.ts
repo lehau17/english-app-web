@@ -186,3 +186,22 @@ export function downloadPdfFromBlob(blob: Blob, filename: string) {
   document.body.removeChild(link)
   window.URL.revokeObjectURL(url)
 }
+
+// Upload audio for speaking/pronunciation activities
+export async function uploadActivityAudio(
+  audioBlob: Blob
+): Promise<{ audioUrl: string }> {
+  const formData = new FormData()
+  formData.append('file', audioBlob, 'recording.webm')
+
+  const res = await api.post<BaseResponse<{ url: string }>>(
+    `/private/v1/upload`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
+  return { audioUrl: res.data.data.url }
+}

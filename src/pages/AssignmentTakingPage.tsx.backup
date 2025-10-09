@@ -41,20 +41,20 @@ interface Assignment {
 interface Activity {
   id: string
   type:
-    | 'quiz'
-    | 'fill_blank'
-    | 'matching'
-    | 'listening'
-    | 'reading'
-    | 'writing'
-    | 'speaking'
-    | 'pronunciation'
-    | 'dictation'
-    | 'vocab'
-    | 'grammar'
-    | 'flashcard'
-    | 'conversation'
-    | 'mini_game'
+  | 'quiz'
+  | 'fill_blank'
+  | 'matching'
+  | 'listening'
+  | 'reading'
+  | 'writing'
+  | 'speaking'
+  | 'pronunciation'
+  | 'dictation'
+  | 'vocab'
+  | 'grammar'
+  | 'flashcard'
+  | 'conversation'
+  | 'mini_game'
   title: string
   instructions?: string
   points: number
@@ -292,10 +292,7 @@ export default function AssignmentTakingPage(): JSX.Element {
   }
 
   const handleStopRecording = () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === 'recording'
-    ) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop()
     }
     if (timerIntervalRef.current) {
@@ -370,10 +367,7 @@ export default function AssignmentTakingPage(): JSX.Element {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current)
       }
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state === 'recording'
-      ) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop()
       }
       if (audioStreamRef.current) {
@@ -435,29 +429,24 @@ export default function AssignmentTakingPage(): JSX.Element {
               {activity.content.question}
             </h3>
             <div className="space-y-2">
-              {(activity.content.options || []).map(
-                (option: string, index: number) => (
-                  <label
-                    key={index}
-                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name={activity.id}
-                      value={index}
-                      checked={answer === index}
-                      onChange={(e) =>
-                        handleAnswerChange(
-                          activity.id,
-                          parseInt(e.target.value)
-                        )
-                      }
-                      className="text-blue-600"
-                    />
-                    <span>{option}</span>
-                  </label>
-                )
-              )}
+              {activity.content.options.map((option: string, index: number) => (
+                <label
+                  key={index}
+                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name={activity.id}
+                    value={index}
+                    checked={answer === index}
+                    onChange={(e) =>
+                      handleAnswerChange(activity.id, parseInt(e.target.value))
+                    }
+                    className="text-blue-600"
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
             </div>
           </div>
         )
@@ -518,9 +507,8 @@ export default function AssignmentTakingPage(): JSX.Element {
 
       case 'matching':
         const matches = answer || {}
-        const pairs = activity.content.pairs || []
-        const leftItems = pairs.map((pair: any) => pair.left)
-        const rightItems = pairs.map((pair: any) => pair.right)
+        const leftItems = activity.content.pairs.map((pair: any) => pair.left)
+        const rightItems = activity.content.pairs.map((pair: any) => pair.right)
 
         return (
           <div className="space-y-4">
@@ -586,29 +574,29 @@ export default function AssignmentTakingPage(): JSX.Element {
         const questions = hasQuestions
           ? activity.content.questions
           : [
-              {
-                question:
-                  activity.content.prompt ||
-                  'Listen and choose the correct answer',
-                options: activity.content.options || [],
-                correctIndex: activity.content.correctIndex || 0,
-              },
-            ]
+            {
+              question:
+                activity.content.prompt ||
+                'Listen and choose the correct answer',
+              options: activity.content.options || [],
+              correctIndex: activity.content.correctIndex || 0,
+            },
+          ]
 
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-blue-600" />
+              <Volume2 className="h-5 w-5 text-green-600" />
               Nghe và trả lời
             </h3>
 
             {/* Audio Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <audio controls className="w-full mb-3">
                 <source src={activity.content.audioUrl} type="audio/mpeg" />
                 Trình duyệt của bạn không hỗ trợ phát audio.
               </audio>
-              <p className="text-blue-800 font-medium text-sm">
+              <p className="text-green-800 font-medium text-sm">
                 🎧 Nghe audio và trả lời {questions.length} câu hỏi bên dưới
               </p>
             </div>
@@ -631,7 +619,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                     <div className="mb-4">
                       <h4 className="font-medium text-gray-800 mb-2">
                         {questions.length > 1 && (
-                          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">
+                          <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">
                             Câu {questionIndex + 1}
                           </span>
                         )}
@@ -666,7 +654,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                                   )
                                 }
                               }}
-                              className="text-blue-600"
+                              className="text-green-600"
                             />
                             <span className="text-gray-700">{option}</span>
                           </label>
@@ -680,26 +668,25 @@ export default function AssignmentTakingPage(): JSX.Element {
 
             {/* Progress Indicator for Multiple Questions */}
             {questions.length > 1 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-700 font-medium">Tiến độ:</span>
-                  <span className="text-blue-600">
+                  <span className="text-green-700 font-medium">Tiến độ:</span>
+                  <span className="text-green-600">
                     {answer && typeof answer === 'object'
                       ? Object.keys(answer).length
                       : 0}{' '}
                     / {questions.length} câu đã trả lời
                   </span>
                 </div>
-                <div className="mt-2 bg-blue-200 rounded-full h-2">
+                <div className="mt-2 bg-green-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: `${
-                        answer && typeof answer === 'object'
-                          ? (Object.keys(answer).length / questions.length) *
-                            100
-                          : 0
-                      }%`,
+                      width: `${answer && typeof answer === 'object'
+                        ? (Object.keys(answer).length / questions.length) *
+                        100
+                        : 0
+                        }%`,
                     }}
                   />
                 </div>
@@ -716,31 +703,31 @@ export default function AssignmentTakingPage(): JSX.Element {
         const readingQuestions = hasReadingQuestions
           ? activity.content.questions
           : [
-              {
-                question: activity.content.question,
-                options: activity.content.options || [],
-                correctIndex: activity.content.correctIndex || 0,
-              },
-            ]
+            {
+              question: activity.content.question,
+              options: activity.content.options || [],
+              correctIndex: activity.content.correctIndex || 0,
+            },
+          ]
 
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-blue-600" />
+              <BookOpen className="h-5 w-5 text-purple-600" />
               Đọc hiểu
             </h3>
 
             {/* Passage Section */}
             {activity.content.passage && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-800 mb-3">Đoạn văn:</h4>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h4 className="font-medium text-purple-800 mb-3">Đoạn văn:</h4>
                 <div className="prose prose-sm max-w-none">
                   {activity.content.passage
                     .split('\n')
                     .map((paragraph: string, index: number) => (
                       <p
                         key={index}
-                        className="mb-3 text-gray-700 leading-relaxed"
+                        className="mb-3 text-purple-900 leading-relaxed"
                       >
                         {paragraph}
                       </p>
@@ -762,12 +749,12 @@ export default function AssignmentTakingPage(): JSX.Element {
                 return (
                   <div
                     key={questionIndex}
-                    className="border border-gray-200 rounded-lg p-4 bg-white"
+                    className="border border-purple-200 rounded-lg p-4 bg-white"
                   >
                     <div className="mb-4">
                       <h4 className="font-medium text-gray-800 mb-2">
                         {readingQuestions.length > 1 && (
-                          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2">
+                          <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full mr-2">
                             Câu {questionIndex + 1}
                           </span>
                         )}
@@ -802,7 +789,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                                   )
                                 }
                               }}
-                              className="text-blue-600"
+                              className="text-purple-600"
                             />
                             <span className="text-gray-700">{option}</span>
                           </label>
@@ -816,27 +803,25 @@ export default function AssignmentTakingPage(): JSX.Element {
 
             {/* Progress Indicator for Multiple Questions */}
             {readingQuestions.length > 1 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-700 font-medium">Tiến độ:</span>
-                  <span className="text-blue-600">
+                  <span className="text-purple-700 font-medium">Tiến độ:</span>
+                  <span className="text-purple-600">
                     {answer && typeof answer === 'object'
                       ? Object.keys(answer).length
                       : 0}{' '}
                     / {readingQuestions.length} câu đã trả lời
                   </span>
                 </div>
-                <div className="mt-2 bg-blue-200 rounded-full h-2">
+                <div className="mt-2 bg-purple-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: `${
-                        answer && typeof answer === 'object'
-                          ? (Object.keys(answer).length /
-                              readingQuestions.length) *
-                            100
-                          : 0
-                      }%`,
+                      width: `${answer && typeof answer === 'object'
+                        ? (Object.keys(answer).length / readingQuestions.length) *
+                        100
+                        : 0
+                        }%`,
                     }}
                   />
                 </div>
@@ -887,29 +872,28 @@ export default function AssignmentTakingPage(): JSX.Element {
           duration: 0,
           isUploading: false,
         }
-        const hasAudioAnswer =
-          typeof answer === 'string' && answer.startsWith('http')
+        const hasAudioAnswer = typeof answer === 'string' && answer.startsWith('http')
         const minSeconds = activity.content.minSeconds || 10
 
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Mic className="h-5 w-5 text-blue-600" />
+              <Mic className="h-5 w-5 text-red-600" />
               Nói
             </h3>
 
             {/* Prompt Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-900 font-medium mb-3">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 font-medium mb-3">
                 {activity.content.prompt}
               </p>
-              <p className="text-blue-600 text-sm">
+              <p className="text-red-600 text-sm">
                 ⏱️ Thời gian tối thiểu: {minSeconds} giây
               </p>
               {activity.content.tips && activity.content.tips.length > 0 && (
                 <div className="mt-3">
-                  <h5 className="font-medium text-blue-800 mb-1">💡 Gợi ý:</h5>
-                  <ul className="list-disc list-inside text-blue-700 text-sm space-y-1">
+                  <h5 className="font-medium text-red-700 mb-1">💡 Gợi ý:</h5>
+                  <ul className="list-disc list-inside text-red-600 text-sm space-y-1">
                     {activity.content.tips.map((tip: string, index: number) => (
                       <li key={index}>{tip}</li>
                     ))}
@@ -924,36 +908,30 @@ export default function AssignmentTakingPage(): JSX.Element {
                 // Recording State
                 <div className="text-center">
                   <Mic
-                    className={`mx-auto h-16 w-16 mb-4 ${
-                      recordState.isRecording
-                        ? 'text-red-600 animate-pulse'
-                        : 'text-gray-400'
-                    }`}
+                    className={`mx-auto h-16 w-16 mb-4 ${recordState.isRecording
+                      ? 'text-red-600 animate-pulse'
+                      : 'text-gray-400'
+                      }`}
                   />
 
                   {recordState.isRecording ? (
                     <>
-                      <p className="text-blue-600 font-medium text-lg mb-2">
+                      <p className="text-red-600 font-medium text-lg mb-2">
                         🔴 Đang ghi âm...
                       </p>
-                      <p className="text-2xl font-bold text-blue-600 mb-4">
+                      <p className="text-2xl font-bold text-red-600 mb-4">
                         {recordState.duration}s
                       </p>
                       <button
                         onClick={handleStopRecording}
                         disabled={recordState.duration < minSeconds}
-                        className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto ${
-                          recordState.duration >= minSeconds
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
+                        className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto ${recordState.duration >= minSeconds
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
                       >
                         <Square className="h-5 w-5" />
-                        Dừng ghi (
-                        {minSeconds - recordState.duration > 0
-                          ? `còn ${minSeconds - recordState.duration}s`
-                          : 'có thể dừng'}
-                        )
+                        Dừng ghi ({minSeconds - recordState.duration > 0 ? `còn ${minSeconds - recordState.duration}s` : 'có thể dừng'})
                       </button>
                     </>
                   ) : (
@@ -963,7 +941,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                       </p>
                       <button
                         onClick={() => handleStartRecording(activity.id)}
-                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2 mx-auto"
+                        className="px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 flex items-center gap-2 mx-auto"
                       >
                         <Play className="h-5 w-5" />
                         🎙️ Bắt đầu ghi âm
@@ -993,25 +971,18 @@ export default function AssignmentTakingPage(): JSX.Element {
                   <div className="flex gap-3 justify-center">
                     <button
                       onClick={() => handleReRecord(activity.id)}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 flex items-center gap-2"
+                      className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 flex items-center gap-2"
                     >
                       <RotateCcw className="h-4 w-4" />
                       Ghi lại
                     </button>
                     <button
-                      onClick={() =>
-                        handleUploadAudio(
-                          activity.id,
-                          recordState.recordedBlob!
-                        )
-                      }
+                      onClick={() => handleUploadAudio(activity.id, recordState.recordedBlob!)}
                       disabled={recordState.isUploading}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       <Upload className="h-4 w-4" />
-                      {recordState.isUploading
-                        ? 'Đang tải lên...'
-                        : 'Xác nhận & Tải lên'}
+                      {recordState.isUploading ? 'Đang tải lên...' : 'Xác nhận & Tải lên'}
                     </button>
                   </div>
                 </div>
@@ -1036,7 +1007,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                   {/* Re-record Button */}
                   <button
                     onClick={() => handleReRecord(activity.id)}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 flex items-center gap-2 mx-auto"
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 flex items-center gap-2 mx-auto"
                   >
                     <RotateCcw className="h-4 w-4" />
                     Ghi lại
@@ -1054,11 +1025,11 @@ export default function AssignmentTakingPage(): JSX.Element {
         const phrases = hasPhrases
           ? activity.content.phrases
           : [
-              {
-                text: activity.content.phrase || '',
-                sampleUrl: activity.content.sampleUrl || undefined,
-              },
-            ]
+            {
+              text: activity.content.phrase || '',
+              sampleUrl: activity.content.sampleUrl || undefined,
+            },
+          ]
 
         // Track which phrases have been practiced
         const practicedPhrases = answer?.practiced || []
@@ -1066,7 +1037,7 @@ export default function AssignmentTakingPage(): JSX.Element {
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-blue-600" />
+              <Volume2 className="h-5 w-5 text-orange-600" />
               Phát âm
             </h3>
 
@@ -1075,18 +1046,17 @@ export default function AssignmentTakingPage(): JSX.Element {
               {phrases.map((phrase: any, phraseIndex: number) => (
                 <div
                   key={phraseIndex}
-                  className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+                  className="bg-orange-50 border border-orange-200 rounded-lg p-4"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       {phrases.length > 1 && (
-                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">
+                        <span className="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full mb-2">
                           Cụm từ {phraseIndex + 1}
                         </span>
                       )}
-                      <p className="text-blue-900 font-medium text-lg">
-                        Phát âm:{' '}
-                        <span className="font-bold">{phrase.text}</span>
+                      <p className="text-orange-800 font-medium text-lg">
+                        Phát âm: <span className="font-bold">{phrase.text}</span>
                       </p>
                     </div>
                     <button
@@ -1100,11 +1070,10 @@ export default function AssignmentTakingPage(): JSX.Element {
                           practiced: newPracticed,
                         })
                       }}
-                      className={`ml-3 px-3 py-1 rounded-lg text-sm transition ${
-                        practicedPhrases.includes(phraseIndex)
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                      className={`ml-3 px-3 py-1 rounded-lg text-sm transition ${practicedPhrases.includes(phraseIndex)
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-orange-200 text-orange-700 hover:bg-orange-300'
+                        }`}
                     >
                       {practicedPhrases.includes(phraseIndex)
                         ? '✓ Đã thực hành'
@@ -1114,7 +1083,7 @@ export default function AssignmentTakingPage(): JSX.Element {
 
                   {phrase.sampleUrl && (
                     <div className="mb-3">
-                      <p className="text-blue-700 text-sm mb-2">Nghe mẫu:</p>
+                      <p className="text-orange-700 text-sm mb-2">Nghe mẫu:</p>
                       <audio controls className="w-full">
                         <source src={phrase.sampleUrl} type="audio/mpeg" />
                         Trình duyệt của bạn không hỗ trợ phát audio.
@@ -1127,9 +1096,11 @@ export default function AssignmentTakingPage(): JSX.Element {
 
             {/* Tips Section */}
             {activity.content.tips && activity.content.tips.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h5 className="font-medium text-blue-800 mb-2">Mẹo phát âm:</h5>
-                <ul className="list-disc list-inside text-blue-700 text-sm space-y-1">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h5 className="font-medium text-orange-700 mb-2">
+                  Mẹo phát âm:
+                </h5>
+                <ul className="list-disc list-inside text-orange-600 text-sm space-y-1">
                   {activity.content.tips.map((tip: string, index: number) => (
                     <li key={index}>{tip}</li>
                   ))}
@@ -1139,17 +1110,17 @@ export default function AssignmentTakingPage(): JSX.Element {
 
             {/* Progress Indicator */}
             {phrases.length > 1 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-700 font-medium">Tiến độ:</span>
-                  <span className="text-blue-600">
-                    {practicedPhrases.length} / {phrases.length} cụm từ đã thực
-                    hành
+                  <span className="text-orange-700 font-medium">Tiến độ:</span>
+                  <span className="text-orange-600">
+                    {practicedPhrases.length} / {phrases.length} cụm từ đã
+                    thực hành
                   </span>
                 </div>
-                <div className="mt-2 bg-blue-200 rounded-full h-2">
+                <div className="mt-2 bg-orange-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-orange-600 h-2 rounded-full transition-all duration-300"
                     style={{
                       width: `${(practicedPhrases.length / phrases.length) * 100}%`,
                     }}
@@ -1158,21 +1129,18 @@ export default function AssignmentTakingPage(): JSX.Element {
               </div>
             )}
 
-            {/* Audio Recording Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h5 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+            {/* Audio Recording Section (Optional) */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h5 className="font-medium text-orange-700 mb-3 flex items-center gap-2">
                 <Mic className="h-5 w-5" />
-                Ghi âm phát âm <span className="text-red-500">*</span>
+                Ghi âm thực hành (Tùy chọn)
               </h5>
-              <p className="text-blue-700 text-sm mb-4">
-                📢 Bạn cần ghi âm đọc tất cả các cụm từ phía trên để hoàn thành
-                bài tập này
+              <p className="text-orange-600 text-sm mb-4">
+                Bạn có thể ghi lại giọng đọc của mình để tự kiểm tra hoặc gửi cho giáo viên đánh giá
               </p>
 
               {(() => {
-                const pronunciationRecordState = recordingStates[
-                  activity.id
-                ] || {
+                const pronunciationRecordState = recordingStates[activity.id] || {
                   isRecording: false,
                   recordedBlob: null,
                   duration: 0,
@@ -1183,30 +1151,28 @@ export default function AssignmentTakingPage(): JSX.Element {
                   answer.audioUrl.startsWith('http')
 
                 return (
-                  <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 bg-white">
-                    {!pronunciationRecordState.recordedBlob &&
-                    !hasAudioAnswer ? (
+                  <div className="border-2 border-dashed border-orange-300 rounded-lg p-4 bg-white">
+                    {!pronunciationRecordState.recordedBlob && !hasAudioAnswer ? (
                       // Initial / Recording State
                       <div className="text-center">
                         <Mic
-                          className={`mx-auto h-12 w-12 mb-3 ${
-                            pronunciationRecordState.isRecording
-                              ? 'text-blue-600 animate-pulse'
-                              : 'text-blue-400'
-                          }`}
+                          className={`mx-auto h-12 w-12 mb-3 ${pronunciationRecordState.isRecording
+                            ? 'text-orange-600 animate-pulse'
+                            : 'text-gray-400'
+                            }`}
                         />
 
                         {pronunciationRecordState.isRecording ? (
                           <>
-                            <p className="text-blue-600 font-medium mb-2">
+                            <p className="text-orange-600 font-medium mb-2">
                               🔴 Đang ghi âm...
                             </p>
-                            <p className="text-xl font-bold text-blue-600 mb-3">
+                            <p className="text-xl font-bold text-orange-600 mb-3">
                               {pronunciationRecordState.duration}s
                             </p>
                             <button
                               onClick={handleStopRecording}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 mx-auto"
+                              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 mx-auto"
                             >
                               <Square className="h-4 w-4" />
                               Dừng ghi
@@ -1219,7 +1185,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                             </p>
                             <button
                               onClick={() => handleStartRecording(activity.id)}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 mx-auto"
+                              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 mx-auto"
                             >
                               <Play className="h-4 w-4" />
                               Bắt đầu ghi âm
@@ -1227,8 +1193,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                           </>
                         )}
                       </div>
-                    ) : pronunciationRecordState.recordedBlob &&
-                      !hasAudioAnswer ? (
+                    ) : pronunciationRecordState.recordedBlob && !hasAudioAnswer ? (
                       // Preview State
                       <div className="text-center">
                         <CheckCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
@@ -1250,7 +1215,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                         <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => handleReRecord(activity.id)}
-                            className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm"
+                            className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2 text-sm"
                           >
                             <RotateCcw className="h-4 w-4" />
                             Ghi lại
@@ -1264,7 +1229,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                               )
                             }
                             disabled={pronunciationRecordState.isUploading}
-                            className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm disabled:bg-gray-300"
+                            className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm disabled:bg-gray-300"
                           >
                             <Upload className="h-4 w-4" />
                             {pronunciationRecordState.isUploading
@@ -1289,7 +1254,7 @@ export default function AssignmentTakingPage(): JSX.Element {
 
                         <button
                           onClick={() => handleReRecord(activity.id)}
-                          className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm mx-auto"
+                          className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2 text-sm mx-auto"
                         >
                           <RotateCcw className="h-4 w-4" />
                           Ghi lại
@@ -1300,9 +1265,8 @@ export default function AssignmentTakingPage(): JSX.Element {
                 )
               })()}
 
-              <p className="text-red-600 text-xs mt-3 text-center font-medium">
-                ⚠️ Bạn phải ghi âm để hoàn thành bài tập này. Việc đánh dấu "Đã
-                thực hành" chỉ giúp theo dõi tiến độ.
+              <p className="text-orange-600 text-xs mt-3 text-center">
+                💡 Ghi âm là tùy chọn. Bạn vẫn cần đánh dấu "Đã thực hành" cho từng cụm từ ở trên
               </p>
             </div>
           </div>
@@ -1312,11 +1276,11 @@ export default function AssignmentTakingPage(): JSX.Element {
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-blue-600" />
+              <Volume2 className="h-5 w-5 text-teal-600" />
               Chính tả
             </h3>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-800 font-medium mb-3">
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+              <p className="text-teal-800 font-medium mb-3">
                 Nghe và viết lại những gì bạn nghe được
               </p>
               <audio controls className="w-full mb-3">
@@ -1358,54 +1322,51 @@ export default function AssignmentTakingPage(): JSX.Element {
               Từ vựng
             </h3>
             <div className="space-y-4">
-              {(activity.content.items || []).map(
-                (item: any, index: number) => (
-                  <div
-                    key={index}
-                    className="bg-cyan-50 border border-cyan-200 rounded-lg p-4"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-bold text-cyan-800 text-lg">
-                        {item.word}
-                      </h4>
-                      {item.audioUrl && (
-                        <audio controls className="w-32">
-                          <source src={item.audioUrl} type="audio/mpeg" />
-                        </audio>
-                      )}
-                    </div>
-                    <p className="text-cyan-700 mb-2">{item.definition}</p>
-                    {item.examples && item.examples.length > 0 && (
-                      <div className="text-cyan-600 text-sm">
-                        <p className="font-medium mb-1">Ví dụ:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                          {item.examples.map(
-                            (example: string, exIndex: number) => (
-                              <li key={exIndex}>{example}</li>
-                            )
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.word}
-                        className="mt-2 max-w-32 h-auto rounded"
-                      />
+              {activity.content.items.map((item: any, index: number) => (
+                <div
+                  key={index}
+                  className="bg-cyan-50 border border-cyan-200 rounded-lg p-4"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-bold text-cyan-800 text-lg">
+                      {item.word}
+                    </h4>
+                    {item.audioUrl && (
+                      <audio controls className="w-32">
+                        <source src={item.audioUrl} type="audio/mpeg" />
+                      </audio>
                     )}
                   </div>
-                )
-              )}
+                  <p className="text-cyan-700 mb-2">{item.definition}</p>
+                  {item.examples && item.examples.length > 0 && (
+                    <div className="text-cyan-600 text-sm">
+                      <p className="font-medium mb-1">Ví dụ:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        {item.examples.map(
+                          (example: string, exIndex: number) => (
+                            <li key={exIndex}>{example}</li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.word}
+                      className="mt-2 max-w-32 h-auto rounded"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
             <div className="flex justify-center">
               <button
                 onClick={() => handleAnswerChange(activity.id, 'studied')}
-                className={`px-6 py-2 rounded-lg ${
-                  answer === 'studied'
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-cyan-100'
-                }`}
+                className={`px-6 py-2 rounded-lg ${answer === 'studied'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-cyan-100'
+                  }`}
               >
                 {answer === 'studied' ? 'Đã học xong' : 'Đánh dấu đã học'}
               </button>
@@ -1431,7 +1392,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                 {activity.content.question}
               </h4>
               <div className="space-y-2">
-                {(activity.content.options || []).map(
+                {activity.content.options.map(
                   (option: string, index: number) => (
                     <label
                       key={index}
@@ -1544,11 +1505,10 @@ export default function AssignmentTakingPage(): JSX.Element {
                     }
                     handleAnswerChange(activity.id, newAnswer)
                   }}
-                  className={`px-4 py-2 rounded-lg ${
-                    studiedCards.includes(currentCardIndex)
-                      ? 'bg-pink-600 text-white'
-                      : 'bg-pink-100 text-pink-600'
-                  }`}
+                  className={`px-4 py-2 rounded-lg ${studiedCards.includes(currentCardIndex)
+                    ? 'bg-pink-600 text-white'
+                    : 'bg-pink-100 text-pink-600'
+                    }`}
                 >
                   {studiedCards.includes(currentCardIndex)
                     ? 'Đã học'
@@ -1589,32 +1549,28 @@ export default function AssignmentTakingPage(): JSX.Element {
               <h4 className="font-medium text-violet-800 mb-2">Tình huống:</h4>
               <p className="text-violet-700">{activity.content.scenario}</p>
             </div>
-            {activity.content.initialDialog &&
-              activity.content.initialDialog.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-700">
-                    Cuộc hội thoại mẫu:
-                  </h4>
-                  {activity.content.initialDialog.map(
-                    (message: any, index: number) => (
+            {activity.content.initialDialog && activity.content.initialDialog.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700">Cuộc hội thoại mẫu:</h4>
+                {activity.content.initialDialog.map(
+                  (message: any, index: number) => (
+                    <div
+                      key={index}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
                       <div
-                        key={index}
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-xs rounded-lg px-3 py-2 ${
-                            message.role === 'user'
-                              ? 'bg-violet-600 text-white'
-                              : 'bg-gray-200 text-gray-800'
+                        className={`max-w-xs rounded-lg px-3 py-2 ${message.role === 'user'
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-gray-200 text-gray-800'
                           }`}
-                        >
-                          {message.text}
-                        </div>
+                      >
+                        {message.text}
                       </div>
-                    )
-                  )}
-                </div>
-              )}
+                    </div>
+                  )
+                )}
+              </div>
+            )}
             {activity.content.suggestions &&
               activity.content.suggestions.length > 0 && (
                 <div>
@@ -1671,12 +1627,9 @@ export default function AssignmentTakingPage(): JSX.Element {
               <p className="text-gray-600 mb-3">
                 Mini game sẽ được phát triển trong phiên bản sau
               </p>
-              {activity.content.pool &&
-                Array.isArray(activity.content.pool) && (
-                  <p className="text-gray-500 text-sm mb-3">
-                    Từ vựng: {activity.content.pool.join(', ')}
-                  </p>
-                )}
+              <p className="text-gray-500 text-sm mb-3">
+                Từ vựng: {activity.content.pool.join(', ')}
+              </p>
               <button
                 onClick={() =>
                   handleAnswerChange(activity.id, {
@@ -1684,11 +1637,10 @@ export default function AssignmentTakingPage(): JSX.Element {
                     score: 100,
                   })
                 }
-                className={`px-6 py-2 rounded-lg ${
-                  gameAnswer.completed
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-yellow-100'
-                }`}
+                className={`px-6 py-2 rounded-lg ${gameAnswer.completed
+                  ? 'bg-yellow-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-yellow-100'
+                  }`}
               >
                 {gameAnswer.completed ? 'Đã hoàn thành' : 'Đánh dấu hoàn thành'}
               </button>
@@ -1756,8 +1708,7 @@ export default function AssignmentTakingPage(): JSX.Element {
 
       case 'reading':
         // Handle both old and new reading formats
-        const readingActivity =
-          assignment?.assignmentActivities[currentActivityIndex]
+        const readingActivity = assignment?.assignmentActivities[currentActivityIndex]
         if (!readingActivity) return false
 
         const hasReadingQuestions =
@@ -1815,18 +1766,20 @@ export default function AssignmentTakingPage(): JSX.Element {
       case 'speaking':
         // Check if audio URL uploaded or old format 'attempted'
         return (
-          (typeof currentAnswer === 'string' &&
-            currentAnswer.startsWith('http')) ||
+          (typeof currentAnswer === 'string' && currentAnswer.startsWith('http')) ||
           currentAnswer === 'attempted'
         )
 
       case 'pronunciation':
-        // REQUIRED: Must have audio recording (practiced tracking is optional)
+        // Check if at least one phrase practiced OR audio recorded
         return (
           typeof currentAnswer === 'object' &&
           currentAnswer !== null &&
-          typeof currentAnswer.audioUrl === 'string' &&
-          currentAnswer.audioUrl.startsWith('http')
+          ((currentAnswer.practiced &&
+            Array.isArray(currentAnswer.practiced) &&
+            currentAnswer.practiced.length > 0) ||
+            (typeof currentAnswer.audioUrl === 'string' &&
+              currentAnswer.audioUrl.startsWith('http')))
         )
 
       case 'vocab':
@@ -1874,11 +1827,10 @@ export default function AssignmentTakingPage(): JSX.Element {
             <div className="flex items-center gap-4">
               {timeLeft !== null && (
                 <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                    timeLeft <= 300
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-blue-100 text-blue-700'
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg ${timeLeft <= 300
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-blue-100 text-blue-700'
+                    }`}
                 >
                   <Clock className="h-4 w-4" />
                   <span className="font-mono text-sm">
@@ -2048,18 +2000,20 @@ export default function AssignmentTakingPage(): JSX.Element {
                 case 'speaking':
                   // Check if audio URL uploaded or old format 'attempted'
                   return (
-                    (typeof activityAnswer === 'string' &&
-                      activityAnswer.startsWith('http')) ||
+                    (typeof activityAnswer === 'string' && activityAnswer.startsWith('http')) ||
                     activityAnswer === 'attempted'
                   )
 
                 case 'pronunciation':
-                  // REQUIRED: Must have audio recording
+                  // Check if at least one phrase practiced OR audio recorded
                   return (
                     typeof activityAnswer === 'object' &&
                     activityAnswer !== null &&
-                    typeof activityAnswer.audioUrl === 'string' &&
-                    activityAnswer.audioUrl.startsWith('http')
+                    ((activityAnswer.practiced &&
+                      Array.isArray(activityAnswer.practiced) &&
+                      activityAnswer.practiced.length > 0) ||
+                      (typeof activityAnswer.audioUrl === 'string' &&
+                        activityAnswer.audioUrl.startsWith('http')))
                   )
 
                 case 'vocab':
@@ -2089,13 +2043,12 @@ export default function AssignmentTakingPage(): JSX.Element {
               <button
                 key={index}
                 onClick={() => setCurrentActivityIndex(index)}
-                className={`w-8 h-8 rounded-full text-sm font-medium transition ${
-                  isCurrent
-                    ? 'bg-blue-600 text-white'
-                    : isAnswered
-                      ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                      : 'bg-gray-100 text-gray-600 border-2 border-gray-300'
-                }`}
+                className={`w-8 h-8 rounded-full text-sm font-medium transition ${isCurrent
+                  ? 'bg-blue-600 text-white'
+                  : isAnswered
+                    ? 'bg-green-100 text-green-700 border-2 border-green-300'
+                    : 'bg-gray-100 text-gray-600 border-2 border-gray-300'
+                  }`}
               >
                 {index + 1}
               </button>
