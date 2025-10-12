@@ -3,6 +3,7 @@ export interface ClassroomDetailResponse {
   name: string
   description: string
   classCode: string
+  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
   teacher: {
     id: string
     email: string

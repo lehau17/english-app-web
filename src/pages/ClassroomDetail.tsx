@@ -694,6 +694,7 @@ type LessonRowProps = {
   onToggle: () => void
   onStart: (lessonId: string) => void
   onStartActivity: (lessonId: string, activityId: string) => void
+  classroomStatus?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
 }
 
 function LessonRow({
@@ -702,6 +703,7 @@ function LessonRow({
   onToggle,
   onStart,
   onStartActivity,
+  classroomStatus,
 }: LessonRowProps): JSX.Element {
   // Mock completion from activity states
   const total = lesson.activities.length
@@ -767,7 +769,11 @@ function LessonRow({
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 transition"
           >
             <Play className="h-4 w-4" />
-            {nextActivity ? 'Tiếp tục học' : 'Ôn lại bài'}
+            {classroomStatus === 'upcoming'
+              ? 'Xem trước'
+              : nextActivity
+                ? 'Tiếp tục học'
+                : 'Ôn lại bài'}
           </button>
 
           <motion.div
@@ -1183,7 +1189,9 @@ export default function ClassroomDetail(props: {
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 transition"
             >
               <Play className="h-4 w-4" />
-              Tiếp tục học
+              {detail?.status === 'upcoming'
+                ? 'Xem trước buổi học'
+                : 'Tiếp tục học'}
             </button>
           )}
 
@@ -1325,6 +1333,7 @@ export default function ClassroomDetail(props: {
                       }}
                       onStart={handleStartLesson}
                       onStartActivity={handleStartActivity}
+                      classroomStatus={detail?.status}
                     />
                   ))}
                 </div>
