@@ -32,7 +32,8 @@ export const getConversations = async (
   const response = await api.get('/private/v1/agent/conversations', {
     params: { limit, offset },
   })
-  // Backend returns array directly (not wrapped in data)
+  // Backend returns array directly with first message included for preview
+  console.log('📥 Conversations API response:', response.data)
   return Array.isArray(response.data) ? response.data : []
 }
 
@@ -43,10 +44,7 @@ export const getConversation = async (
   conversationId: string
 ): Promise<AgentConversation> => {
   const response = await api.get(
-    `/private/v1/agent/conversations/${conversationId}`,
-    {
-      params: { id: conversationId },
-    }
+    `/private/v1/agent/conversations/${conversationId}`
   )
   return response.data
 }
@@ -58,11 +56,7 @@ export const deleteConversation = async (
   conversationId: string
 ): Promise<{ success: boolean; message: string }> => {
   const response = await api.post(
-    `/private/v1/agent/conversations/${conversationId}/delete`,
-    {},
-    {
-      params: { id: conversationId },
-    }
+    `/private/v1/agent/conversations/${conversationId}/delete`
   )
   return response.data
 }
