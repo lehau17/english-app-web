@@ -45,3 +45,14 @@ export const useRecentSearches = (): UseQueryResult<string[], Error> => {
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
+
+export const useWordOfTheDay = (): UseQueryResult<WordResult, Error> => {
+  return useQuery({
+    queryKey: ['dictionary', 'wordOfTheDay'],
+    queryFn: () => dictionaryAPI.getWordOfTheDay(),
+    staleTime: 60 * 60 * 1000, // 1 hour cache
+    gcTime: 24 * 60 * 60 * 1000, // 24 hours
+    refetchOnMount: false, // Don't refetch on component mount
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+  })
+}

@@ -61,6 +61,13 @@ class DictionaryAPI {
     )
     return response.data.data.words
   }
+
+  async getWordOfTheDay(): Promise<WordResult> {
+    const response = await api.get<DictionaryResponse<WordResult>>(
+      `${this.baseUrl}/word-of-the-day`
+    )
+    return response.data.data
+  }
 }
 
 export const dictionaryAPI = new DictionaryAPI()

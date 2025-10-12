@@ -1,4 +1,6 @@
 import {
+  BookmarkCheck,
+  BookmarkPlus,
   BookOpen,
   Clock,
   Lightbulb,
@@ -7,17 +9,26 @@ import {
   Volume2,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   useDictionaryLookup,
   useDictionaryRhymes,
   useDictionarySuggestions,
   useRecentSearches,
 } from '../hooks/useDictionary'
+import {
+  useDeleteWord,
+  useIsWordSaved,
+  useSaveWord,
+} from '../hooks/useVocabulary'
 import type { WordDefinition } from '../services/dictionary.api'
 
 export default function DictionaryPage() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedWord, setSelectedWord] = useState('')
+  const [searchParams] = useSearchParams()
+  const wordFromUrl = searchParams.get('word') || ''
+
+  const [searchQuery, setSearchQuery] = useState(wordFromUrl)
+  const [selectedWord, setSelectedWord] = useState(wordFromUrl)
   const [isSearching, setIsSearching] = useState(false)
 
   const {
@@ -31,6 +42,11 @@ export default function DictionaryPage() {
   )
   const { data: recentSearches } = useRecentSearches()
   const { data: rhymes } = useDictionaryRhymes(selectedWord)
+
+  // Vocabulary hooks
+  const { mutate: saveWord, isPending: isSaving } = useSaveWord()
+  const { mutate: deleteWord, isPending: isDeleting } = useDeleteWord()
+  const isWordSaved = useIsWordSaved(wordData?.word || '')
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -157,14 +173,43 @@ export default function DictionaryPage() {
                     <h2 className="text-4xl font-bold text-gray-900">
                       {wordData.word}
                     </h2>
-                    {wordData.audioUrl && (
+                    <div className="flex items-center gap-3">
                       <button
-                        onClick={playPronunciation}
-                        className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md hover:shadow-lg"
+                        onClick={() => {
+                          if (isWordSaved) {
+                            deleteWord(wordData.word)
+                          } else {
+                            saveWord(wordData.word)
+                          }
+                        }}
+                        disabled={isSaving || isDeleting}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                          isWordSaved
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
                       >
-                        <Volume2 className="w-6 h-6" />
+                        {isWordSaved ? (
+                          <>
+                            <BookmarkCheck className="w-5 h-5" />
+                            <span className="hidden sm:inline">Đã lưu</span>
+                          </>
+                        ) : (
+                          <>
+                            <BookmarkPlus className="w-5 h-5" />
+                            <span className="hidden sm:inline">Lưu từ</span>
+                          </>
+                        )}
                       </button>
-                    )}
+                      {wordData.audioUrl && (
+                        <button
+                          onClick={playPronunciation}
+                          className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md hover:shadow-lg"
+                        >
+                          <Volume2 className="w-6 h-6" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {wordData.pronunciation && (

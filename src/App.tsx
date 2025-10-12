@@ -20,6 +20,9 @@ import CreatePodcastPageUpdated from './pages/CreatePodcastPageBeautiful'
 import DictionaryPage from './pages/DictionaryPage'
 import HomePage from './pages/HomePage' // Import HomePage
 import LearnPlayerPage from './pages/LearnPage'
+import MyVocabularyPage from './pages/MyVocabularyPage'
+import FlashcardReviewPage from './pages/FlashcardReviewPage'
+import QuizReviewPage from './pages/QuizReviewPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
 import { ListeningResultPage } from './pages/ListeningResultPage'
 import NotificationsPage from './pages/NotificationsPage'
@@ -163,6 +166,30 @@ function App() {
               element={
                 <HomeLayout>
                   <DictionaryPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/my-vocabulary"
+              element={
+                <HomeLayout>
+                  <MyVocabularyPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/my-vocabulary/flashcard"
+              element={
+                <HomeLayout>
+                  <FlashcardReviewPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/my-vocabulary/quiz"
+              element={
+                <HomeLayout>
+                  <QuizReviewPage />
                 </HomeLayout>
               }
             />

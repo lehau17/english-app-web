@@ -13,6 +13,7 @@ import { type JSX, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DirectPaymentModal } from '../components/classroom/DirectPaymentModal'
 import { PaymentNotificationModal } from '../components/classroom/PaymentNotificationModal'
+import { WordOfTheDayWidget } from '../components/WordOfTheDayWidget'
 import {
   getPaymentStatusDisplayInfo,
   getStatusDisplayInfo,
@@ -466,6 +467,9 @@ export default function HomePage(): JSX.Element {
         </div>
 
         <div className="space-y-6">
+          {/* Word of the Day Widget */}
+          <WordOfTheDayWidget />
+
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
             <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
