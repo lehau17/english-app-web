@@ -112,6 +112,7 @@ export const usePaymentStatusPolling = (
 // Hook for VNPay return URL processing
 export const useVNPayReturnHandler = () => {
   const [isProcessing, setIsProcessing] = useState(false)
+  const [hasProcessed, setHasProcessed] = useState(false)
   const [result, setResult] = useState<{
     success: boolean
     message: string
@@ -119,6 +120,11 @@ export const useVNPayReturnHandler = () => {
   } | null>(null)
 
   const processReturnParams = async (params: URLSearchParams) => {
+    // Prevent duplicate processing
+    if (hasProcessed || isProcessing) {
+      return
+    }
+
     setIsProcessing(true)
     setResult(null)
 
@@ -140,6 +146,7 @@ export const useVNPayReturnHandler = () => {
       }
 
       await paymentApi.handleVNPayReturn(vnpayParams)
+      setHasProcessed(true)
 
       const isSuccess = paymentApi.isPaymentSuccess(
         vnpayParams.vnp_ResponseCode

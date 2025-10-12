@@ -9,11 +9,12 @@ export const PaymentResultPage: React.FC = () => {
   const { processReturnParams, isProcessing, result } = useVNPayReturnHandler()
 
   useEffect(() => {
-    // Process VNPay return parameters when component mounts
+    // Process VNPay return parameters ONCE when component mounts
     if (searchParams.toString()) {
       processReturnParams(searchParams)
     }
-  }, [searchParams, processReturnParams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleGoBack = () => {
     navigate(-1)
