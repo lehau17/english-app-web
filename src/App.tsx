@@ -36,6 +36,7 @@ import PodcastPracticePage from './pages/PodcastPracticePage'
 import ProfilePage from './pages/ProfilePage'
 import SchedulePage from './pages/SchedulePage'
 import SettingsPage from './pages/SettingsPage'
+import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
 
@@ -295,6 +296,8 @@ function App() {
               }
             />
           </Route>
+          {/* Catch-all route for 404 Not Found */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </ConversationProvider>
     </AuthProvider>
