@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, NavLink } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
+import { DropdownMenu, DropdownMenuItem } from '../components/ui/DropdownMenu'
 import ConversationWidget from '../components/conversation/ConversationWidget'
 import { useAuth } from '../context/AuthContext'
 import { onUnreadCount } from '../lib/notificationBus'
@@ -107,48 +108,38 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                     <NavLink
                       to="/parent-home"
                       className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                        `text-sm inline-flex items-center gap-1 ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
                       }
                     >
-                      <Users className="h-4 w-4 inline mr-1" />
+                      <Users className="h-4 w-4" />
                       Tổng quan
                     </NavLink>
-                    <NavLink
-                      to="/parent-activities"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      <BookOpen className="h-4 w-4 inline mr-1" />
-                      Hoạt động
-                    </NavLink>
-                    <NavLink
-                      to="/parent-reports"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      <BarChart3 className="h-4 w-4 inline mr-1" />
-                      Báo cáo
-                    </NavLink>
-                    <NavLink
-                      to="/parent-rewards"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      <Gift className="h-4 w-4 inline mr-1" />
-                      Phần thưởng
-                    </NavLink>
-                    <NavLink
-                      to="/parent-settings"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      <Settings className="h-4 w-4 inline mr-1" />
-                      Cài đặt
-                    </NavLink>
+                    {/*
+                      The navigation for the 'parent' role has been refactored into logical groups.
+                      The user's request mentioned other management items (Students, Classes), which implies
+                      an admin/teacher role. However, the navigation for that role is not defined in this file,
+                      so the refactoring is applied only to the 'parent' role found here.
+                    */}
+                    <DropdownMenu label="Theo dõi">
+                      <DropdownMenuItem to="/parent-activities">
+                        <BookOpen className="h-4 w-4" />
+                        Hoạt động của con
+                      </DropdownMenuItem>
+                      <DropdownMenuItem to="/parent-reports">
+                        <BarChart3 className="h-4 w-4" />
+                        Báo cáo học tập
+                      </DropdownMenuItem>
+                    </DropdownMenu>
+                    <DropdownMenu label="Tài khoản">
+                      <DropdownMenuItem to="/parent-rewards">
+                        <Gift className="h-4 w-4" />
+                        Phần thưởng
+                      </DropdownMenuItem>
+                      <DropdownMenuItem to="/parent-settings">
+                        <Settings className="h-4 w-4" />
+                        Cài đặt
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                   </>
                 ) : (
                   // Student/Teacher navigation
