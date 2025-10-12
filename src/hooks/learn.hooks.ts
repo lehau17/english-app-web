@@ -3,6 +3,7 @@ import {
   canStartActivity,
   completeActivity,
   fetchLessonAndActivities,
+  getClassroomDetail,
   getNextLesson,
   startActivity,
   unlockNextLesson,
@@ -16,6 +17,8 @@ export const learnQueryKeys = {
     lessonId: string,
     userId: string
   ) => ['lessonAndActivities', classroomId, lessonId, userId] as const,
+  classroomDetail: (classroomId: string) =>
+    ['classroomDetail', classroomId] as const,
 }
 
 // Hook để lấy next lesson
@@ -104,5 +107,19 @@ export const useUnlockNextLesson = () => {
     onError: (error) => {
       console.error('Failed to unlock next lesson:', error)
     },
+  })
+}
+
+// Hook để lấy classroom detail (bao gồm status)
+export const useClassroomDetail = (classroomId: string) => {
+  return useQuery({
+    queryKey: learnQueryKeys.classroomDetail(classroomId),
+    queryFn: async () => {
+      const response = await getClassroomDetail(classroomId)
+      return response.data
+    },
+    enabled: !!classroomId?.trim(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   })
 }

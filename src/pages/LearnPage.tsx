@@ -42,6 +42,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   useCanStartActivity,
+  useClassroomDetail,
   useCompleteActivity,
   useLessonAndActivities,
   useNextLesson,
@@ -158,10 +159,12 @@ function Stepper({
   items,
   activeId,
   onJump,
+  isPreviewMode = false,
 }: {
   items: Activity[]
   activeId?: string
   onJump: (id: string) => void
+  isPreviewMode?: boolean
 }): JSX.Element {
   if (!items || items.length === 0) {
     return (
@@ -181,8 +184,12 @@ function Stepper({
           .map((a) => {
             const isActive = a.id === activeId
             const done = a.state === 'done' || a.state === 'mastered'
+            // In preview mode, allow access to all activities
             const canAccess =
-              done || a.state === 'in_progress' || a.state === 'review_needed'
+              isPreviewMode ||
+              done ||
+              a.state === 'in_progress' ||
+              a.state === 'review_needed'
             return (
               <button
                 key={a.id}
@@ -3462,6 +3469,11 @@ export default function LearnPlayerPage(): JSX.Element {
     lessonId || '',
     user?.id || ''
   )
+  const classroomDetailQuery = useClassroomDetail(classroomId || '')
+
+  // Get classroom status - check if in preview mode
+  const classroomStatus = classroomDetailQuery.data?.status
+  const isPreviewMode = classroomStatus === 'upcoming'
 
   const activeIndex = useMemo(
     () => activities?.findIndex((a) => a.id === activeId) ?? -1,
@@ -3549,6 +3561,14 @@ export default function LearnPlayerPage(): JSX.Element {
     async (payload?: ActivityCompletePayload) => {
       if (!activeId || !user?.id) return
 
+      // Block submit in preview mode
+      if (isPreviewMode) {
+        toast.error(
+          'Không thể nộp bài trong chế độ xem trước. Lớp học chưa bắt đầu!'
+        )
+        return
+      }
+
       try {
         // Mark activity as completed in local state
         setActivities((prev) =>
@@ -3623,6 +3643,7 @@ export default function LearnPlayerPage(): JSX.Element {
       user?.id,
       activities,
       lessonId,
+      isPreviewMode,
       completeActivityMutation,
       unlockNextLessonMutation,
     ]
@@ -3632,6 +3653,20 @@ export default function LearnPlayerPage(): JSX.Element {
     if (!user?.id) return
 
     try {
+      // In preview mode, skip API validation and just set as in_progress
+      if (isPreviewMode) {
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activityId
+              ? { ...a, state: 'in_progress' as ProgressState }
+              : a
+          )
+        )
+        setErrorMessage(null)
+        setErrorDetails(null)
+        return
+      }
+
       // Kiểm tra xem có thể start activity không
       const canStartResponse = await canStartActivityMutation.mutateAsync({
         userId: user.id,
@@ -3712,18 +3747,21 @@ export default function LearnPlayerPage(): JSX.Element {
     const targetActivity = activities.find((a) => a.id === id)
     if (!targetActivity) return
 
-    // Check if the target activity can be accessed
-    const canAccess =
-      targetActivity.state === 'done' ||
-      targetActivity.state === 'mastered' ||
-      targetActivity.state === 'in_progress' ||
-      targetActivity.state === 'review_needed'
+    // In preview mode, allow access to all activities
+    if (!isPreviewMode) {
+      // Check if the target activity can be accessed
+      const canAccess =
+        targetActivity.state === 'done' ||
+        targetActivity.state === 'mastered' ||
+        targetActivity.state === 'in_progress' ||
+        targetActivity.state === 'review_needed'
 
-    if (!canAccess) {
-      setErrorMessage(
-        'Bạn cần hoàn thành các hoạt động trước đó trước khi truy cập hoạt động này'
-      )
-      return
+      if (!canAccess) {
+        setErrorMessage(
+          'Bạn cần hoàn thành các hoạt động trước đó trước khi truy cập hoạt động này'
+        )
+        return
+      }
     }
 
     setActiveId(id)
@@ -3744,15 +3782,19 @@ export default function LearnPlayerPage(): JSX.Element {
   const gotoNext = () => {
     if (activeIndex < (activities?.length ?? 0) - 1 && activities) {
       const currentActivity = activities[activeIndex]
-      // Check if current activity is completed before allowing navigation
-      if (
-        currentActivity.state !== 'done' &&
-        currentActivity.state !== 'mastered'
-      ) {
-        setErrorMessage(
-          'Bạn cần hoàn thành hoạt động hiện tại trước khi chuyển sang hoạt động tiếp theo'
-        )
-        return
+
+      // In preview mode, allow navigation without completion check
+      if (!isPreviewMode) {
+        // Check if current activity is completed before allowing navigation
+        if (
+          currentActivity.state !== 'done' &&
+          currentActivity.state !== 'mastered'
+        ) {
+          setErrorMessage(
+            'Bạn cần hoàn thành hoạt động hiện tại trước khi chuyển sang hoạt động tiếp theo'
+          )
+          return
+        }
       }
 
       const nextId = activities[activeIndex + 1].id
@@ -3782,6 +3824,26 @@ export default function LearnPlayerPage(): JSX.Element {
           onBack={() => navigate(-1)}
           onExit={() => (window.location.href = '/classroom')}
         />
+
+        {/* Preview Mode Banner */}
+        {isPreviewMode && (
+          <div className="rounded-xl border-2 border-blue-300 bg-blue-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-blue-100 p-2">
+                <ShieldCheck className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-blue-900">
+                  🔍 Chế độ xem trước
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Lớp học chưa bắt đầu. Bạn có thể xem tất cả các hoạt động
+                  nhưng không thể nộp bài hoặc lưu tiến trình.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error Banner */}
         {errorMessage && (
@@ -3840,7 +3902,12 @@ export default function LearnPlayerPage(): JSX.Element {
           </div>
         )}
 
-        <Stepper items={activities} activeId={activeId} onJump={jumpTo} />
+        <Stepper
+          items={activities}
+          activeId={activeId}
+          onJump={jumpTo}
+          isPreviewMode={isPreviewMode}
+        />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-4">
             <div className="rounded-xl border border-gray-200 bg-white p-4">
