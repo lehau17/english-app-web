@@ -4,9 +4,9 @@ import {
   Calendar,
   ChevronRight,
   Search,
-  Trash2,
   Sparkles,
   Target,
+  Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'

@@ -10,8 +10,8 @@ import {
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSavedWords } from '../hooks/useVocabulary'
-import { dictionaryAPI } from '../services/dictionary.api'
 import type { WordResult } from '../services/dictionary.api'
+import { dictionaryAPI } from '../services/dictionary.api'
 
 export default function FlashcardReviewPage() {
   const navigate = useNavigate()
