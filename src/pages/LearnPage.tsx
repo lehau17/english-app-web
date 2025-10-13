@@ -184,12 +184,13 @@ function Stepper({
           .map((a) => {
             const isActive = a.id === activeId
             const done = a.state === 'done' || a.state === 'mastered'
+            const isReviewNeeded = a.state === 'review_needed'
             // In preview mode, allow access to all activities
             const canAccess =
               isPreviewMode ||
               done ||
               a.state === 'in_progress' ||
-              a.state === 'review_needed'
+              isReviewNeeded
             return (
               <button
                 key={a.id}
@@ -203,9 +204,11 @@ function Stepper({
                   'group flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition',
                   isActive
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : canAccess
-                      ? 'border-gray-200 bg-white hover:bg-gray-50'
-                      : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : isReviewNeeded
+                      ? 'border-orange-400 bg-orange-50 text-orange-700'
+                      : canAccess
+                        ? 'border-gray-200 bg-white hover:bg-gray-50'
+                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                 )}
                 disabled={!canAccess}
               >
@@ -214,6 +217,9 @@ function Stepper({
                 </span>
                 <span className="whitespace-nowrap">{a.title}</span>
                 {done && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                {isReviewNeeded && (
+                  <RotateCcw className="h-4 w-4 text-orange-600" />
+                )}
               </button>
             )
           })}
@@ -3570,14 +3576,18 @@ export default function LearnPlayerPage(): JSX.Element {
       }
 
       try {
+        const score = payload?.score ?? 100
+        const newState: ProgressState =
+          score >= 85 ? 'mastered' : score >= 70 ? 'review_needed' : 'done'
+
         // Mark activity as completed in local state
         setActivities((prev) =>
           prev.map((a) =>
             a.id === activeId
               ? {
                   ...a,
-                  state: 'done' as ProgressState,
-                  lastScore: payload?.score ?? 100,
+                  state: newState,
+                  lastScore: score,
                   lastFeedback: payload?.feedback,
                 }
               : a
@@ -3588,8 +3598,17 @@ export default function LearnPlayerPage(): JSX.Element {
         await completeActivityMutation.mutateAsync({
           activityId: activeId,
           userId: user.id,
-          score: payload?.score ?? 100,
+          score,
         })
+
+        if (newState === 'review_needed') {
+          toast(
+            'Làm tốt lắm! Hãy thử làm lại bài này khi có thời gian để đạt điểm cao hơn nhé.',
+            {
+              icon: '💡',
+            }
+          )
+        }
 
         // Clear any error message on successful completion
         setErrorMessage(null)
@@ -3600,8 +3619,8 @@ export default function LearnPlayerPage(): JSX.Element {
           a.id === activeId
             ? {
                 ...a,
-                state: 'done' as ProgressState,
-                lastScore: payload?.score ?? 100,
+                state: newState,
+                lastScore: score,
                 lastFeedback: payload?.feedback,
               }
             : a
@@ -3609,7 +3628,9 @@ export default function LearnPlayerPage(): JSX.Element {
 
         const allCompleted = updatedActivities.every(
           (activity) =>
-            activity.state === 'done' || activity.state === 'mastered'
+            activity.state === 'done' ||
+            activity.state === 'mastered' ||
+            activity.state === 'review_needed'
         )
 
         // If all activities are completed, try to unlock next lesson
