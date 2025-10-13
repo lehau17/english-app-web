@@ -1,7 +1,7 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { BookOpen, Loader2 } from 'lucide-react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Loader2, BookOpen } from 'lucide-react'
 import {
   translateText,
   type TranslateTextResponse,
@@ -97,14 +97,11 @@ const TextInteractionWrapper: React.FC<TextInteractionWrapperProps> = ({
     setMenuVisible(false)
   }
 
-  const handleClickOutside = useCallback(
-    (event: MouseEvent) => {
-      if (menuVisible) {
-        setMenuVisible(false)
-      }
-    },
-    [menuVisible]
-  )
+  const handleClickOutside = useCallback(() => {
+    if (menuVisible) {
+      setMenuVisible(false)
+    }
+  }, [menuVisible])
 
   useEffect(() => {
     document.addEventListener('click', handleClickOutside)
