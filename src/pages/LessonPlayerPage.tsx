@@ -75,7 +75,7 @@ import type {
 
 /**
  * LearnPlayer – Page shown when user clicks "Tiếp tục học"
- * Route gợi ý: /learn/[classroomId]/[lessonId]/[activityId]
+ * Route: /learn/:classroomId/:lessonId
  *
  * Bản mở rộng: hỗ trợ đầy đủ 11 ActivityType
  *  - vocab
@@ -3821,7 +3821,7 @@ export default function LearnPlayerPage(): JSX.Element {
         <TopBar
           lesson={lesson}
           activity={active}
-          onBack={() => navigate(-1)}
+          onBack={() => navigate(`/classroom/${classroomId}/map`)}
           onExit={() => (window.location.href = '/classroom')}
         />
 

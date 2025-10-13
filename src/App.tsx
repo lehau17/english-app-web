@@ -20,7 +20,8 @@ import CreatePodcastPageUpdated from './pages/CreatePodcastPageBeautiful'
 import DictionaryPage from './pages/DictionaryPage'
 import FlashcardReviewPage from './pages/FlashcardReviewPage'
 import HomePage from './pages/HomePage' // Import HomePage
-import LearnPlayerPage from './pages/LearnPage'
+import LessonMapPage from './pages/LessonMapPage'
+import LearnPlayerPage from './pages/LessonPlayerPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
 import { ListeningResultPage } from './pages/ListeningResultPage'
 import MyVocabularyPage from './pages/MyVocabularyPage'
@@ -146,7 +147,15 @@ function App() {
               }
             />
             <Route
-              path="/learn/:classroomId/:lessonId/:activityId"
+              path="/classroom/:classroomId/map"
+              element={
+                <HomeLayout>
+                  <LessonMapPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/learn/:classroomId/:lessonId"
               element={
                 <HomeLayout>
                   <LearnPlayerPage />
