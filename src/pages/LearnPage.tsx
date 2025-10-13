@@ -39,6 +39,7 @@ import {
 } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
+import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { useAuth } from '../context/AuthContext'
 import {
   useCanStartActivity,
@@ -358,11 +359,11 @@ function FillBlankActivity({
   const placeholderTokenRe = /^(\[_{2,}\]|_{3,})$/
   const tokens = useMemo(
     () => (data.passage || '').split(placeholderReGlobal),
-    [data.passage]
+    [data.passage, placeholderReGlobal]
   )
   const placeholderCount = useMemo(
     () => tokens.filter((t) => placeholderTokenRe.test(t)).length,
-    [tokens]
+    [tokens, placeholderTokenRe]
   )
 
   // State for drag & drop
@@ -776,7 +777,7 @@ function MatchingActivity({
   data: import('../types/learn.type').MatchingContent
   onPass: () => void
 }): JSX.Element {
-  const pairs = data.pairs ?? []
+  const pairs = useMemo(() => data.pairs ?? [], [data.pairs])
   const rights = useMemo(() => pairs.map((p) => p.right), [pairs])
   const shuffledRights = useMemo(() => {
     const arr = [...rights]
@@ -2280,7 +2281,7 @@ function MiniGameActivity({
 }): JSX.Element {
   const [round, setRound] = useState(1)
   const [hits, setHits] = useState(0)
-  const words = useMemo(() => shuffle([...data.pool]), [data.pool, round])
+  const words = useMemo(() => shuffle([...data.pool]), [data.pool])
   function clickWord(w: string) {
     if (w === data.target) {
       const nhits = hits + 1
@@ -2339,9 +2340,11 @@ function ReadingActivity({
     <div className="space-y-4">
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="text-lg font-semibold mb-2">Đoạn văn</h3>
-        <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
+        <TextInteractionWrapper>
+          <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
+        </TextInteractionWrapper>
       </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className="Learrounded-xl border border-gray-200 bg-white p-5">
         <h4 className="font-medium mb-2">{data.question}</h4>
         <div className="grid gap-2">
           {data.options.map((o, i) => {
@@ -3543,6 +3546,101 @@ export default function LearnPlayerPage(): JSX.Element {
     }
   }, [lessonData])
 
+  const handleStartActivity = async (activityId: string) => {
+    if (!user?.id) return
+
+    try {
+      // In preview mode, skip API validation and just set as in_progress
+      if (isPreviewMode) {
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activityId
+              ? { ...a, state: 'in_progress' as ProgressState }
+              : a
+          )
+        )
+        setErrorMessage(null)
+        setErrorDetails(null)
+        return
+      }
+
+      // Kiểm tra xem có thể start activity không
+      const canStartResponse = await canStartActivityMutation.mutateAsync({
+        userId: user.id,
+        activityId,
+      })
+      const canStart = canStartResponse.data
+
+      if (!canStart.allowed) {
+        // Hiển thị lý do không thể start
+        let errorMessage = 'Không thể bắt đầu hoạt động này'
+
+        if (canStart.reason === 'previous_activity_not_passed') {
+          errorMessage = 'Bạn cần hoàn thành hoạt động trước đó trước'
+        } else if (canStart.reason === 'unmet_prerequisites') {
+          errorMessage = 'Bạn chưa đáp ứng đủ điều kiện tiên quyết'
+        } else if (canStart.reason === 'activity_not_found') {
+          errorMessage = 'Hoạt động không tồn tại'
+        } else if (canStart.reason) {
+          errorMessage = canStart.reason
+        }
+
+        setErrorMessage(errorMessage)
+        setErrorDetails(canStart)
+
+        // Quay về activity trước đó nếu có thể
+        const currentIndex = activities.findIndex((a) => a.id === activityId)
+        if (currentIndex > 0) {
+          const prevActivity = activities[currentIndex - 1]
+          setActiveId(prevActivity.id)
+        }
+
+        return
+      }
+
+      // Nếu được phép, tiến hành start activity
+      await startActivityMutation.mutateAsync({
+        activityId,
+        userId: user.id,
+      })
+
+      // Update local state to mark as in progress
+      setActivities((prev) =>
+        prev.map((a) =>
+          a.id === activityId
+            ? { ...a, state: 'in_progress' as ProgressState }
+            : a
+        )
+      )
+
+      // Clear any previous error
+      setErrorMessage(null)
+      setErrorDetails(null)
+    } catch (error: any) {
+      console.error('Failed to start activity:', error)
+
+      // Handle API error response
+      if (error.response?.status === 400) {
+        const errorData = error.response.data
+        const errorMessage =
+          errorData?.message || 'Không thể bắt đầu hoạt động này'
+        setErrorMessage(errorMessage)
+
+        // Quay về activity trước đó nếu có thể
+        const currentIndex = activities.findIndex((a) => a.id === activityId)
+        if (currentIndex > 0) {
+          const prevActivity = activities[currentIndex - 1]
+          setActiveId(prevActivity.id)
+        }
+
+        return
+      }
+
+      // For other errors, show generic message
+      setErrorMessage('Có lỗi xảy ra khi bắt đầu hoạt động. Vui lòng thử lại.')
+    }
+  }
+
   // Handle error from query
   useEffect(() => {
     if (error) {
@@ -3561,7 +3659,7 @@ export default function LearnPlayerPage(): JSX.Element {
         handleStartActivity(activeId)
       }
     }
-  }, [activeId, activities, user?.id])
+  }, [activeId, activities, user?.id, handleStartActivity])
 
   const handlePass = useCallback(
     async (payload?: ActivityCompletePayload) => {
@@ -3670,100 +3768,6 @@ export default function LearnPlayerPage(): JSX.Element {
     ]
   )
 
-  const handleStartActivity = async (activityId: string) => {
-    if (!user?.id) return
-
-    try {
-      // In preview mode, skip API validation and just set as in_progress
-      if (isPreviewMode) {
-        setActivities((prev) =>
-          prev.map((a) =>
-            a.id === activityId
-              ? { ...a, state: 'in_progress' as ProgressState }
-              : a
-          )
-        )
-        setErrorMessage(null)
-        setErrorDetails(null)
-        return
-      }
-
-      // Kiểm tra xem có thể start activity không
-      const canStartResponse = await canStartActivityMutation.mutateAsync({
-        userId: user.id,
-        activityId,
-      })
-      const canStart = canStartResponse.data
-
-      if (!canStart.allowed) {
-        // Hiển thị lý do không thể start
-        let errorMessage = 'Không thể bắt đầu hoạt động này'
-
-        if (canStart.reason === 'previous_activity_not_passed') {
-          errorMessage = 'Bạn cần hoàn thành hoạt động trước đó trước'
-        } else if (canStart.reason === 'unmet_prerequisites') {
-          errorMessage = 'Bạn chưa đáp ứng đủ điều kiện tiên quyết'
-        } else if (canStart.reason === 'activity_not_found') {
-          errorMessage = 'Hoạt động không tồn tại'
-        } else if (canStart.reason) {
-          errorMessage = canStart.reason
-        }
-
-        setErrorMessage(errorMessage)
-        setErrorDetails(canStart)
-
-        // Quay về activity trước đó nếu có thể
-        const currentIndex = activities.findIndex((a) => a.id === activityId)
-        if (currentIndex > 0) {
-          const prevActivity = activities[currentIndex - 1]
-          setActiveId(prevActivity.id)
-        }
-
-        return
-      }
-
-      // Nếu được phép, tiến hành start activity
-      await startActivityMutation.mutateAsync({
-        activityId,
-        userId: user.id,
-      })
-
-      // Update local state to mark as in progress
-      setActivities((prev) =>
-        prev.map((a) =>
-          a.id === activityId
-            ? { ...a, state: 'in_progress' as ProgressState }
-            : a
-        )
-      )
-
-      // Clear any previous error
-      setErrorMessage(null)
-      setErrorDetails(null)
-    } catch (error: any) {
-      console.error('Failed to start activity:', error)
-
-      // Handle API error response
-      if (error.response?.status === 400) {
-        const errorData = error.response.data
-        const errorMessage =
-          errorData?.message || 'Không thể bắt đầu hoạt động này'
-        setErrorMessage(errorMessage)
-
-        // Quay về activity trước đó nếu có thể
-        const currentIndex = activities.findIndex((a) => a.id === activityId)
-        if (currentIndex > 0) {
-          const prevActivity = activities[currentIndex - 1]
-          setActiveId(prevActivity.id)
-        }
-
-        return
-      }
-
-      // For other errors, show generic message
-      setErrorMessage('Có lỗi xảy ra khi bắt đầu hoạt động. Vui lòng thử lại.')
-    }
-  }
   const jumpTo = (id: string) => {
     const targetActivity = activities.find((a) => a.id === id)
     if (!targetActivity) return
