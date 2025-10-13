@@ -8,3 +8,26 @@ export const apiTranSlation = async (text: string) => {
   )
   return result.data
 }
+
+export type TranslateTextResponse = {
+  text: string
+  pronunciation: string
+  definitions: Array<{
+    partOfSpeech: string
+    definitions: Array<{
+      definition: string
+      example: string
+      synonyms: string[]
+    }>
+  }>
+}
+
+export const translateText = async (
+  text: string
+): Promise<BaseResponse<TranslateTextResponse>> => {
+  const result = await api.post<BaseResponse<TranslateTextResponse>>(
+    '/public/v1/google-translate/free/translate',
+    { text, targetLanguage: 'vi' }
+  )
+  return result.data
+}

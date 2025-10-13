@@ -1,3 +1,4 @@
+import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import {
   AnimatePresence,
   motion,
@@ -2333,7 +2334,9 @@ function ReadingActivity({
     <div className="space-y-4">
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="text-lg font-semibold mb-2">Đoạn văn</h3>
-        <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
+        <TextInteractionWrapper>
+          <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
+        </TextInteractionWrapper>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <h4 className="font-medium mb-2">{data.question}</h4>
