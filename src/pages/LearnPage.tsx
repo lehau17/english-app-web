@@ -1,4 +1,3 @@
-import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import {
   AnimatePresence,
   motion,
@@ -40,6 +39,7 @@ import {
 } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
+import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { useAuth } from '../context/AuthContext'
 import {
   useCanStartActivity,
@@ -185,12 +185,13 @@ function Stepper({
           .map((a) => {
             const isActive = a.id === activeId
             const done = a.state === 'done' || a.state === 'mastered'
+            const isReviewNeeded = a.state === 'review_needed'
             // In preview mode, allow access to all activities
             const canAccess =
               isPreviewMode ||
               done ||
               a.state === 'in_progress' ||
-              a.state === 'review_needed'
+              isReviewNeeded
             return (
               <button
                 key={a.id}
@@ -204,9 +205,11 @@ function Stepper({
                   'group flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition',
                   isActive
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : canAccess
-                      ? 'border-gray-200 bg-white hover:bg-gray-50'
-                      : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : isReviewNeeded
+                      ? 'border-orange-400 bg-orange-50 text-orange-700'
+                      : canAccess
+                        ? 'border-gray-200 bg-white hover:bg-gray-50'
+                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                 )}
                 disabled={!canAccess}
               >
@@ -215,6 +218,9 @@ function Stepper({
                 </span>
                 <span className="whitespace-nowrap">{a.title}</span>
                 {done && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                {isReviewNeeded && (
+                  <RotateCcw className="h-4 w-4 text-orange-600" />
+                )}
               </button>
             )
           })}
@@ -353,11 +359,11 @@ function FillBlankActivity({
   const placeholderTokenRe = /^(\[_{2,}\]|_{3,})$/
   const tokens = useMemo(
     () => (data.passage || '').split(placeholderReGlobal),
-    [data.passage]
+    [data.passage, placeholderReGlobal]
   )
   const placeholderCount = useMemo(
     () => tokens.filter((t) => placeholderTokenRe.test(t)).length,
-    [tokens]
+    [tokens, placeholderTokenRe]
   )
 
   // State for drag & drop
@@ -771,7 +777,7 @@ function MatchingActivity({
   data: import('../types/learn.type').MatchingContent
   onPass: () => void
 }): JSX.Element {
-  const pairs = data.pairs ?? []
+  const pairs = useMemo(() => data.pairs ?? [], [data.pairs])
   const rights = useMemo(() => pairs.map((p) => p.right), [pairs])
   const shuffledRights = useMemo(() => {
     const arr = [...rights]
@@ -2275,7 +2281,7 @@ function MiniGameActivity({
 }): JSX.Element {
   const [round, setRound] = useState(1)
   const [hits, setHits] = useState(0)
-  const words = useMemo(() => shuffle([...data.pool]), [data.pool, round])
+  const words = useMemo(() => shuffle([...data.pool]), [data.pool])
   function clickWord(w: string) {
     if (w === data.target) {
       const nhits = hits + 1
@@ -2338,7 +2344,7 @@ function ReadingActivity({
           <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
         </TextInteractionWrapper>
       </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className="Learrounded-xl border border-gray-200 bg-white p-5">
         <h4 className="font-medium mb-2">{data.question}</h4>
         <div className="grid gap-2">
           {data.options.map((o, i) => {
@@ -3540,118 +3546,6 @@ export default function LearnPlayerPage(): JSX.Element {
     }
   }, [lessonData])
 
-  // Handle error from query
-  useEffect(() => {
-    if (error) {
-      console.error('Failed to fetch lesson and activities:', error)
-      setErrorMessage('Không thể tải bài học. Vui lòng thử lại.')
-      setLoading(false)
-    }
-  }, [error])
-
-  // Start activity when activeId changes (for initial load or programmatic changes)
-  useEffect(() => {
-    if (activeId && user?.id && activities && activities.length > 0) {
-      const currentActivity = activities.find((a) => a.id === activeId)
-      if (currentActivity && currentActivity.state === 'not_started') {
-        setErrorMessage(null) // Clear error when starting new activity
-        handleStartActivity(activeId)
-      }
-    }
-  }, [activeId, activities, user?.id])
-
-  const handlePass = useCallback(
-    async (payload?: ActivityCompletePayload) => {
-      if (!activeId || !user?.id) return
-
-      // Block submit in preview mode
-      if (isPreviewMode) {
-        toast.error(
-          'Không thể nộp bài trong chế độ xem trước. Lớp học chưa bắt đầu!'
-        )
-        return
-      }
-
-      try {
-        // Mark activity as completed in local state
-        setActivities((prev) =>
-          prev.map((a) =>
-            a.id === activeId
-              ? {
-                  ...a,
-                  state: 'done' as ProgressState,
-                  lastScore: payload?.score ?? 100,
-                  lastFeedback: payload?.feedback,
-                }
-              : a
-          )
-        )
-
-        // Call API to complete activity using mutation
-        await completeActivityMutation.mutateAsync({
-          activityId: activeId,
-          userId: user.id,
-          score: payload?.score ?? 100,
-        })
-
-        // Clear any error message on successful completion
-        setErrorMessage(null)
-        setErrorDetails(null)
-
-        // Check if all activities are now completed after this completion
-        const updatedActivities = activities.map((a) =>
-          a.id === activeId
-            ? {
-                ...a,
-                state: 'done' as ProgressState,
-                lastScore: payload?.score ?? 100,
-                lastFeedback: payload?.feedback,
-              }
-            : a
-        )
-
-        const allCompleted = updatedActivities.every(
-          (activity) =>
-            activity.state === 'done' || activity.state === 'mastered'
-        )
-
-        // If all activities are completed, try to unlock next lesson
-        if (allCompleted && lessonId) {
-          try {
-            const unlockResult =
-              await unlockNextLessonMutation.mutateAsync(lessonId)
-            // Show success message with the unlock result
-            if (unlockResult.data.message) {
-              // Success - lesson unlocked
-            }
-          } catch (unlockError) {
-            // Don't fail the main flow if unlock fails
-            console.error('Failed to unlock next lesson:', unlockError)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to complete activity:', error)
-        // Revert local state on error
-        setActivities((prev) =>
-          prev.map((a) =>
-            a.id === activeId
-              ? { ...a, state: 'in_progress' as ProgressState }
-              : a
-          )
-        )
-      }
-    },
-    [
-      activeId,
-      user?.id,
-      activities,
-      lessonId,
-      isPreviewMode,
-      completeActivityMutation,
-      unlockNextLessonMutation,
-    ]
-  )
-
   const handleStartActivity = async (activityId: string) => {
     if (!user?.id) return
 
@@ -3746,6 +3640,134 @@ export default function LearnPlayerPage(): JSX.Element {
       setErrorMessage('Có lỗi xảy ra khi bắt đầu hoạt động. Vui lòng thử lại.')
     }
   }
+
+  // Handle error from query
+  useEffect(() => {
+    if (error) {
+      console.error('Failed to fetch lesson and activities:', error)
+      setErrorMessage('Không thể tải bài học. Vui lòng thử lại.')
+      setLoading(false)
+    }
+  }, [error])
+
+  // Start activity when activeId changes (for initial load or programmatic changes)
+  useEffect(() => {
+    if (activeId && user?.id && activities && activities.length > 0) {
+      const currentActivity = activities.find((a) => a.id === activeId)
+      if (currentActivity && currentActivity.state === 'not_started') {
+        setErrorMessage(null) // Clear error when starting new activity
+        handleStartActivity(activeId)
+      }
+    }
+  }, [activeId, activities, user?.id, handleStartActivity])
+
+  const handlePass = useCallback(
+    async (payload?: ActivityCompletePayload) => {
+      if (!activeId || !user?.id) return
+
+      // Block submit in preview mode
+      if (isPreviewMode) {
+        toast.error(
+          'Không thể nộp bài trong chế độ xem trước. Lớp học chưa bắt đầu!'
+        )
+        return
+      }
+
+      try {
+        const score = payload?.score ?? 100
+        const newState: ProgressState =
+          score >= 85 ? 'mastered' : score >= 70 ? 'review_needed' : 'done'
+
+        // Mark activity as completed in local state
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activeId
+              ? {
+                  ...a,
+                  state: newState,
+                  lastScore: score,
+                  lastFeedback: payload?.feedback,
+                }
+              : a
+          )
+        )
+
+        // Call API to complete activity using mutation
+        await completeActivityMutation.mutateAsync({
+          activityId: activeId,
+          userId: user.id,
+          score,
+        })
+
+        if (newState === 'review_needed') {
+          toast(
+            'Làm tốt lắm! Hãy thử làm lại bài này khi có thời gian để đạt điểm cao hơn nhé.',
+            {
+              icon: '💡',
+            }
+          )
+        }
+
+        // Clear any error message on successful completion
+        setErrorMessage(null)
+        setErrorDetails(null)
+
+        // Check if all activities are now completed after this completion
+        const updatedActivities = activities.map((a) =>
+          a.id === activeId
+            ? {
+                ...a,
+                state: newState,
+                lastScore: score,
+                lastFeedback: payload?.feedback,
+              }
+            : a
+        )
+
+        const allCompleted = updatedActivities.every(
+          (activity) =>
+            activity.state === 'done' ||
+            activity.state === 'mastered' ||
+            activity.state === 'review_needed'
+        )
+
+        // If all activities are completed, try to unlock next lesson
+        if (allCompleted && lessonId) {
+          try {
+            const unlockResult =
+              await unlockNextLessonMutation.mutateAsync(lessonId)
+            // Show success message with the unlock result
+            if (unlockResult.data.message) {
+              // Success - lesson unlocked
+            }
+          } catch (unlockError) {
+            // Don't fail the main flow if unlock fails
+            console.error('Failed to unlock next lesson:', unlockError)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to complete activity:', error)
+        // Revert local state on error
+        setActivities((prev) =>
+          prev.map((a) =>
+            a.id === activeId
+              ? { ...a, state: 'in_progress' as ProgressState }
+              : a
+          )
+        )
+      }
+    },
+    [
+      activeId,
+      user?.id,
+      activities,
+      lessonId,
+      isPreviewMode,
+      completeActivityMutation,
+      unlockNextLessonMutation,
+    ]
+  )
+
   const jumpTo = (id: string) => {
     const targetActivity = activities.find((a) => a.id === id)
     if (!targetActivity) return
