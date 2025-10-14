@@ -4,7 +4,7 @@ export enum AssignmentType {
   HOMEWORK = 'HOMEWORK',
   QUIZ = 'QUIZ',
   MIDTERM_EXAM = 'MIDTERM_EXAM',
-  FINAL_EXAM = 'FINAL_EXAM'
+  FINAL_EXAM = 'FINAL_EXAM',
 }
 
 export interface Assignment {

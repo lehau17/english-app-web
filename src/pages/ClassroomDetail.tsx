@@ -51,7 +51,7 @@ import {
 } from '../services/assignment.api'
 import { createClassroomAnnouncement } from '../services/classroom-detail.api'
 import { createClassroomConversation } from '../services/conversation.api'
-import { Assignment, AssignmentType } from '../types/assignment.type' // NEW
+import { AssignmentType, type Assignment } from '../types/assignment.type' // NEW
 import type {
   ClassroomAnnouncement,
   ClassroomDetailResponse,
@@ -230,7 +230,9 @@ function StudentAssignmentCard({
             />
             <div>
               <div className="flex items-center flex-wrap gap-2 mb-1">
-                <h4 className="font-medium text-gray-900">{assignment.title}</h4>
+                <h4 className="font-medium text-gray-900">
+                  {assignment.title}
+                </h4>
                 <div
                   className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${typeInfo.badgeColor}`}
                 >
@@ -1568,12 +1570,12 @@ export default function ClassroomDetail(props: {
                             onDownloadPdf={handleDownloadPdf}
                             onStartAssignment={(aid) => {
                               navigate(
-                                `/classroom/${detail.id}/assignment/${aid}`
+                                `/classroom/${detail?.id}/assignment/${aid}`
                               )
                             }}
                             onViewResult={(aid) => {
                               navigate(
-                                `/classroom/${detail.id}/assignment/${aid}/result`
+                                `/classroom/${detail?.id}/assignment/${aid}/result`
                               )
                             }}
                           />
@@ -1710,12 +1712,12 @@ export default function ClassroomDetail(props: {
                         onDownloadPdf={handleDownloadPdf}
                         onStartAssignment={(aid) => {
                           // Navigate to assignment taking page
-                          navigate(`/classroom/${detail.id}/assignment/${aid}`)
+                          navigate(`/classroom/${detail?.id}/assignment/${aid}`)
                         }}
                         onViewResult={(aid) => {
                           // Navigate to assignment result page
                           navigate(
-                            `/classroom/${detail.id}/assignment/${aid}/result`
+                            `/classroom/${detail?.id}/assignment/${aid}/result`
                           )
                         }}
                       />

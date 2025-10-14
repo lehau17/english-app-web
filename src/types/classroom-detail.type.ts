@@ -1,3 +1,5 @@
+import type { AssignmentType } from './assignment.type'
+
 export interface ClassroomDetailResponse {
   id: string
   name: string
@@ -71,6 +73,7 @@ export interface ClassroomDetailResponse {
     isPublished: boolean
     totalPoints: number
     timeLimit?: number | null
+    type: AssignmentType
     maxAttempts: number
     createdAt: string
     _count: {
