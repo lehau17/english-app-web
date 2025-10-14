@@ -1,5 +1,5 @@
-import React from 'react'
 import { Activity, BookOpen, CalendarDays, Clock, Target } from 'lucide-react'
+import React from 'react'
 import {
   Bar,
   BarChart,
@@ -16,7 +16,6 @@ import {
   YAxis,
 } from 'recharts'
 
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import {
   Card,
   CardContent,
@@ -24,13 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select'
+import { Select } from '../components/ui/select'
 
 // Mock Data
 const mockChildData = {
@@ -146,15 +139,22 @@ export default function ParentProgressReportPage() {
       {/* Page Header */}
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <img
               src={mockChildData.avatarUrl}
               alt={mockChildData.name}
+              className="h-16 w-16 rounded-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                const fallback = target.nextElementSibling as HTMLElement
+                if (fallback) fallback.style.display = 'flex'
+              }}
             />
-            <AvatarFallback>
+            <div className="h-16 w-16 rounded-full bg-primary/20 items-center justify-center text-primary font-bold text-xl hidden">
               {mockChildData.name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+            </div>
+          </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Báo cáo tiến độ học tập
@@ -167,19 +167,15 @@ export default function ParentProgressReportPage() {
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-muted-foreground" />
           <Select
-            onValueChange={(value) =>
-              setTimeRange(value as keyof typeof mockStudyTimeData)
+            value={timeRange}
+            onChange={(e) =>
+              setTimeRange(e.target.value as keyof typeof mockStudyTimeData)
             }
-            defaultValue={timeRange}
+            className="w-[180px]"
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Chọn khoảng thời gian" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7days">7 ngày qua</SelectItem>
-              <SelectItem value="30days">30 ngày qua</SelectItem>
-              <SelectItem value="allTime">Toàn thời gian</SelectItem>
-            </SelectContent>
+            <option value="7days">7 ngày qua</option>
+            <option value="30days">30 ngày qua</option>
+            <option value="allTime">Toàn thời gian</option>
           </Select>
         </div>
       </div>
@@ -318,12 +314,3 @@ export default function ParentProgressReportPage() {
     </div>
   )
 }
-
-// A bit of styling for the chart colors
-const style = document.createElement('style')
-style.innerHTML = `
-:root {
-  --color-primary: #1E88E5;
-}
-`
-document.head.appendChild(style)
