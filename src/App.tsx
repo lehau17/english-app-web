@@ -28,6 +28,7 @@ import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
 import NotificationsPage from './pages/NotificationsPage'
 import ParentActivitiesPage from './pages/ParentActivitiesPage'
 import ParentHomePage from './pages/ParentHomePage'
+import ParentProgressReportPage from './pages/ParentProgressReportPage'
 import ParentReportsPage from './pages/ParentReportsPage'
 import ParentRewardsPage from './pages/ParentRewardsPage'
 import ParentSchedulePage from './pages/ParentSchedulePage'
@@ -70,6 +71,14 @@ function App() {
               element={
                 <HomeLayout>
                   <HomePage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/parent/reports/:childId"
+              element={
+                <HomeLayout>
+                  <ParentProgressReportPage />
                 </HomeLayout>
               }
             />
