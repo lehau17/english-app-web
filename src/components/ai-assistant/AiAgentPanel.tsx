@@ -132,8 +132,12 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
     try {
       const conversation = await getConversation(conversationId)
       setMessages(conversation.messages || [])
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load conversation:', error)
+      // If conversation not found or access denied, reset to new chat
+      if (error?.response?.status === 404 || error?.response?.status === 403) {
+        handleNewChat()
+      }
     }
   }
 
