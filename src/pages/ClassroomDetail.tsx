@@ -3,14 +3,18 @@ import { AnimatePresence, motion } from 'framer-motion' // <-- NEW
 import {
   AlertCircle,
   ArrowLeft,
+  Award, // NEW
   Bell,
+  BookMarked, // NEW
   BookOpen,
   Calendar,
   CheckCircle,
+  ClipboardPenLine, // NEW
   Clock,
   Copy,
   Download,
   Eye,
+  FileQuestion, // NEW
   FileText,
   Gamepad2,
   Headphones,
@@ -27,7 +31,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react' // useMemo
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
@@ -47,6 +51,7 @@ import {
 } from '../services/assignment.api'
 import { createClassroomAnnouncement } from '../services/classroom-detail.api'
 import { createClassroomConversation } from '../services/conversation.api'
+import { Assignment, AssignmentType } from '../types/assignment.type' // NEW
 import type {
   ClassroomAnnouncement,
   ClassroomDetailResponse,
@@ -65,22 +70,6 @@ interface Student {
   displayName: string
   avatarUrl: string
   studentRecord: StudentRecord
-}
-
-interface Assignment {
-  id: string
-  title: string
-  description?: string | null
-  instructions?: string | null
-  dueDate?: string | null // ISO
-  status?: string
-  isPublished: boolean
-  totalPoints: number
-  timeLimit?: number | null // minutes
-  maxAttempts: number
-  createdAt: string // ISO
-  _count: { submissions: number }
-  activities?: any[]
 }
 
 type AnnouncementPriority = 'high' | 'normal' | 'low'
@@ -168,6 +157,45 @@ function StudentAssignmentCard({
   const score = submission?.score || null
   const attempts = submission?.attempt || 0 // này là attemptCount từ backend
 
+  const assignmentTypeMap: Record<
+    AssignmentType,
+    {
+      label: string
+      icon: LucideIcon
+      iconColor: string
+      badgeColor: string
+    }
+  > = {
+    [AssignmentType.HOMEWORK]: {
+      label: 'Bài tập về nhà',
+      icon: BookMarked,
+      iconColor: 'text-blue-600',
+      badgeColor: 'bg-blue-100 text-blue-800',
+    },
+    [AssignmentType.QUIZ]: {
+      label: 'Bài kiểm tra',
+      icon: FileQuestion,
+      iconColor: 'text-indigo-600',
+      badgeColor: 'bg-indigo-100 text-indigo-800',
+    },
+    [AssignmentType.MIDTERM_EXAM]: {
+      label: 'Thi giữa kỳ',
+      icon: ClipboardPenLine,
+      iconColor: 'text-amber-600',
+      badgeColor: 'bg-amber-100 text-amber-800',
+    },
+    [AssignmentType.FINAL_EXAM]: {
+      label: 'Thi cuối kỳ',
+      icon: Award,
+      iconColor: 'text-red-600',
+      badgeColor: 'bg-red-100 text-red-800',
+    },
+  }
+
+  const typeInfo =
+    assignmentTypeMap[assignment.type] || assignmentTypeMap.HOMEWORK
+  const IconComponent = typeInfo.icon
+
   const getStatusColor = () => {
     if (hasSubmitted && score !== null) {
       if (score >= 80) return 'bg-green-100 text-green-700'
@@ -175,7 +203,7 @@ function StudentAssignmentCard({
       return 'bg-red-100 text-red-700'
     }
     if (isOverdue) return 'bg-red-100 text-red-700'
-    return 'bg-blue-100 text-blue-700'
+    return 'bg-gray-100 text-gray-700'
   }
 
   const getStatusText = () => {
@@ -186,33 +214,51 @@ function StudentAssignmentCard({
     return 'Chưa làm'
   }
 
+  const isImportant =
+    assignment.type === AssignmentType.MIDTERM_EXAM ||
+    assignment.type === AssignmentType.FINAL_EXAM
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 hover:shadow-sm transition">
+    <div
+      className={`rounded-xl border bg-white p-4 hover:shadow-sm transition ${isImportant ? 'border-2 border-amber-400' : 'border-gray-200'}`}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-medium text-gray-900">{assignment.title}</h4>
-            <div
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${getStatusColor()}`}
-            >
-              {hasSubmitted && score !== null ? (
-                <CheckCircle className="h-3 w-3" />
-              ) : isOverdue ? (
-                <XCircle className="h-3 w-3" />
-              ) : (
-                <Clock className="h-3 w-3" />
-              )}
-              {getStatusText()}
+          <div className="flex items-start gap-3 mb-2">
+            <IconComponent
+              className={`h-6 w-6 mt-1 flex-shrink-0 ${typeInfo.iconColor}`}
+            />
+            <div>
+              <div className="flex items-center flex-wrap gap-2 mb-1">
+                <h4 className="font-medium text-gray-900">{assignment.title}</h4>
+                <div
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${typeInfo.badgeColor}`}
+                >
+                  {typeInfo.label}
+                </div>
+              </div>
+              <div
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${getStatusColor()}`}
+              >
+                {hasSubmitted && score !== null ? (
+                  <CheckCircle className="h-3 w-3" />
+                ) : isOverdue ? (
+                  <XCircle className="h-3 w-3" />
+                ) : (
+                  <Clock className="h-3 w-3" />
+                )}
+                {getStatusText()}
+              </div>
             </div>
           </div>
 
           {assignment.description && (
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-2 pl-9">
               {assignment.description}
             </p>
           )}
 
-          <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+          <div className="flex items-center gap-4 text-sm text-gray-500 mb-2 pl-9">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               {dueDate ? (
@@ -240,7 +286,7 @@ function StudentAssignmentCard({
           </div>
 
           {assignment.instructions && (
-            <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded mb-2">
+            <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded mb-2 ml-9">
               <strong>Hướng dẫn:</strong> {assignment.instructions}
             </p>
           )}
@@ -936,6 +982,45 @@ export default function ClassroomDetail(props: {
     refetch: refetchClassroomDetail,
   } = useClassroomDetail(classroomIdFromParams)
 
+  const sortedStudentAssignments = useMemo(() => {
+    if (!classroomDetail?.assignments) return []
+
+    const publishedAssignments = classroomDetail.assignments.filter(
+      (a) => a.isPublished
+    )
+
+    const assignmentPriority = {
+      [AssignmentType.FINAL_EXAM]: 4,
+      [AssignmentType.MIDTERM_EXAM]: 3,
+      [AssignmentType.QUIZ]: 2,
+      [AssignmentType.HOMEWORK]: 1,
+    }
+
+    return publishedAssignments.sort((a, b) => {
+      const aHasSubmission = !!a.submission
+      const bHasSubmission = !!b.submission
+
+      // If one has been submitted and the other not, the unsubmitted one comes first
+      if (aHasSubmission !== bHasSubmission) {
+        return aHasSubmission ? 1 : -1
+      }
+
+      // If both are unsubmitted, sort by type priority
+      if (!aHasSubmission && !bHasSubmission) {
+        const priorityA = assignmentPriority[a.type] || 0
+        const priorityB = assignmentPriority[b.type] || 0
+        if (priorityA !== priorityB) {
+          return priorityB - priorityA
+        }
+      }
+
+      // Otherwise, sort by due date (sooner first)
+      const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity
+      const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity
+      return dateA - dateB
+    })
+  }, [classroomDetail?.assignments])
+
   // Lấy dữ liệu lesson tiếp theo từ API /next
   const role = user?.role
   const isTeacher = role === 'teacher'
@@ -1473,10 +1558,9 @@ export default function ClassroomDetail(props: {
                         />
                       ))
                     : // Student view - Show published assignments that need attention
-                      detail?.assignments
-                        ?.filter((assignment) => assignment.isPublished)
+                      sortedStudentAssignments
                         ?.slice(0, 3)
-                        ?.map((assignment) => (
+                        .map((assignment) => (
                           <StudentAssignmentCard
                             key={assignment.id}
                             assignment={assignment}
@@ -1618,28 +1702,24 @@ export default function ClassroomDetail(props: {
                       />
                     ))
                   : // Student view - Assignment doing
-                    detail?.assignments
-                      ?.filter((assignment) => assignment.isPublished) // Only show published assignments to students
-                      ?.map((assignment) => (
-                        <StudentAssignmentCard
-                          key={assignment.id}
-                          assignment={assignment}
-                          submission={assignment.submission ?? null}
-                          onDownloadPdf={handleDownloadPdf}
-                          onStartAssignment={(aid) => {
-                            // Navigate to assignment taking page
-                            navigate(
-                              `/classroom/${detail.id}/assignment/${aid}`
-                            )
-                          }}
-                          onViewResult={(aid) => {
-                            // Navigate to assignment result page
-                            navigate(
-                              `/classroom/${detail.id}/assignment/${aid}/result`
-                            )
-                          }}
-                        />
-                      ))}
+                    sortedStudentAssignments?.map((assignment) => (
+                      <StudentAssignmentCard
+                        key={assignment.id}
+                        assignment={assignment}
+                        submission={assignment.submission ?? null}
+                        onDownloadPdf={handleDownloadPdf}
+                        onStartAssignment={(aid) => {
+                          // Navigate to assignment taking page
+                          navigate(`/classroom/${detail.id}/assignment/${aid}`)
+                        }}
+                        onViewResult={(aid) => {
+                          // Navigate to assignment result page
+                          navigate(
+                            `/classroom/${detail.id}/assignment/${aid}/result`
+                          )
+                        }}
+                      />
+                    ))}
                 {detail?.assignments?.length === 0 && (
                   <div className="text-center py-12">
                     <FileText className="mx-auto h-12 w-12 text-gray-400" />

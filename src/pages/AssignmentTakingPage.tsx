@@ -1,9 +1,13 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Award,
+  BookMarked,
   BookOpen,
   CheckCircle,
+  ClipboardPenLine,
   Clock,
+  FileQuestion,
   FileText,
   Link,
   Mic,
@@ -14,6 +18,7 @@ import {
   Trophy,
   Upload,
   Volume2,
+  type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type JSX } from 'react'
 import toast from 'react-hot-toast'
@@ -24,6 +29,7 @@ import {
   submitAssignment,
   uploadActivityAudio,
 } from '../services/assignment.api'
+import { AssignmentType } from '../types/assignment.type'
 
 // API interfaces based on backend models
 interface Assignment {
@@ -36,6 +42,8 @@ interface Assignment {
   timeLimit?: number // in minutes
   maxAttempts: number
   assignmentActivities: Activity[]
+  type: AssignmentType
+  isPublished: boolean // added for validation
 }
 
 interface Activity {
@@ -1847,6 +1855,45 @@ export default function AssignmentTakingPage(): JSX.Element {
     }
   })()
 
+  const assignmentTypeMap: Record<
+    AssignmentType,
+    {
+      label: string
+      icon: LucideIcon
+      iconColor: string
+      badgeColor: string
+    }
+  > = {
+    [AssignmentType.HOMEWORK]: {
+      label: 'Bài tập về nhà',
+      icon: BookMarked,
+      iconColor: 'text-blue-600',
+      badgeColor: 'bg-blue-100 text-blue-800',
+    },
+    [AssignmentType.QUIZ]: {
+      label: 'Bài kiểm tra',
+      icon: FileQuestion,
+      iconColor: 'text-indigo-600',
+      badgeColor: 'bg-indigo-100 text-indigo-800',
+    },
+    [AssignmentType.MIDTERM_EXAM]: {
+      label: 'Thi giữa kỳ',
+      icon: ClipboardPenLine,
+      iconColor: 'text-amber-600',
+      badgeColor: 'bg-amber-100 text-amber-800',
+    },
+    [AssignmentType.FINAL_EXAM]: {
+      label: 'Thi cuối kỳ',
+      icon: Award,
+      iconColor: 'text-red-600',
+      badgeColor: 'bg-red-100 text-red-800',
+    },
+  }
+
+  const typeInfo =
+    assignmentTypeMap[assignment.type] || assignmentTypeMap.HOMEWORK
+  const IconComponent = typeInfo.icon
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -1860,18 +1907,34 @@ export default function AssignmentTakingPage(): JSX.Element {
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  {assignment.title}
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Câu {currentActivityIndex + 1} /{' '}
-                  {assignment.assignmentActivities.length}
-                </p>
+              <div className="flex items-center gap-3">
+                <IconComponent
+                  className={`h-8 w-8 flex-shrink-0 ${typeInfo.iconColor}`}
+                />
+                <div>
+                  <div
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium mb-1 ${typeInfo.badgeColor}`}
+                  >
+                    {typeInfo.label}
+                  </div>
+                  <h1 className="text-xl font-bold text-gray-900">
+                    {assignment.title}
+                  </h1>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">
+                  Câu {currentActivityIndex + 1} /{' '}
+                  {assignment.assignmentActivities.length}
+                </p>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Trophy className="h-4 w-4" />
+                  <span>{assignment.totalPoints} điểm</span>
+                </div>
+              </div>
               {timeLeft !== null && (
                 <div
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
@@ -1886,11 +1949,6 @@ export default function AssignmentTakingPage(): JSX.Element {
                   </span>
                 </div>
               )}
-
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Trophy className="h-4 w-4" />
-                <span>{assignment.totalPoints} điểm</span>
-              </div>
             </div>
           </div>
         </div>
