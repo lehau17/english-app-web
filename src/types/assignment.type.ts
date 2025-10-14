@@ -20,6 +20,7 @@ export interface Assignment {
   maxAttempts: number
   createdAt: string // ISO
   type: AssignmentType // NEW
+  weight?: number | null // NEW - weight for final grade calculation
   _count: { submissions: number }
   activities?: any[]
   submission?: {
@@ -55,4 +56,5 @@ export interface AssignmentCreateRequest {
   maxAttempts?: number
   activities: AssignmentCreateActivity[]
   type?: AssignmentType // NEW
+  weight?: number // NEW - weight for final grade calculation
 }

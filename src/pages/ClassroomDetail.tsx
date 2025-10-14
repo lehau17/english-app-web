@@ -375,11 +375,59 @@ function AssignmentCard({
   const completionRate =
     (assignment._count.submissions / detail._count.students) * 100
 
+  // Assignment type mapping for teacher view
+  const assignmentTypeMap: Record<
+    AssignmentType,
+    {
+      label: string
+      icon: LucideIcon
+      iconColor: string
+      badgeColor: string
+    }
+  > = {
+    [AssignmentType.HOMEWORK]: {
+      label: 'Bài tập về nhà',
+      icon: BookMarked,
+      iconColor: 'text-blue-600',
+      badgeColor: 'bg-blue-100 text-blue-800',
+    },
+    [AssignmentType.QUIZ]: {
+      label: 'Bài kiểm tra',
+      icon: FileQuestion,
+      iconColor: 'text-indigo-600',
+      badgeColor: 'bg-indigo-100 text-indigo-800',
+    },
+    [AssignmentType.MIDTERM_EXAM]: {
+      label: 'Thi giữa kỳ',
+      icon: ClipboardPenLine,
+      iconColor: 'text-amber-600',
+      badgeColor: 'bg-amber-100 text-amber-800',
+    },
+    [AssignmentType.FINAL_EXAM]: {
+      label: 'Thi cuối kỳ',
+      icon: Award,
+      iconColor: 'text-red-600',
+      badgeColor: 'bg-red-100 text-red-800',
+    },
+  }
+
+  const typeInfo =
+    assignmentTypeMap[assignment.type] || assignmentTypeMap.HOMEWORK
+  const IconComponent = typeInfo.icon
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 hover:shadow-sm transition">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <h4 className="font-medium text-gray-900 mb-1">{assignment.title}</h4>
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-medium text-gray-900">{assignment.title}</h4>
+            <div
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${typeInfo.badgeColor}`}
+            >
+              <IconComponent className={`h-3 w-3 ${typeInfo.iconColor}`} />
+              {typeInfo.label}
+            </div>
+          </div>
           {assignment.description && (
             <p className="text-sm text-gray-600 mb-2">
               {assignment.description}
@@ -405,6 +453,12 @@ function AssignmentCard({
               <Trophy className="h-4 w-4" />
               {assignment.totalPoints} điểm
             </div>
+            {assignment.weight && assignment.weight > 0 && (
+              <div className="flex items-center gap-1">
+                <Trophy className="h-4 w-4" />
+                {assignment.weight}% trọng số
+              </div>
+            )}
             {assignment.timeLimit && (
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
@@ -1665,6 +1719,8 @@ export default function ClassroomDetail(props: {
                             totalPoints: a.totalPoints || 100,
                             timeLimit: a.timeLimit || undefined,
                             maxAttempts: a.maxAttempts || 1,
+                            type: a.type || AssignmentType.HOMEWORK,
+                            weight: a.weight || 0,
                             activities: (a.activities || []).map((ac: any) => ({
                               type: ac.type,
                               title: ac.title,
