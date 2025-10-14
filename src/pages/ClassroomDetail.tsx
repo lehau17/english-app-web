@@ -998,6 +998,61 @@ type TabKey = 'overview' | 'assignments' | 'announcements' | 'students'
 
 // Đã loại bỏ interface ClassroomDetailProps vì không còn dùng
 
+// Helper function to group assignments by type
+function groupAssignmentsByType(assignments: any[]) {
+  const groups: Record<AssignmentType, any[]> = {
+    [AssignmentType.HOMEWORK]: [],
+    [AssignmentType.QUIZ]: [],
+    [AssignmentType.MIDTERM_EXAM]: [],
+    [AssignmentType.FINAL_EXAM]: [],
+  }
+
+  assignments?.forEach((assignment) => {
+    const type = (assignment.type as AssignmentType) || AssignmentType.HOMEWORK
+    if (groups[type]) {
+      groups[type].push(assignment)
+    }
+  })
+
+  return groups
+}
+
+// Helper function to get section title and icon for assignment type
+function getAssignmentSectionInfo(type: AssignmentType) {
+  const sectionMap = {
+    [AssignmentType.HOMEWORK]: {
+      title: 'Bài tập về nhà',
+      icon: BookMarked,
+      iconColor: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-200',
+    },
+    [AssignmentType.QUIZ]: {
+      title: 'Bài kiểm tra',
+      icon: FileQuestion,
+      iconColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      borderColor: 'border-indigo-200',
+    },
+    [AssignmentType.MIDTERM_EXAM]: {
+      title: 'Thi giữa kỳ',
+      icon: ClipboardPenLine,
+      iconColor: 'text-amber-600',
+      bgColor: 'bg-amber-50',
+      borderColor: 'border-amber-200',
+    },
+    [AssignmentType.FINAL_EXAM]: {
+      title: 'Thi cuối kỳ',
+      icon: Award,
+      iconColor: 'text-red-600',
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-200',
+    },
+  }
+
+  return sectionMap[type] || sectionMap[AssignmentType.HOMEWORK]
+}
+
 export default function ClassroomDetail(props: {
   onBack: () => void
   classroomId?: string
@@ -1671,144 +1726,202 @@ export default function ClassroomDetail(props: {
                   </button>
                 )}
               </div>
-              <div className="space-y-4">
-                {isTeacher
-                  ? // Teacher view - Assignment management
-                    detail?.assignments?.map((assignment) => (
-                      <AssignmentCard
-                        key={assignment.id}
-                        assignment={assignment}
-                        detail={detail}
-                        onViewSubmissions={(aid) =>
-                          navigate(
-                            `/classroom-detail/${detail.id}/assignments/${aid}/submissions`
-                          )
-                        }
-                        onDownloadPdf={handleDownloadPdf}
-                        onTogglePublish={async (a) => {
-                          try {
-                            await setAssignmentPublish(
-                              detail.id,
-                              a.id,
-                              !a.isPublished
-                            )
-                            toast.success(
-                              a.isPublished
-                                ? 'Đã chuyển sang Nháp'
-                                : 'Đã xuất bản'
-                            )
-                            await queryClient.invalidateQueries({
-                              queryKey: ['classroom-detail', detail.id],
-                            })
-                          } catch (e: any) {
-                            toast.error(
-                              e?.response?.data?.message ||
-                                'Cập nhật trạng thái thất bại'
-                            )
-                          }
-                        }}
-                        onEdit={(a) => {
-                          const initial = {
-                            title: a.title,
-                            description: a.description || '',
-                            instructions: a.instructions || '',
-                            dueDate: a.dueDate
-                              ? new Date(a.dueDate).toISOString().slice(0, 16)
-                              : '',
-                            isPublished: a.isPublished,
-                            totalPoints: a.totalPoints || 100,
-                            timeLimit: a.timeLimit || undefined,
-                            maxAttempts: a.maxAttempts || 1,
-                            type: a.type || AssignmentType.HOMEWORK,
-                            weight: a.weight || 0,
-                            activities: (a.activities || []).map((ac: any) => ({
-                              type: ac.type,
-                              title: ac.title,
-                              instructions: ac.instructions || '',
-                              points: ac.points || 0,
-                              timeLimit: ac.timeLimit || undefined,
-                              maxAttempts: ac.maxAttempts || undefined,
-                              passingScore: ac.passingScore || undefined,
-                              difficulty: ac.difficulty || undefined,
-                              hints: ac.hints || [],
-                              content: ac.content,
-                            })),
-                          }
-                          setEditInitial(initial)
-                          setEditAssignmentId(a.id)
-                          setShowEditAssignment(true)
-                        }}
-                        onDelete={async (a) => {
-                          if (
-                            !confirm(
-                              'Xoá bài tập này? Hành động không thể hoàn tác.'
-                            )
-                          )
-                            return
-                          try {
-                            await deleteAssignment(detail.id, a.id)
-                            toast.success('Đã xoá bài tập')
-                            await queryClient.invalidateQueries({
-                              queryKey: ['classroom-detail', detail.id],
-                            })
-                          } catch (e: any) {
-                            toast.error(
-                              e?.response?.data?.message || 'Xoá thất bại'
-                            )
-                          }
-                        }}
-                      />
-                    ))
-                  : // Student view - Assignment doing
-                    sortedStudentAssignments?.map((assignment) => (
-                      <StudentAssignmentCard
-                        key={assignment.id}
-                        assignment={assignment}
-                        submission={assignment.submission ?? null}
-                        onDownloadPdf={handleDownloadPdf}
-                        onStartAssignment={(aid) => {
-                          // Navigate to assignment taking page
-                          navigate(`/classroom/${detail?.id}/assignment/${aid}`)
-                        }}
-                        onViewResult={(aid) => {
-                          // Navigate to assignment result page
-                          navigate(
-                            `/classroom/${detail?.id}/assignment/${aid}/result`
-                          )
-                        }}
-                      />
-                    ))}
-                {detail?.assignments?.length === 0 && (
-                  <div className="text-center py-12">
-                    <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">
-                      {isTeacher ? 'Chưa có bài tập' : 'Chưa có bài tập'}
-                    </h3>
-                    <p className="mt-2 text-sm text-gray-500">
-                      {isTeacher
-                        ? 'Tạo bài tập đầu tiên cho lớp học này'
-                        : 'Giáo viên chưa tạo bài tập nào'}
-                    </p>
-                  </div>
-                )}
-                {/* Special case for students: No published assignments */}
-                {isStudent &&
-                  detail?.assignments &&
-                  detail.assignments.length > 0 &&
-                  detail.assignments.filter((a) => a.isPublished).length ===
-                    0 && (
+              {(() => {
+                const assignmentGroups = groupAssignmentsByType(
+                  detail?.assignments || []
+                )
+                const assignmentTypes = [
+                  AssignmentType.HOMEWORK,
+                  AssignmentType.QUIZ,
+                  AssignmentType.MIDTERM_EXAM,
+                  AssignmentType.FINAL_EXAM,
+                ]
+                const hasAnyAssignments = assignmentTypes.some(
+                  (type) => assignmentGroups[type].length > 0
+                )
+
+                if (!hasAnyAssignments) {
+                  return (
                     <div className="text-center py-12">
                       <FileText className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-4 text-lg font-medium text-gray-900">
-                        Chưa có bài tập được xuất bản
+                        {isTeacher ? 'Chưa có bài tập' : 'Chưa có bài tập'}
                       </h3>
                       <p className="mt-2 text-sm text-gray-500">
-                        Giáo viên đã tạo bài tập nhưng chưa xuất bản cho học
-                        sinh
+                        {isTeacher
+                          ? 'Tạo bài tập đầu tiên cho lớp học này'
+                          : 'Giáo viên chưa tạo bài tập nào'}
                       </p>
+                      {isTeacher && (
+                        <button
+                          onClick={() => setShowCreateAssignment(true)}
+                          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Tạo bài tập đầu tiên
+                        </button>
+                      )}
                     </div>
-                  )}
-              </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-6">
+                    {assignmentTypes.map((type) => {
+                      const assignments = assignmentGroups[type]
+                      if (assignments.length === 0) return null
+
+                      const sectionInfo = getAssignmentSectionInfo(type)
+                      const IconComponent = sectionInfo.icon
+
+                      return (
+                        <div
+                          key={type}
+                          className={`rounded-xl border-2 ${sectionInfo.borderColor} ${sectionInfo.bgColor} p-4`}
+                        >
+                          <div className="flex items-center gap-3 mb-4">
+                            <IconComponent
+                              className={`h-6 w-6 ${sectionInfo.iconColor}`}
+                            />
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              {sectionInfo.title}
+                            </h4>
+                            <span className="text-sm text-gray-500">
+                              ({assignments.length} bài)
+                            </span>
+                          </div>
+
+                          <div className="space-y-3">
+                            {isTeacher
+                              ? // Teacher view - Assignment management
+                                assignments.map((assignment) => (
+                                  <AssignmentCard
+                                    key={assignment.id}
+                                    assignment={assignment}
+                                    detail={detail!}
+                                    onViewSubmissions={(aid) =>
+                                      navigate(
+                                        `/classroom-detail/${detail!.id}/assignments/${aid}/submissions`
+                                      )
+                                    }
+                                    onDownloadPdf={handleDownloadPdf}
+                                    onTogglePublish={async (a) => {
+                                      try {
+                                        await setAssignmentPublish(
+                                          detail!.id,
+                                          a.id,
+                                          !a.isPublished
+                                        )
+                                        toast.success(
+                                          a.isPublished
+                                            ? 'Đã chuyển sang Nháp'
+                                            : 'Đã xuất bản'
+                                        )
+                                        await queryClient.invalidateQueries({
+                                          queryKey: [
+                                            'classroom-detail',
+                                            detail!.id,
+                                          ],
+                                        })
+                                      } catch (e: any) {
+                                        toast.error(
+                                          e?.response?.data?.message ||
+                                            'Cập nhật trạng thái thất bại'
+                                        )
+                                      }
+                                    }}
+                                    onEdit={(a) => {
+                                      const initial = {
+                                        title: a.title,
+                                        description: a.description || '',
+                                        instructions: a.instructions || '',
+                                        dueDate: a.dueDate
+                                          ? new Date(a.dueDate)
+                                              .toISOString()
+                                              .slice(0, 16)
+                                          : '',
+                                        isPublished: a.isPublished,
+                                        totalPoints: a.totalPoints || 100,
+                                        timeLimit: a.timeLimit || undefined,
+                                        maxAttempts: a.maxAttempts || 1,
+                                        type: a.type || AssignmentType.HOMEWORK,
+                                        weight: a.weight || 0,
+                                        activities: (a.activities || []).map(
+                                          (ac: any) => ({
+                                            type: ac.type,
+                                            title: ac.title,
+                                            instructions: ac.instructions || '',
+                                            points: ac.points || 0,
+                                            timeLimit:
+                                              ac.timeLimit || undefined,
+                                            maxAttempts:
+                                              ac.maxAttempts || undefined,
+                                            passingScore:
+                                              ac.passingScore || undefined,
+                                            difficulty:
+                                              ac.difficulty || undefined,
+                                            hints: ac.hints || [],
+                                            content: ac.content,
+                                          })
+                                        ),
+                                      }
+                                      setEditInitial(initial)
+                                      setEditAssignmentId(a.id)
+                                      setShowEditAssignment(true)
+                                    }}
+                                    onDelete={async (a) => {
+                                      if (
+                                        !confirm(
+                                          'Xoá bài tập này? Hành động không thể hoàn tác.'
+                                        )
+                                      )
+                                        return
+                                      try {
+                                        await deleteAssignment(detail!.id, a.id)
+                                        toast.success('Đã xoá bài tập')
+                                        await queryClient.invalidateQueries({
+                                          queryKey: [
+                                            'classroom-detail',
+                                            detail!.id,
+                                          ],
+                                        })
+                                      } catch (e: any) {
+                                        toast.error(
+                                          e?.response?.data?.message ||
+                                            'Xoá thất bại'
+                                        )
+                                      }
+                                    }}
+                                  />
+                                ))
+                              : // Student view - Show published assignments
+                                assignments
+                                  .filter((a) => a.isPublished)
+                                  .map((assignment) => (
+                                    <StudentAssignmentCard
+                                      key={assignment.id}
+                                      assignment={assignment}
+                                      submission={assignment.submission ?? null}
+                                      onDownloadPdf={handleDownloadPdf}
+                                      onStartAssignment={(aid) => {
+                                        navigate(
+                                          `/classroom/${detail!.id}/assignment/${aid}`
+                                        )
+                                      }}
+                                      onViewResult={(aid) => {
+                                        navigate(
+                                          `/classroom/${detail!.id}/assignment/${aid}/result`
+                                        )
+                                      }}
+                                    />
+                                  ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
