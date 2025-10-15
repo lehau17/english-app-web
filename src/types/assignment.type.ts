@@ -37,8 +37,6 @@ export interface AssignmentCreateActivity {
   title: string
   instructions?: string
   points: number
-  timeLimit?: number
-  maxAttempts?: number
   passingScore?: number
   difficulty?: string
   hints?: string[]

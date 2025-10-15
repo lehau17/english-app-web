@@ -3947,12 +3947,6 @@ export default function LearnPlayerPage(): JSX.Element {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">
-                    <Clock className="h-3.5 w-3.5" />{' '}
-                    {active?.timeLimit
-                      ? `${active.timeLimit} phút`
-                      : 'Không giới hạn'}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">
                     <MessageSquare className="h-3.5 w-3.5" /> Cố gắng trả lời rõ
                     ràng
                   </span>

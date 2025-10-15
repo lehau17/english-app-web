@@ -27,8 +27,6 @@ export interface ActivityBase {
   orderNo: number
   type: ActivityType
   title: string
-  timeLimit?: number
-  maxAttempts?: number
   passingScore?: number
   state?: ProgressState
   materials?: Array<{ label: string; url: string }>

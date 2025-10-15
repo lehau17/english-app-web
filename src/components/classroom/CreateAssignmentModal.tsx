@@ -309,7 +309,6 @@ export default function CreateAssignmentModal({
       type,
       title: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
       points: 10,
-      maxAttempts: 1,
       content: {},
     }
     // seed minimal content per type
@@ -586,33 +585,12 @@ export default function CreateAssignmentModal({
                             })}
                           />
                         </Labeled>
-                        <Labeled label="Thời gian (phút)">
-                          <TextInput
-                            type="number"
-                            min={0}
-                            {...register(
-                              `activities.${idx}.timeLimit` as const,
-                              { valueAsNumber: true }
-                            )}
-                          />
-                        </Labeled>
                         <Labeled label="Qua bài khi ≥ điểm">
                           <TextInput
                             type="number"
                             min={0}
                             {...register(
                               `activities.${idx}.passingScore` as const,
-                              { valueAsNumber: true }
-                            )}
-                          />
-                        </Labeled>
-                        <Labeled label="Số lần làm tối đa">
-                          <TextInput
-                            type="number"
-                            min={1}
-                            defaultValue={1}
-                            {...register(
-                              `activities.${idx}.maxAttempts` as const,
                               { valueAsNumber: true }
                             )}
                           />
