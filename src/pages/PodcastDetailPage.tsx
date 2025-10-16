@@ -20,6 +20,14 @@ import {
   useSaveRating,
 } from '../hooks/podcast-rating.hooks'
 import { usePodcast } from '../hooks/podcast.hooks'
+import { usePodcastAttempts } from '../hooks/podcastAttempt.hooks'
+import {
+  getButtonColorClass,
+  getButtonText,
+  getPodcastStatus,
+  getStatusColorClass,
+  getStatusDisplayText,
+} from '../utils/podcastStatus.utils'
 
 // Lightweight types for clarity
 type Activity = {
@@ -60,6 +68,11 @@ const PodcastDetailPage: React.FC = () => {
 
   const { data: podcastResponse, isLoading, error } = usePodcast(id || '')
   const podcastData = podcastResponse
+
+  // Get podcast attempts to determine status
+  const { data: attemptsResponse } = usePodcastAttempts(id || '')
+  const attempts = attemptsResponse?.data || []
+  const statusInfo = getPodcastStatus(attempts)
 
   const { data: aggregate } = useAggregateRating(podcastData?.id)
   const { data: myRating } = useMyRating(podcastData?.id)
@@ -141,10 +154,10 @@ const PodcastDetailPage: React.FC = () => {
             onClick={() => {
               navigate(`/listening-practice/${podcastData.id}/test`)
             }}
-            className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-sm"
+            className={`${getButtonColorClass(statusInfo.status)} text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-sm`}
           >
             <Play size={16} fill="currentColor" />
-            <span>Bắt đầu nghe</span>
+            <span>{getButtonText(statusInfo.status)}</span>
           </motion.button>
         </div>
 
@@ -426,6 +439,30 @@ const PodcastDetailPage: React.FC = () => {
                     {podcastData.code}
                   </span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Trạng thái</span>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColorClass(statusInfo.status)}`}
+                  >
+                    {getStatusDisplayText(statusInfo.status)}
+                  </span>
+                </div>
+                {statusInfo.bestScore !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Điểm tốt nhất</span>
+                    <span className="font-medium text-gray-900">
+                      {statusInfo.bestScore.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+                {statusInfo.totalAttempts > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Số lần làm</span>
+                    <span className="font-medium text-gray-900">
+                      {statusInfo.totalAttempts}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Danh mục</span>
                   <span className="font-medium text-gray-900 capitalize">

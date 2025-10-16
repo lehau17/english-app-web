@@ -66,3 +66,12 @@ export const useSubmitAttempt = () => {
     }) => podcastAttemptApi.submitAttempt(podcastId, attemptId, answers),
   })
 }
+
+// Get attempts for a podcast
+export const usePodcastAttempts = (podcastId: string) => {
+  return useQuery({
+    queryKey: ['podcast-attempts', podcastId],
+    queryFn: () => podcastAttemptApi.getPodcastAttempts(podcastId),
+    enabled: !!podcastId,
+  })
+}

@@ -2,13 +2,16 @@ import {
   Award,
   BookOpen,
   Gauge,
+  HelpCircle,
   Home,
   Pause,
   Play,
   RotateCcw,
+  Save,
   Settings,
   Target,
   Volume2,
+  X,
 } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -42,6 +45,8 @@ const PodcastPracticePage: React.FC = () => {
   const [audioTimeSpent, setAudioTimeSpent] = useState<number>(0) // Track actual audio time listened
   const [isTrackingTime, setIsTrackingTime] = useState<boolean>(false)
   const [result, setResult] = useState<any | null>(null)
+  const [showInstructions, setShowInstructions] = useState(false)
+  const [showExitModal, setShowExitModal] = useState(false)
   // Refs
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -482,6 +487,19 @@ const PodcastPracticePage: React.FC = () => {
     setDuration(0)
   }, [])
 
+  const handleExitClick = useCallback(() => {
+    setShowExitModal(true)
+  }, [])
+
+  const handleConfirmExit = useCallback(() => {
+    setShowExitModal(false)
+    navigate('/listening-practice')
+  }, [navigate])
+
+  const handleCancelExit = useCallback(() => {
+    setShowExitModal(false)
+  }, [])
+
   if (!attempt || isPodcastLoading || startPodcastMutation.isPending) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
@@ -516,7 +534,7 @@ const PodcastPracticePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right side - Stats */}
+            {/* Right side - Stats & Help */}
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg border border-green-100/50">
@@ -539,33 +557,39 @@ const PodcastPracticePage: React.FC = () => {
                 </div>
               </div>
 
-              <Button
-                onClick={handleCompleteAttempt}
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium px-6"
+              <button
+                onClick={() => setShowInstructions(!showInstructions)}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+                title="Hướng dẫn"
               >
-                <Award className="h-4 w-4 mr-2" />
-                Hoàn thành
-              </Button>
+                <HelpCircle className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6 pb-32">
-        {/* Instructions */}
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <div className="flex items-start gap-3">
-            <div className="text-blue-500 text-xl">💡</div>
-            <div>
-              <p className="text-blue-800 font-medium mb-2">Hướng dẫn:</p>
-              <ul className="text-blue-700 text-sm space-y-1">
-                <li>• Nghe audio và điền từ còn thiếu vào chỗ trống</li>
-                <li>• Nhấn Enter hoặc click ra ngoài để xác nhận đáp án</li>
-                <li>• Sử dụng nút tốc độ để điều chỉnh tốc độ phát âm thanh</li>
-              </ul>
+        {/* Instructions - Collapsible */}
+        {showInstructions && (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-start gap-3">
+              <div className="text-blue-500 text-xl">💡</div>
+              <div>
+                <p className="text-blue-800 font-medium mb-2">Hướng dẫn:</p>
+                <ul className="text-blue-700 text-sm space-y-1">
+                  <li>• Nghe audio và điền từ còn thiếu vào chỗ trống</li>
+                  <li>• Nhấn Enter hoặc click ra ngoài để xác nhận đáp án</li>
+                  <li>
+                    • Sử dụng nút tốc độ để điều chỉnh tốc độ phát âm thanh
+                  </li>
+                  <li>• Nhấn "Lưu nháp" để lưu tiến độ</li>
+                  <li>• Nhấn "Nộp bài" khi hoàn thành</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - Transcript */}
@@ -651,48 +675,6 @@ const PodcastPracticePage: React.FC = () => {
                 </div>
               </div>
             </Card>
-
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleCompleteAttempt}
-                className="w-full bg-green-600 hover:bg-green-700 shadow-sm"
-                disabled={submitAttemptMutation.isPending}
-              >
-                {submitAttemptMutation.isPending ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Đang nộp bài...
-                  </div>
-                ) : (
-                  'Nộp bài'
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={handleSaveDraft}
-                className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
-                disabled={saveDraftMutation.isPending}
-              >
-                {saveDraftMutation.isPending ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-blue-300/30 border-t-blue-600 rounded-full animate-spin" />
-                    Đang lưu...
-                  </div>
-                ) : (
-                  'Lưu nháp'
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => navigate('/listening-practice')}
-                className="w-full border-gray-200"
-              >
-                Thoát
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -860,6 +842,96 @@ const PodcastPracticePage: React.FC = () => {
               </div>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Action Buttons - Bottom Right (Bubble Style) */}
+      <div className="fixed bottom-6 right-6 flex flex-col space-y-3 z-50">
+        <button
+          onClick={handleSaveDraft}
+          className="w-14 h-14 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center group relative"
+          disabled={saveDraftMutation.isPending}
+          title="Lưu nháp"
+        >
+          {saveDraftMutation.isPending ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Save className="w-5 h-5" />
+          )}
+          {/* Tooltip */}
+          <div className="absolute right-full mr-3 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Lưu nháp
+          </div>
+        </button>
+
+        <button
+          onClick={handleCompleteAttempt}
+          className="w-14 h-14 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center group relative"
+          disabled={submitAttemptMutation.isPending}
+          title="Nộp bài"
+        >
+          {submitAttemptMutation.isPending ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Award className="w-5 h-5" />
+          )}
+          {/* Tooltip */}
+          <div className="absolute right-full mr-3 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Nộp bài (
+            {
+              Object.keys(userAnswers).filter((id) => userAnswers[id]?.trim())
+                .length
+            }
+            /{attempt?.gaps.length || 0})
+          </div>
+        </button>
+
+        <button
+          onClick={handleExitClick}
+          className="w-14 h-14 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center group relative"
+          title="Thoát"
+        >
+          <X className="w-5 h-5" />
+          {/* Tooltip */}
+          <div className="absolute right-full mr-3 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Thoát
+          </div>
+        </button>
+      </div>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                <X className="w-5 h-5 text-yellow-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Xác nhận thoát
+              </h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Bạn có chắc chắn muốn thoát? Tiến trình hiện tại sẽ không được lưu
+              và bạn sẽ mất tất cả câu trả lời đã điền.
+            </p>
+
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={handleCancelExit}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmExit}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Thoát
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

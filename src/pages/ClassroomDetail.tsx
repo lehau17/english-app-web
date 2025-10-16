@@ -389,7 +389,7 @@ function AssignmentCard({
       label: 'Bài tập về nhà',
       icon: BookMarked,
       iconColor: 'text-blue-600',
-      badgeColor: 'bg-blue-100 text-blue-800',
+      badgeColor: 'text-blue-800',
     },
     [AssignmentType.QUIZ]: {
       label: 'Bài kiểm tra',
@@ -1777,7 +1777,7 @@ export default function ClassroomDetail(props: {
                       return (
                         <div
                           key={type}
-                          className={`rounded-xl border-2 ${sectionInfo.borderColor} ${sectionInfo.bgColor} p-4`}
+                          className="rounded-xl border border-gray-200 bg-white p-4"
                         >
                           <div className="flex items-center gap-3 mb-4">
                             <IconComponent

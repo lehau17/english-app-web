@@ -73,4 +73,10 @@ export const podcastAttemptApi = {
     )
     return response.data
   },
+
+  // Get attempts for a podcast
+  getPodcastAttempts: async (podcastId: string): Promise<any> => {
+    const response = await api.get(`/private/v1/podcasts/${podcastId}/attempts`)
+    return response.data
+  },
 }

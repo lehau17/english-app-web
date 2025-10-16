@@ -139,18 +139,26 @@ export default function CreateAssignmentModal({
   const queryClient = useQueryClient()
   const { register, control, handleSubmit, watch, setValue, reset } =
     useForm<AssignmentCreateRequest>({
-      defaultValues: rest.initialValues ?? {
-        title: '',
-        description: '',
-        instructions: '',
-        isPublished: false,
-        totalPoints: 100,
-        maxAttempts: 1,
-        timeLimit: undefined,
-        type: AssignmentType.HOMEWORK,
-        weight: 0,
-        activities: [],
-      },
+      defaultValues: rest.initialValues
+        ? {
+            ...rest.initialValues,
+            // Convert weight from 0-1 to 0-100% for display
+            weight: rest.initialValues.weight
+              ? rest.initialValues.weight * 100
+              : 0,
+          }
+        : {
+            title: '',
+            description: '',
+            instructions: '',
+            isPublished: false,
+            totalPoints: 100,
+            maxAttempts: 1,
+            timeLimit: undefined,
+            type: AssignmentType.HOMEWORK,
+            weight: 0,
+            activities: [],
+          },
     })
 
   const {
@@ -399,6 +407,8 @@ export default function CreateAssignmentModal({
         typeof values.isPublished === 'string'
           ? values.isPublished === 'true'
           : !!values.isPublished,
+      // Convert weight from 0-100% to 0-1
+      weight: values.weight ? values.weight / 100 : 0,
     }
     mutation.mutate(payload)
   }
