@@ -2034,7 +2034,7 @@ export default function AssignmentTakingPage(): JSX.Element {
       </div>
 
       {/* Floating Activity Navigator */}
-      <div className="fixed bottom-4 left-4 bg-white rounded-lg shadow-lg p-3">
+      <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-3">
         <div className="flex gap-2">
           {assignment.assignmentActivities.map((activity, index: number) => {
             const activityAnswer = answers[activity.id]
