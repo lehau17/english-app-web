@@ -68,6 +68,7 @@ export interface ClassroomDetailResponse {
     title: string
     description?: string | null
     instructions?: string | null
+    startTime?: string | null // Thời gian bắt đầu làm bài
     dueDate?: string | null
     status: string
     isPublished: boolean

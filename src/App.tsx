@@ -14,6 +14,7 @@ import AssignmentTakingPage from './pages/AssignmentTakingPage'
 import LoginPage from './pages/auth/LoginPage'
 import ParentLoginPage from './pages/auth/ParentLoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import CertificateDetailPage from './pages/CertificateDetailPage'
 import ClassroomDetail from './pages/ClassroomDetail'
 import ClassroomPage from './pages/ClassroomPage'
 import CreatePodcastPageUpdated from './pages/CreatePodcastPageBeautiful'
@@ -23,6 +24,7 @@ import HomePage from './pages/HomePage' // Import HomePage
 import LearnPlayerPage from './pages/LearnPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
 import { ListeningResultPage } from './pages/ListeningResultPage'
+import MyCertificatesPage from './pages/MyCertificatesPage'
 import MyVocabularyPage from './pages/MyVocabularyPage'
 import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
 import NotificationsPage from './pages/NotificationsPage'
@@ -41,6 +43,7 @@ import ProfilePage from './pages/ProfilePage'
 import QuizReviewPage from './pages/QuizReviewPage'
 import SchedulePage from './pages/SchedulePage'
 import SettingsPage from './pages/SettingsPage'
+import VerifyCertificatePage from './pages/VerifyCertificatePage'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
 
@@ -331,7 +334,36 @@ function App() {
                 </HomeLayout>
               }
             />
+
+            {/* Certificate Routes */}
+            <Route
+              path="/certificates"
+              element={
+                <HomeLayout>
+                  <MyCertificatesPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/certificates/:id"
+              element={
+                <HomeLayout>
+                  <CertificateDetailPage />
+                </HomeLayout>
+              }
+            />
           </Route>
+
+          {/* Public Certificate Verification - No auth required */}
+          <Route
+            path="/verify-certificate"
+            element={
+              <HomeLayout>
+                <VerifyCertificatePage />
+              </HomeLayout>
+            }
+          />
+
           {/* Catch-all route for 404 Not Found */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

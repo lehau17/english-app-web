@@ -17,8 +17,8 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, NavLink } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
-import { DropdownMenu, DropdownMenuItem } from '../components/ui/DropdownMenu'
 import ConversationWidget from '../components/conversation/ConversationWidget'
+import { DropdownMenu, DropdownMenuItem } from '../components/ui/DropdownMenu'
 import { useAuth } from '../context/AuthContext'
 import { onUnreadCount } from '../lib/notificationBus'
 import { resolveSocketUrl } from '../lib/socket'
@@ -176,6 +176,14 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       }
                     >
                       Từ điển
+                    </NavLink>
+                    <NavLink
+                      to="/certificates"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Chứng chỉ
                     </NavLink>
                   </>
                 )}

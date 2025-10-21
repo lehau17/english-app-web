@@ -12,6 +12,7 @@ export interface Assignment {
   title: string
   description?: string | null
   instructions?: string | null
+  startTime?: string | null // Thời gian bắt đầu làm bài (ISO)
   dueDate?: string | null // ISO
   status?: string
   isPublished: boolean

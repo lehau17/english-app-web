@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion' // <-- NEW
 import {
   AlertCircle,
@@ -34,6 +34,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react' // useMemo
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
+import certificateApi from '../apis/certificate.api'
 import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
 import ConversationWidget from '../components/conversation/ConversationWidget'
 import UserDetailModal from '../components/user/UserDetailModel'
@@ -149,6 +150,7 @@ function StudentAssignmentCard({
   onViewResult,
   onDownloadPdf,
 }: StudentAssignmentCardProps): JSX.Element {
+  const startTime = assignment.startTime ? new Date(assignment.startTime) : null
   const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
   const isOverdue = !!dueDate && dueDate < new Date()
 
@@ -261,6 +263,16 @@ function StudentAssignmentCard({
           )}
 
           <div className="flex items-center gap-4 text-sm text-gray-500 mb-2 pl-9">
+            {startTime && (
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                Bắt đầu: {startTime.toLocaleDateString('vi-VN')} lúc{' '}
+                {startTime.toLocaleTimeString('vi-VN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               {dueDate ? (
@@ -370,6 +382,7 @@ function AssignmentCard({
   onDelete,
   onDownloadPdf,
 }: AssignmentCardProps): JSX.Element {
+  const startTime = assignment.startTime ? new Date(assignment.startTime) : null
   const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
   const isOverdue = !!dueDate && dueDate < new Date()
   const completionRate =
@@ -435,11 +448,21 @@ function AssignmentCard({
           )}
 
           <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+            {startTime && (
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                Bắt đầu: {startTime.toLocaleDateString('vi-VN')} lúc{' '}
+                {startTime.toLocaleTimeString('vi-VN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               {dueDate ? (
                 <>
-                  {dueDate.toLocaleDateString('vi-VN')} lúc{' '}
+                  Hạn: {dueDate.toLocaleDateString('vi-VN')} lúc{' '}
                   {dueDate.toLocaleTimeString('vi-VN', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -1093,6 +1116,24 @@ export default function ClassroomDetail(props: {
     refetch: refetchClassroomDetail,
   } = useClassroomDetail(classroomIdFromParams)
 
+  // Get certificates for this course
+  const { data: certificatesData } = useQuery({
+    queryKey: ['my-certificates'],
+    queryFn: () => certificateApi.getMyCertificates({ skip: 0, take: 100 }),
+    enabled: !!user?.id,
+  })
+
+  // Find certificate for this course
+  const courseCertificate = useMemo(() => {
+    if (!certificatesData?.data || !classroomDetail?.course?.id) return null
+    return certificatesData.data.find(
+      (cert) => cert.courseId === classroomDetail.course?.id
+    )
+  }, [certificatesData, classroomDetail?.course?.id])
+
+  // Check if course is completed (has certificate)
+  const isCourseCompleted = !!courseCertificate
+
   const sortedStudentAssignments = useMemo(() => {
     if (!classroomDetail?.assignments) return []
 
@@ -1461,6 +1502,86 @@ export default function ClassroomDetail(props: {
         </div>
       </div>
 
+      {/* Course Completion Banner */}
+      {isCourseCompleted && courseCertificate && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-6"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <Award className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">
+                  🎉 Chúc mừng! Bạn đã hoàn thành khóa học
+                </h3>
+                <p className="text-sm text-green-700">
+                  Bạn đã nhận được chứng chỉ cho khóa học "
+                  {detail?.course?.title}"
+                </p>
+                <div className="mt-2 flex items-center gap-4 text-xs text-green-600">
+                  <span>
+                    📅 Hoàn thành:{' '}
+                    {new Date(
+                      courseCertificate.completionDate
+                    ).toLocaleDateString('vi-VN')}
+                  </span>
+                  {courseCertificate.finalScore && (
+                    <span>⭐ Điểm: {courseCertificate.finalScore}/100</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() =>
+                  navigate(`/certificates/${courseCertificate.id}`)
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition"
+              >
+                <Eye className="h-4 w-4" />
+                Xem chứng chỉ
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const blob = await certificateApi.downloadCertificate(
+                      courseCertificate.id
+                    )
+                    const url = window.URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `certificate-${courseCertificate.certificateNumber}.pdf`
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                    window.URL.revokeObjectURL(url)
+                    toast.success('Đã tải xuống chứng chỉ thành công!')
+                  } catch (error) {
+                    console.error('Download error:', error)
+                    toast.error('Không thể tải xuống chứng chỉ')
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+              >
+                <Download className="h-4 w-4" />
+                Tải PDF
+              </button>
+              <button
+                onClick={() => navigate('/my-certificates')}
+                className="inline-flex items-center gap-2 rounded-lg bg-white border border-green-300 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-50 transition"
+              >
+                <Trophy className="h-4 w-4" />
+                Tất cả chứng chỉ
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Tab Navigation */}
       <div className="flex gap-1 rounded-2xl bg-gray-100 p-1">
         {tabs.map(({ id, label, icon: Icon }) => (
@@ -1574,6 +1695,93 @@ export default function ClassroomDetail(props: {
                   {/* Không có schedule trong API, ẩn UI này */}
                 </div>
               </div>
+
+              {/* Certificate Link - Only show if course is completed */}
+              {isCourseCompleted && courseCertificate && (
+                <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">
+                      Chứng chỉ khóa học
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Đã hoàn thành</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                      <Award className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">
+                        Chứng chỉ hoàn thành khóa học
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {courseCertificate.courseName}
+                      </p>
+                      <div className="mt-1 flex items-center gap-4 text-xs text-gray-500">
+                        <span>
+                          Mã chứng chỉ: {courseCertificate.certificateNumber}
+                        </span>
+                        <span>
+                          Ngày cấp:{' '}
+                          {new Date(
+                            courseCertificate.issueDate
+                          ).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          navigate(`/certificates/${courseCertificate.id}`)
+                        }
+                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 transition"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Xem
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const blob =
+                              await certificateApi.downloadCertificate(
+                                courseCertificate.id
+                              )
+                            const url = window.URL.createObjectURL(blob)
+                            const link = document.createElement('a')
+                            link.href = url
+                            link.download = `certificate-${courseCertificate.certificateNumber}.pdf`
+                            document.body.appendChild(link)
+                            link.click()
+                            document.body.removeChild(link)
+                            window.URL.revokeObjectURL(url)
+                            toast.success('Đã tải xuống chứng chỉ thành công!')
+                          } catch (error) {
+                            console.error('Download error:', error)
+                            toast.error('Không thể tải xuống chứng chỉ')
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                      >
+                        <Download className="h-4 w-4" />
+                        Tải PDF
+                      </button>
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}/verify-certificate?code=${courseCertificate.verificationCode}`
+                          navigator.clipboard.writeText(url)
+                          toast.success('Đã copy link xác thực chứng chỉ')
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg bg-white border border-green-300 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-50 transition"
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy link
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Existing: Bài tập gần đây */}
               <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
@@ -2210,6 +2418,64 @@ export default function ClassroomDetail(props: {
               )}
             </div>
           </div>
+
+          {/* View Certificate Button - Only show if course is completed */}
+          {isCourseCompleted && courseCertificate && (
+            <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
+                  <Award className="h-4 w-4 text-green-600" />
+                </div>
+                <h3 className="text-base font-semibold">Chứng chỉ khóa học</h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Bạn đã hoàn thành khóa học và nhận được chứng chỉ.
+              </p>
+              <div className="space-y-2">
+                <button
+                  onClick={() =>
+                    navigate(`/certificates/${courseCertificate.id}`)
+                  }
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 transition"
+                >
+                  <Eye className="h-4 w-4" />
+                  Xem chứng chỉ
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const blob = await certificateApi.downloadCertificate(
+                        courseCertificate.id
+                      )
+                      const url = window.URL.createObjectURL(blob)
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = `certificate-${courseCertificate.certificateNumber}.pdf`
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                      window.URL.revokeObjectURL(url)
+                      toast.success('Đã tải xuống chứng chỉ thành công!')
+                    } catch (error) {
+                      console.error('Download error:', error)
+                      toast.error('Không thể tải xuống chứng chỉ')
+                    }
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition"
+                >
+                  <Download className="h-4 w-4" />
+                  Tải PDF
+                </button>
+                <button
+                  onClick={() => navigate('/my-certificates')}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-white border border-green-300 px-4 py-3 text-sm font-medium text-green-700 hover:bg-green-50 transition"
+                >
+                  <Trophy className="h-4 w-4" />
+                  Tất cả chứng chỉ
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Class Settings Preview */}
           {user?.role === 'teacher' && detail?.settings && (
