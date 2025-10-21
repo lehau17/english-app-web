@@ -157,7 +157,6 @@ export function QuizActivity({
           setActivePowerUp(null)
           break
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [isAnswered, currentQuestion, powerUps, onPlaySound]
   )
