@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion } from 'framer-motion' // <-- NEW
+import { AnimatePresence, motion } from 'framer-motion' // <-- NEW
 import {
   AlertCircle,
   ArrowLeft,
@@ -9,7 +9,6 @@ import {
   BookOpen,
   Calendar,
   CheckCircle,
-  ChevronRight,
   ClipboardPenLine, // NEW
   Clock,
   Copy,
@@ -818,539 +817,305 @@ const activityColor: Record<ActivityType, string> = {
 }
 
 /** =========================
- * NEW: Game Map Journey - Lessons as Big Nodes, Activities as Path Steps
+ * NEW: Game-like lesson journey with circular nodes
  * ========================= */
-
-// Type for journey elements
-type JourneyLesson = {
-  id: string
-  title: string
-  orderNo: number
-  isCompleted: boolean
-  isLocked: boolean
-  isCurrent: boolean // User is currently in this lesson
-  activities: JourneyActivity[]
-}
-
-type JourneyActivity = {
-  id: string
-  title: string
-  type: ActivityType
-  lessonId: string
-  orderNo: number // Global order across all lessons
-  isCompleted: boolean
-  isLocked: boolean
-  isCurrent: boolean // User's current position (avatar here)
-}
-
-// Build journey structure from lessons
-function buildJourneyStructure(lessons: LessonUI[]): {
-  journeyLessons: JourneyLesson[]
-  totalActivities: number
-  completedActivities: number
-  currentActivityIndex: number
-} {
-  const journeyLessons: JourneyLesson[] = []
-  let globalActivityIndex = 0
-  let totalCompleted = 0
-  let currentActivityIndex = -1
-
-  lessons.forEach((lesson, lessonIndex) => {
-    const lessonCompleted = (lesson.progress?.completion ?? 0) === 100
-    const lessonStarted = (lesson.progress?.completedActivities ?? 0) > 0
-    const completedInLesson = lesson.progress?.completedActivities ?? 0
-
-    const activities: JourneyActivity[] = lesson.activities.map(
-      (activity, actIndex) => {
-        const isCompleted = actIndex < completedInLesson
-        const isCurrent =
-          !isCompleted &&
-          lessonStarted &&
-          actIndex === completedInLesson &&
-          !lesson.isLocked
-
-        if (isCurrent) {
-          currentActivityIndex = globalActivityIndex
-        }
-
-        const journeyActivity: JourneyActivity = {
-          id: activity.id,
-          title: activity.title,
-          type: activity.type,
-          lessonId: lesson.id,
-          orderNo: globalActivityIndex + 1,
-          isCompleted,
-          isLocked: lesson.isLocked ?? false,
-          isCurrent,
-        }
-
-        globalActivityIndex++
-        if (isCompleted) totalCompleted++
-
-        return journeyActivity
-      }
-    )
-
-    journeyLessons.push({
-      id: lesson.id,
-      title: lesson.title,
-      orderNo: lessonIndex + 1,
-      isCompleted: lessonCompleted,
-      isLocked: lesson.isLocked ?? false,
-      isCurrent: lessonStarted && !lessonCompleted,
-      activities,
-    })
-  })
-
-  return {
-    journeyLessons,
-    totalActivities: globalActivityIndex,
-    completedActivities: totalCompleted,
-    currentActivityIndex,
-  }
-}
-
-// Game Map Journey Component
-type GameMapJourneyProps = {
-  lessons: LessonUI[]
-  userAvatarUrl?: string
+type LessonNodeProps = {
+  lesson: LessonUI
+  isOpen: boolean
+  isLast: boolean
+  onToggle: () => void
+  onStart: (lessonId: string) => void
   onStartActivity: (lessonId: string, activityId: string) => void
   classroomStatus?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
 }
 
-function GameMapJourney({
-  lessons,
-  userAvatarUrl,
+function LessonNode({
+  lesson,
+  isOpen,
+  isLast,
+  onToggle,
+  onStart,
   onStartActivity,
-  // classroomStatus,
-}: GameMapJourneyProps): JSX.Element {
-  // Build journey structure
-  const { journeyLessons, totalActivities, completedActivities } =
-    buildJourneyStructure(lessons)
+  classroomStatus,
+}: LessonNodeProps): JSX.Element {
+  // Use real progress data from API
+  const completion = lesson.progress?.completion ?? 0
+  const completedActivities = lesson.progress?.completedActivities ?? 0
+  const totalActivities =
+    lesson.progress?.totalActivities ?? lesson.activities.length
 
-  const progressPercent =
-    totalActivities > 0
-      ? Math.round((completedActivities / totalActivities) * 100)
-      : 0
+  // Find next activity to do (first activity not completed)
+  // Since we don't have individual activity completion status from API,
+  // we assume activities are done in order based on completedActivities count
+  const nextActivity =
+    completedActivities < totalActivities
+      ? lesson.activities[completedActivities]
+      : null
 
-  // State to track which lessons are expanded
-  const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set())
-
-  const toggleLesson = (lessonId: string) => {
-    setExpandedLessons((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(lessonId)) {
-        newSet.delete(lessonId)
-      } else {
-        newSet.add(lessonId)
-      }
-      return newSet
-    })
-  }
+  // Determine node status for styling
+  const isCompleted = completion === 100
+  const isInProgress = completion > 0 && completion < 100
+  const isLocked = lesson.isLocked ?? false
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-8 shadow-lg overflow-visible">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Hành trình học tập
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            {completedActivities}/{totalActivities} hoạt động •{' '}
-            {journeyLessons.length} bài học
-          </p>
-        </div>
-        <div className="text-right">
-          <div className="text-3xl font-bold text-blue-600">
-            {progressPercent}%
-          </div>
-          <p className="text-xs text-gray-500">Hoàn thành</p>
-        </div>
-      </div>
+    <div className="relative">
+      {/* Connection line to next lesson */}
+      {!isLast && (
+        <div className="absolute left-[31px] top-[64px] w-0.5 h-24 bg-gradient-to-b from-blue-300 to-blue-100 z-0" />
+      )}
 
-      {/* Progress bar */}
-      <div className="mb-8 h-3 bg-white rounded-full overflow-hidden shadow-inner">
+      {/* Lesson Node */}
+      <div className="relative flex items-start gap-4 z-10">
+        {/* Circular Node */}
         <motion.div
-          className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
-          initial={{ width: 0 }}
-          animate={{ width: `${progressPercent}%` }}
-          transition={{ duration: 1, ease: 'easeOut' }}
-        />
-      </div>
+          whileHover={{ scale: isLocked ? 1 : 1.05 }}
+          whileTap={{ scale: isLocked ? 1 : 0.95 }}
+          onClick={isLocked ? undefined : onToggle}
+          className={`
+            relative flex-shrink-0 h-16 w-16 rounded-full
+            flex items-center justify-center transition-all duration-300
+            ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'}
+            ${
+              isCompleted
+                ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-lg shadow-green-200'
+                : isInProgress
+                  ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg shadow-blue-200'
+                  : isLocked
+                    ? 'bg-gradient-to-br from-gray-300 to-gray-400'
+                    : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-lg shadow-purple-200'
+            }
+          `}
+          title={isLocked ? 'Hoàn thành bài học trước để mở khoá' : undefined}
+        >
+          {/* Progress ring */}
+          <svg
+            className="absolute inset-0 w-full h-full -rotate-90"
+            viewBox="0 0 64 64"
+          >
+            <circle
+              cx="32"
+              cy="32"
+              r="28"
+              fill="none"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="3"
+            />
+            <circle
+              cx="32"
+              cy="32"
+              r="28"
+              fill="none"
+              stroke="white"
+              strokeWidth="3"
+              strokeDasharray={`${(completion * 176) / 100} 176`}
+              strokeLinecap="round"
+            />
+          </svg>
 
-      {/* Journey Map */}
-      <div className="relative space-y-8 overflow-visible">
-        {journeyLessons.map((lesson, lessonIndex) => {
-          const isExpanded = expandedLessons.has(lesson.id)
+          {/* Lesson Number/Icon */}
+          <div className="relative z-10 flex flex-col items-center justify-center text-white">
+            {isCompleted ? (
+              <CheckCircle className="h-7 w-7" strokeWidth={2.5} />
+            ) : isLocked ? (
+              <XCircle className="h-7 w-7" strokeWidth={2.5} />
+            ) : (
+              <span className="text-xl font-bold">{lesson.orderNo}</span>
+            )}
+          </div>
 
-          return (
-            <div key={lesson.id} className="relative">
-              {/* Lesson Node (Big Circle) */}
-              <div className="flex justify-center">
-                <button
-                  onClick={() => toggleLesson(lesson.id)}
-                  className="group relative"
-                >
-                  <motion.div
-                    whileHover={{ scale: lesson.isLocked ? 1 : 1.05 }}
-                    className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      lesson.isLocked
-                        ? 'bg-gradient-to-br from-gray-400 to-gray-500 cursor-not-allowed'
-                        : lesson.isCompleted
-                          ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-2xl shadow-green-200'
-                          : lesson.isCurrent
-                            ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-2xl shadow-blue-200'
-                            : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-xl shadow-purple-200'
-                    }`}
-                    title={lesson.title}
-                  >
-                    {/* Progress ring */}
-                    <svg
-                      className="absolute inset-0 w-full h-full -rotate-90"
-                      viewBox="0 0 96 96"
-                    >
-                      <circle
-                        cx="48"
-                        cy="48"
-                        r="42"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.3)"
-                        strokeWidth="4"
-                      />
-                      <circle
-                        cx="48"
-                        cy="48"
-                        r="42"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="4"
-                        strokeDasharray={`${((lesson.isCompleted ? 100 : (lesson.activities.filter((a) => a.isCompleted).length / lesson.activities.length) * 100) * 264) / 100} 264`}
-                        strokeLinecap="round"
-                      />
-                    </svg>
+          {/* Pulse effect for current lesson */}
+          {isInProgress && !isCompleted && (
+            <motion.div
+              className="absolute inset-0 rounded-full bg-blue-400"
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.5, 0, 0.5],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+          )}
+        </motion.div>
 
-                    {/* Lesson content */}
-                    <div className="relative z-10 flex flex-col items-center justify-center text-white">
-                      {lesson.isCompleted ? (
-                        <Trophy className="w-10 h-10 mb-1" strokeWidth={2.5} />
-                      ) : lesson.isLocked ? (
-                        <XCircle className="w-10 h-10 mb-1" strokeWidth={2.5} />
-                      ) : (
-                        <div className="text-3xl font-bold">
-                          {lesson.orderNo}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Pulse effect for current lesson */}
-                    {lesson.isCurrent && !lesson.isCompleted && (
-                      <motion.div
-                        className="absolute inset-0 rounded-full bg-blue-400"
-                        animate={{
-                          scale: [1, 1.3, 1],
-                          opacity: [0.5, 0, 0.5],
-                        }}
-                        transition={{
-                          duration: 2.5,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                        }}
-                      />
-                    )}
-
-                    {/* Expand/Collapse indicator */}
-                    <motion.div
-                      animate={{ rotate: isExpanded ? 180 : 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-white rounded-full p-1 shadow-md"
-                    >
-                      <ChevronRight className="w-4 h-4 text-gray-600 rotate-90" />
-                    </motion.div>
-                  </motion.div>
-                </button>
-              </div>
-
-              {/* Lesson Title */}
-              <div className="text-center mt-10">
-                <h3 className="text-lg font-bold text-gray-900">
+        {/* Lesson Info Card */}
+        <div className="flex-1 pt-1">
+          <div onClick={onToggle} className="cursor-pointer group">
+            <div className="flex items-start justify-between mb-1">
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition">
                   {lesson.title}
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {lesson.activities.filter((a) => a.isCompleted).length}/
-                  {lesson.activities.length} hoạt động
-                  {lesson.isCompleted && ' • Hoàn thành'}
-                  {lesson.isLocked && ' • Đã khóa'}
-                </p>
-                <button
-                  onClick={() => toggleLesson(lesson.id)}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  {isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
-                </button>
+                </h4>
+                <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                  {lesson.estimatedTime && (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {lesson.estimatedTime} phút
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <Trophy className="h-3 w-3" />
+                    {completedActivities}/{totalActivities} hoạt động
+                  </span>
+                  {lesson.difficulty && (
+                    <span className="capitalize px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                      {lesson.difficulty}
+                    </span>
+                  )}
+                </div>
+                {isLocked && (
+                  <div className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Hoàn thành bài trước để mở khoá
+                  </div>
+                )}
               </div>
 
-              {/* Activities Path - BETWEEN this lesson and next lesson (VERTICAL COLUMN) */}
-              {lessonIndex < journeyLessons.length - 1 && (
-                <motion.div
-                  initial={false}
-                  animate={{
-                    height:
-                      isExpanded && lesson.activities.length > 0 ? 'auto' : 0,
-                    opacity: isExpanded && lesson.activities.length > 0 ? 1 : 0,
-                  }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  {lesson.activities.length > 0 && (
-                    <div className="mt-10 mb-10">
-                      {/* Vertical path of activities */}
-                      <div className="flex flex-col items-center gap-0 relative">
-                        {/* Decorative dashed line background */}
-                        <div className="absolute top-0 bottom-0 left-1/2 w-1 border-l-2 border-dashed border-gray-300 -translate-x-1/2 opacity-30" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!isLocked) {
+                    onStart(lesson.id)
+                  }
+                }}
+                disabled={isLocked}
+                className={`
+                  inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium
+                  transition-all duration-200
+                  ${
+                    isLocked
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : isCompleted
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                  }
+                `}
+              >
+                {isLocked ? (
+                  <>
+                    <XCircle className="h-3.5 w-3.5" />
+                    <span>Đã khoá</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5" />
+                    {classroomStatus === 'upcoming'
+                      ? 'Xem trước'
+                      : isCompleted
+                        ? 'Ôn lại'
+                        : nextActivity
+                          ? 'Tiếp tục'
+                          : 'Bắt đầu'}
+                  </>
+                )}
+              </button>
+            </div>
 
-                        {lesson.activities.map((activity, actIndex) => {
-                          const Icon = activityIcon[activity.type] || BookOpen
-                          const colorClass =
-                            activityColor[activity.type] || 'text-gray-600'
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-2">
+              <motion.div
+                className={`h-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                initial={{ width: 0 }}
+                animate={{ width: `${completion}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
 
-                          return (
-                            <div
-                              key={activity.id}
-                              className="relative group flex items-center w-full justify-center py-3"
-                            >
-                              {/* Connection line to next activity (VERTICAL) */}
-                              {actIndex < lesson.activities.length - 1 && (
-                                <div
-                                  className={`absolute top-full left-1/2 w-1 h-12 ${
-                                    activity.isCompleted
-                                      ? 'bg-gradient-to-b from-green-400 to-green-300'
-                                      : 'bg-gradient-to-b from-gray-300 to-gray-200'
-                                  } -translate-x-1/2 z-0 rounded-full`}
-                                />
-                              )}
-
-                              {/* Activity Step Node */}
-                              <motion.button
-                                whileHover={{
-                                  scale: activity.isLocked ? 1 : 1.2,
-                                }}
-                                whileTap={{
-                                  scale: activity.isLocked ? 1 : 0.95,
-                                }}
-                                onClick={() => {
-                                  if (!activity.isLocked) {
-                                    onStartActivity(
-                                      activity.lessonId,
-                                      activity.id
-                                    )
-                                  }
-                                }}
-                                disabled={activity.isLocked}
-                                className={`relative z-10 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
-                                  activity.isLocked
-                                    ? 'bg-gray-200 cursor-not-allowed border-2 border-gray-300'
-                                    : activity.isCompleted
-                                      ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-lg shadow-green-200 border-2 border-green-300'
-                                      : activity.isCurrent
-                                        ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-xl shadow-blue-300 ring-4 ring-blue-200 animate-pulse-slow'
-                                        : 'bg-white border-3 border-gray-400 shadow-md hover:shadow-lg hover:border-blue-400'
-                                }`}
-                                title={activity.title}
+          {/* Collapsible Activities List */}
+          <AnimatePresence initial={false}>
+            {isOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                animate={{ height: 'auto', opacity: 1, marginTop: 12 }}
+                exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                {isLocked ? (
+                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <AlertCircle className="h-5 w-5" />
+                      <div>
+                        <p className="font-medium text-sm">
+                          Bài học đã bị khoá
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Hoàn thành bài học trước để mở khoá bài này
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-700 mb-2">
+                      Hoạt động trong bài học:
+                    </div>
+                    <ul className="space-y-2">
+                      {lesson.activities.map((a, index) => {
+                        const Icon = activityIcon[a.type]
+                        const color = activityColor[a.type]
+                        // Assume activities are completed in order based on completedActivities count
+                        const isDone = index < completedActivities
+                        return (
+                          <li
+                            key={a.id}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100 hover:border-blue-200 transition"
+                          >
+                            <div className="flex items-center gap-2 flex-1">
+                              <div
+                                className={`h-7 w-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 ${color}`}
                               >
-                                {/* Inner glow effect */}
-                                {!activity.isLocked &&
-                                  !activity.isCompleted && (
-                                    <div className="absolute inset-1 rounded-full bg-white opacity-20" />
+                                <Icon className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900 truncate">
+                                  {a.title}
+                                </p>
+                                <div className="text-[10px] text-gray-500 flex items-center gap-2">
+                                  <span className="capitalize">
+                                    {a.type.replace('_', ' ')}
+                                  </span>
+                                  {a.duration && (
+                                    <span className="inline-flex items-center gap-0.5">
+                                      <Clock className="h-2.5 w-2.5" />
+                                      {a.duration}p
+                                    </span>
                                   )}
-
-                                {activity.isCompleted ? (
-                                  <CheckCircle className="w-7 h-7 text-white drop-shadow-md" />
-                                ) : (
-                                  <Icon
-                                    className={`w-6 h-6 ${
-                                      activity.isCurrent
-                                        ? 'text-white drop-shadow-md'
-                                        : colorClass
-                                    }`}
-                                  />
-                                )}
-
-                                {/* Sparkle effect for completed */}
-                                {activity.isCompleted && (
-                                  <>
-                                    <motion.div
-                                      className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-300 rounded-full"
-                                      animate={{
-                                        scale: [0, 1, 0],
-                                        opacity: [0, 1, 0],
-                                      }}
-                                      transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        delay: 0,
-                                      }}
-                                    />
-                                    <motion.div
-                                      className="absolute -bottom-1 -left-1 w-2 h-2 bg-yellow-400 rounded-full"
-                                      animate={{
-                                        scale: [0, 1, 0],
-                                        opacity: [0, 1, 0],
-                                      }}
-                                      transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        delay: 0.5,
-                                      }}
-                                    />
-                                  </>
-                                )}
-
-                                {/* Avatar - show on current activity */}
-                                {activity.isCurrent && userAvatarUrl && (
-                                  <motion.div
-                                    initial={{ scale: 0, x: -40, opacity: 0 }}
-                                    animate={{ scale: 1, x: 0, opacity: 1 }}
-                                    transition={{
-                                      type: 'spring',
-                                      stiffness: 260,
-                                      damping: 20,
-                                      delay: 0.2,
-                                    }}
-                                    className="absolute left-full ml-8 top-1/2 transform -translate-y-1/2"
-                                  >
-                                    <div className="relative flex items-center gap-4">
-                                      {/* Animated arrow pointing left to activity */}
-                                      <motion.div
-                                        animate={{ x: [-6, 0, -6] }}
-                                        transition={{
-                                          duration: 1.5,
-                                          repeat: Infinity,
-                                          ease: 'easeInOut',
-                                        }}
-                                        className="flex flex-col items-center gap-1"
-                                      >
-                                        <div className="w-0 h-0 border-t-[6px] border-b-[6px] border-r-[10px] border-t-transparent border-b-transparent border-r-blue-500 drop-shadow-md" />
-                                      </motion.div>
-
-                                      <div className="relative">
-                                        <img
-                                          src={userAvatarUrl}
-                                          alt="Vị trí hiện tại"
-                                          className="w-16 h-16 rounded-full border-4 border-white shadow-2xl ring-2 ring-blue-400"
-                                        />
-                                        {/* Multiple pulse rings */}
-                                        <motion.div
-                                          className="absolute inset-0 rounded-full bg-blue-400"
-                                          animate={{
-                                            scale: [1, 1.5, 1],
-                                            opacity: [0.6, 0, 0.6],
-                                          }}
-                                          transition={{
-                                            duration: 2,
-                                            repeat: Infinity,
-                                            ease: 'easeInOut',
-                                          }}
-                                        />
-                                        <motion.div
-                                          className="absolute inset-0 rounded-full bg-blue-300"
-                                          animate={{
-                                            scale: [1, 1.8, 1],
-                                            opacity: [0.4, 0, 0.4],
-                                          }}
-                                          transition={{
-                                            duration: 2,
-                                            repeat: Infinity,
-                                            ease: 'easeInOut',
-                                            delay: 0.5,
-                                          }}
-                                        />
-
-                                        {/* "You are here" badge */}
-                                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md whitespace-nowrap">
-                                          Bạn đang ở đây
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                )}
-
-                                {/* Activity number badge with better styling */}
-                                <div className="absolute left-full ml-3 flex items-center gap-2">
-                                  <div
-                                    className={`text-sm font-bold px-2 py-0.5 rounded-full ${
-                                      activity.isCompleted
-                                        ? 'bg-green-100 text-green-700'
-                                        : activity.isCurrent
-                                          ? 'bg-blue-100 text-blue-700'
-                                          : 'bg-gray-100 text-gray-600'
-                                    }`}
-                                  >
-                                    #{activity.orderNo}
-                                  </div>
-                                </div>
-                              </motion.button>
-
-                              {/* Enhanced tooltip on hover - positioned above activity */}
-                              <div className="absolute bottom-full mb-3 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-30 group-hover:-translate-y-1">
-                                <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl border border-gray-700 whitespace-nowrap">
-                                  <div className="font-semibold">
-                                    {activity.title}
-                                  </div>
-                                  <div className="text-[10px] text-gray-300 mt-1">
-                                    {activity.isCompleted
-                                      ? '✓ Đã hoàn thành'
-                                      : activity.isCurrent
-                                        ? '▶ Đang học'
-                                        : 'Chưa bắt đầu'}
-                                  </div>
-                                  {/* Arrow pointing down */}
-                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-gray-900" />
                                 </div>
                               </div>
-
-                              {/* Progress indicator line on the left side */}
-                              <div
-                                className={`absolute right-full mr-3 w-8 h-0.5 rounded-full ${
-                                  activity.isCompleted
-                                    ? 'bg-green-400'
-                                    : activity.isCurrent
-                                      ? 'bg-blue-400'
-                                      : 'bg-gray-300'
-                                }`}
-                              />
                             </div>
-                          )
-                        })}
-                      </div>
 
-                      {/* Enhanced arrow pointing to next lesson */}
-                      <div className="flex justify-center mt-8">
-                        <div className="flex flex-col items-center gap-2">
-                          <motion.div
-                            animate={{ y: [0, 8, 0] }}
-                            transition={{
-                              duration: 2.5,
-                              repeat: Infinity,
-                              ease: 'easeInOut',
-                            }}
-                            className="flex flex-col items-center"
-                          >
-                            <div className="w-1 h-16 bg-gradient-to-b from-gray-400 via-gray-300 to-transparent rounded-full" />
-                            <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-gray-400" />
-                          </motion.div>
-                          <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                            Bài tiếp theo
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </div>
-          )
-        })}
+                            <div className="flex items-center gap-2">
+                              {isDone ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] rounded-full bg-green-100 text-green-700 px-2 py-1">
+                                  <CheckCircle className="h-2.5 w-2.5" />
+                                  Xong
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() =>
+                                    onStartActivity(lesson.id, a.id)
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-lg bg-blue-600 text-white px-2 py-1 text-[10px] hover:bg-blue-700 transition"
+                                >
+                                  <Play className="h-2.5 w-2.5" />
+                                  Bắt đầu
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )
@@ -1428,15 +1193,15 @@ export default function ClassroomDetail(props: {
   const { onBack } = props
   const { user } = useAuth()
   const { openWidget } = useConversation()
-  // const classroomIdFromUrl =
-  //   typeof window !== 'undefined'
-  //     ? window.location.pathname.split('/').pop() || undefined
-  //     : undefined
+  const classroomIdFromUrl =
+    typeof window !== 'undefined'
+      ? window.location.pathname.split('/').pop() || undefined
+      : undefined
 
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [searchStudent, setSearchStudent] = useState<string>('')
-  // const [openLessonId, setOpenLessonId] = useState<string | null>(null)
+  const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [showAnnForm, setShowAnnForm] = useState(false)
   const [annTitle, setAnnTitle] = useState('')
   const [annBody, setAnnBody] = useState('')
@@ -1684,21 +1449,20 @@ export default function ClassroomDetail(props: {
   ] as const
 
   // Điều hướng khi bắt đầu học bài
-  // const handleStartLesson = (lessonId: string) => {
-  //   if (!detail) return
-  //   const lesson = detail.lessons?.find((l) => l.id === lessonId)
-  //   const activityId = lesson?.activities?.[0]?.id
-  //   if (classroomIdFromUrl && lessonId && activityId) {
-  //     navigate(`/learn/${classroomIdFromUrl}/${lessonId}/${activityId}`)
-  //   }
-  // }
+  const handleStartLesson = (lessonId: string) => {
+    if (!detail) return
+    const lesson = detail.lessons?.find((l) => l.id === lessonId)
+    const activityId = lesson?.activities?.[0]?.id
+    if (classroomIdFromUrl && lessonId && activityId) {
+      navigate(`/learn/${classroomIdFromUrl}/${lessonId}/${activityId}`)
+    }
+  }
 
   // Điều hướng khi bắt đầu học activity
   const handleStartActivity = (lessonId: string, activityId: string) => {
     if (!detail) return
     if (lessonId && activityId) {
-      // Thêm query param activityId để LearnPage biết activity nào cần hiển thị
-      navigate(`/learn/${detail.id}/${lessonId}?activityId=${activityId}`)
+      navigate(`/learn/${detail.id}/${lessonId}/${activityId}`)
     }
   }
 
@@ -1953,41 +1717,88 @@ export default function ClassroomDetail(props: {
         <div className="lg:col-span-2">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* NEW: Game Map Journey */}
-              <GameMapJourney
-                lessons={(detail?.lessons || []).map((lesson, index) => {
-                  // Check if previous lesson is completed (100%)
-                  const prevLesson =
-                    index > 0 ? detail?.lessons[index - 1] : null
-                  const isPrevLessonCompleted = prevLesson
-                    ? ((prevLesson as any).progress?.completion ?? 0) === 100
-                    : true // First lesson is always unlocked
+              {/* NEW: Game-like Lesson Journey */}
+              <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm ring-1 ring-black/5">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Hành trình học tập
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {detail?.lessons?.length ?? 0} bài học • ~
+                      {detail?.lessons?.reduce(
+                        (sum: number, l) => sum + (l.estimatedTime ?? 0),
+                        0
+                      ) ?? 0}{' '}
+                      phút
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded-full bg-gradient-to-br from-green-400 to-green-600" />
+                      <span className="text-gray-600">Hoàn thành</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded-full bg-gradient-to-br from-blue-400 to-blue-600" />
+                      <span className="text-gray-600">Đang học</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600" />
+                      <span className="text-gray-600">Chưa học</span>
+                    </div>
+                  </div>
+                </div>
 
-                  // Override isLocked based on previous lesson completion
-                  const isLessonLocked =
-                    lesson.isLocked || !isPrevLessonCompleted
+                <div className="space-y-6 max-w-4xl">
+                  {detail?.lessons?.map((lesson, index) => {
+                    // Check if previous lesson is completed (100%)
+                    const prevLesson =
+                      index > 0 ? detail.lessons[index - 1] : null
+                    const isPrevLessonCompleted = prevLesson
+                      ? ((prevLesson as any).progress?.completion ?? 0) === 100
+                      : true // First lesson is always unlocked
 
-                  return {
-                    ...lesson,
-                    difficulty: lesson.difficulty as
-                      | 'beginner'
-                      | 'elementary'
-                      | 'intermediate'
-                      | undefined,
-                    isLocked: isLessonLocked,
-                    activities: lesson.activities.map((a) => ({
-                      ...a,
-                      type: a.type as ActivityType,
-                      duration: a.duration === null ? undefined : a.duration,
-                      passingScore:
-                        a.passingScore === null ? undefined : a.passingScore,
-                    })),
-                  }
-                })}
-                userAvatarUrl={user?.avatarUrl}
-                onStartActivity={handleStartActivity}
-                classroomStatus={detail?.status}
-              />
+                    // Override isLocked based on previous lesson completion
+                    const isLessonLocked =
+                      lesson.isLocked || !isPrevLessonCompleted
+
+                    return (
+                      <LessonNode
+                        key={lesson.id}
+                        lesson={{
+                          ...lesson,
+                          difficulty: lesson.difficulty as
+                            | 'beginner'
+                            | 'elementary'
+                            | 'intermediate'
+                            | undefined,
+                          isLocked: isLessonLocked, // ✅ Apply lock logic
+                          activities: lesson.activities.map((a) => ({
+                            ...a,
+                            type: a.type as ActivityType,
+                            duration:
+                              a.duration === null ? undefined : a.duration,
+                            passingScore:
+                              a.passingScore === null
+                                ? undefined
+                                : a.passingScore,
+                          })),
+                        }}
+                        isOpen={openLessonId === lesson.id}
+                        isLast={index === (detail?.lessons?.length ?? 0) - 1}
+                        onToggle={() => {
+                          setOpenLessonId(
+                            openLessonId === lesson.id ? null : lesson.id
+                          )
+                        }}
+                        onStart={handleStartLesson}
+                        onStartActivity={handleStartActivity}
+                        classroomStatus={detail?.status}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
 
               {/* Existing: Thông tin lớp học */}
               <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">

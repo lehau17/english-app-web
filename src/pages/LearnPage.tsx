@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import {
   AnimatePresence,
   motion,
@@ -38,7 +39,7 @@ import {
   type JSX,
 } from 'react'
 import toast from 'react-hot-toast'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -3458,6 +3459,7 @@ export default function LearnPlayerPage(): JSX.Element {
   }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [loading, setLoading] = useState(true)
   const [lesson, setLesson] = useState<LessonMeta | undefined>()
   const [activities, setActivities] = useState<Activity[]>([])
@@ -3466,6 +3468,10 @@ export default function LearnPlayerPage(): JSX.Element {
   const [errorDetails, setErrorDetails] = useState<any>(null)
   const [nextLesson, setNextLesson] = useState<any>(null)
   const [showCelebration, setShowCelebration] = useState(false)
+
+  // Get activityId from query params
+  const [searchParams] = useSearchParams()
+  const targetActivityId = searchParams.get('activityId')
 
   // TanStack Query hooks
   const nextLessonQuery = useNextLesson()
@@ -3541,10 +3547,22 @@ export default function LearnPlayerPage(): JSX.Element {
       }))
 
       setActivities(mappedActivities)
-      setActiveId(lessonData.currentActivityId)
+
+      // Set activeId based on query param or currentActivityId from API
+      if (
+        targetActivityId &&
+        mappedActivities.some((a: any) => a.id === targetActivityId)
+      ) {
+        // If targetActivityId exists in query param and is valid, use it
+        setActiveId(targetActivityId)
+      } else {
+        // Otherwise use currentActivityId from API response
+        setActiveId(lessonData.currentActivityId)
+      }
+
       setLoading(false)
     }
-  }, [lessonData])
+  }, [lessonData, targetActivityId])
 
   const handleStartActivity = async (activityId: string) => {
     if (!user?.id) return
@@ -3559,6 +3577,18 @@ export default function LearnPlayerPage(): JSX.Element {
               : a
           )
         )
+        setErrorMessage(null)
+        setErrorDetails(null)
+        return
+      }
+
+      // Don't call start API if activity is already completed
+      const currentActivity = activities.find((a) => a.id === activityId)
+      if (
+        currentActivity?.state &&
+        ['done', 'mastered', 'review_needed'].includes(currentActivity.state)
+      ) {
+        // Activity already completed, just clear errors and return
         setErrorMessage(null)
         setErrorDetails(null)
         return
@@ -3698,6 +3728,13 @@ export default function LearnPlayerPage(): JSX.Element {
           userId: user.id,
           score,
         })
+
+        // Invalidate classroom detail cache to refresh progress when user goes back
+        if (classroomId) {
+          queryClient.invalidateQueries({
+            queryKey: ['classroom-detail', classroomId],
+          })
+        }
 
         if (newState === 'review_needed') {
           toast(

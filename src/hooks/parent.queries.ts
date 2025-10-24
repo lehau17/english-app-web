@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createLinkRequestApi,
   getChildNotificationSettingsApi,
   getParentActivitiesApi,
+  getParentChildProgressApi,
   getParentChildrenApi,
   getParentDashboardApi,
   getParentNotificationsApi,
-  getParentChildProgressApi,
   getParentRewardsApi,
   updateChildNotificationSettingsApi,
 } from '../services/parent.api'
@@ -131,3 +132,21 @@ export const useParentChildProgressQuery = (
     retry: 1,
     staleTime: 60 * 1000,
   })
+
+// ==================== LINK REQUEST MUTATIONS ====================
+
+export const useCreateLinkRequestMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (studentIdentifier: string) => {
+      const response = await createLinkRequestApi(studentIdentifier)
+      return response.data
+    },
+    onSuccess: () => {
+      // Invalidate children query để refresh danh sách con sau khi request được approve
+      queryClient.invalidateQueries({ queryKey: ['parent-children'] })
+      queryClient.invalidateQueries({ queryKey: ['parent-dashboard'] })
+    },
+  })
+}

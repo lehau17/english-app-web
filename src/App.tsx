@@ -158,7 +158,7 @@ function App() {
               }
             />
             <Route
-              path="/learn/:classroomId/:lessonId/:activityId"
+              path="/learn/:classroomId/:lessonId"
               element={
                 <HomeLayout>
                   <LearnPlayerPage />
