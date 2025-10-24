@@ -155,6 +155,18 @@ export const getParentPaymentSummaryApi = async (): Promise<
   return data
 }
 
+// ==================== LINK REQUEST APIs ====================
+
+export const createLinkRequestApi = async (
+  studentIdentifier: string
+): Promise<BaseResponse<any>> => {
+  const { data } = await api.post<BaseResponse<any>>(
+    '/private/v1/parent-child/request',
+    { studentIdentifier }
+  )
+  return data
+}
+
 // Export as parentApi object for consistency
 export const parentApi = {
   getDashboard: getParentDashboardApi,
@@ -171,4 +183,5 @@ export const parentApi = {
   getChildProgress: getParentChildProgressApi,
   getUnpaidClassrooms: getParentUnpaidClassroomsApi,
   getPaymentSummary: getParentPaymentSummaryApi,
+  createLinkRequest: createLinkRequestApi,
 }
