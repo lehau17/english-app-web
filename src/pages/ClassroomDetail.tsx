@@ -54,6 +54,7 @@ import {
 import { createClassroomAnnouncement } from '../services/classroom-detail.api'
 import { createClassroomConversation } from '../services/conversation.api'
 import { AssignmentType, type Assignment } from '../types/assignment.type' // NEW
+import type { GetMyCertificatesResponse } from '../types/certificate.type'
 import type {
   ClassroomAnnouncement,
   ClassroomDetailResponse,
@@ -159,7 +160,9 @@ function StudentAssignmentCard({
 }: StudentAssignmentCardProps): JSX.Element {
   const startTime = assignment.startTime ? new Date(assignment.startTime) : null
   const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
-  const isOverdue = !!dueDate && dueDate < new Date()
+  const now = new Date()
+  const isOverdue = !!dueDate && dueDate < now
+  const isNotStarted = !!startTime && startTime > now
 
   // Use real submission data instead of mock data
   const hasSubmitted = !!submission
@@ -212,6 +215,7 @@ function StudentAssignmentCard({
       return 'bg-red-100 text-red-700'
     }
     if (isOverdue) return 'bg-red-100 text-red-700'
+    if (isNotStarted) return 'bg-blue-100 text-blue-700'
     return 'bg-gray-100 text-gray-700'
   }
 
@@ -220,6 +224,7 @@ function StudentAssignmentCard({
       return `Đã nộp - ${score} điểm`
     }
     if (isOverdue) return 'Quá hạn'
+    if (isNotStarted) return 'Chưa đến giờ'
     return 'Chưa làm'
   }
 
@@ -313,10 +318,22 @@ function StudentAssignmentCard({
           )}
 
           {hasSubmitted && score !== null && (
-            <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+            <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded ml-9">
               <strong>Kết quả:</strong> Lần {attempts}/{assignment.maxAttempts}{' '}
               - Điểm: {score}/100 -
               {score >= 80 ? 'Xuất sắc' : score >= 60 ? 'Khá' : 'Cần cải thiện'}
+            </div>
+          )}
+
+          {isNotStarted && (
+            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded ml-9 flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <strong>Chưa đến giờ bắt đầu:</strong>{' '}
+              {startTime?.toLocaleDateString('vi-VN')} lúc{' '}
+              {startTime?.toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </div>
           )}
         </div>
@@ -349,28 +366,32 @@ function StudentAssignmentCard({
                   Xem kết quả
                 </button>
 
-                {attempts < assignment.maxAttempts && !isOverdue && (
-                  <button
-                    onClick={() => onStartAssignment?.(assignment.id)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100"
-                  >
-                    <Play className="h-4 w-4" />
-                    Làm lại ({attempts}/{assignment.maxAttempts})
-                  </button>
-                )}
+                {attempts < assignment.maxAttempts &&
+                  !isOverdue &&
+                  !isNotStarted && (
+                    <button
+                      onClick={() => onStartAssignment?.(assignment.id)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100"
+                    >
+                      <Play className="h-4 w-4" />
+                      Làm lại ({attempts}/{assignment.maxAttempts})
+                    </button>
+                  )}
               </>
             ) : (
               <button
                 onClick={() => onStartAssignment?.(assignment.id)}
-                disabled={isOverdue && !assignment.isPublished}
+                disabled={
+                  isNotStarted || (isOverdue && !assignment.isPublished)
+                }
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
-                  isOverdue && !assignment.isPublished
+                  isNotStarted || (isOverdue && !assignment.isPublished)
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
                 <Play className="h-4 w-4" />
-                Bắt đầu làm
+                {isNotStarted ? 'Chưa đến giờ' : 'Bắt đầu làm'}
               </button>
             )}
           </div>
@@ -1090,263 +1111,262 @@ function GameMapJourney({
                 </button>
               </div>
 
-              {/* Activities Path - BETWEEN this lesson and next lesson (VERTICAL COLUMN) */}
-              {lessonIndex < journeyLessons.length - 1 && (
-                <motion.div
-                  initial={false}
-                  animate={{
-                    height:
-                      isExpanded && lesson.activities.length > 0 ? 'auto' : 0,
-                    opacity: isExpanded && lesson.activities.length > 0 ? 1 : 0,
-                  }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  {lesson.activities.length > 0 && (
-                    <div className="mt-10 mb-10">
-                      {/* Vertical path of activities */}
-                      <div className="flex flex-col items-center gap-0 relative">
-                        {/* Decorative dashed line background */}
-                        <div className="absolute top-0 bottom-0 left-1/2 w-1 border-l-2 border-dashed border-gray-300 -translate-x-1/2 opacity-30" />
+              {/* Activities List - Show for ALL lessons when expanded */}
+              <motion.div
+                initial={false}
+                animate={{
+                  height:
+                    isExpanded && lesson.activities.length > 0 ? 'auto' : 0,
+                  opacity: isExpanded && lesson.activities.length > 0 ? 1 : 0,
+                }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                style={{ overflow: 'hidden' }}
+              >
+                {lesson.activities.length > 0 && (
+                  <div className="mt-10 mb-10">
+                    {/* Vertical path of activities */}
+                    <div className="flex flex-col items-center gap-0 relative">
+                      {/* Decorative dashed line background */}
+                      <div className="absolute top-0 bottom-0 left-1/2 w-1 border-l-2 border-dashed border-gray-300 -translate-x-1/2 opacity-30" />
 
-                        {lesson.activities.map((activity, actIndex) => {
-                          const Icon = activityIcon[activity.type] || BookOpen
-                          const colorClass =
-                            activityColor[activity.type] || 'text-gray-600'
+                      {lesson.activities.map((activity, actIndex) => {
+                        const Icon = activityIcon[activity.type] || BookOpen
+                        const colorClass =
+                          activityColor[activity.type] || 'text-gray-600'
 
-                          return (
-                            <div
-                              key={activity.id}
-                              className="relative group flex items-center w-full justify-center py-3"
+                        return (
+                          <div
+                            key={activity.id}
+                            className="relative group flex items-center w-full justify-center py-3"
+                          >
+                            {/* Connection line to next activity (VERTICAL) */}
+                            {actIndex < lesson.activities.length - 1 && (
+                              <div
+                                className={`absolute top-full left-1/2 w-1 h-12 ${
+                                  activity.isCompleted
+                                    ? 'bg-gradient-to-b from-green-400 to-green-300'
+                                    : 'bg-gradient-to-b from-gray-300 to-gray-200'
+                                } -translate-x-1/2 z-0 rounded-full`}
+                              />
+                            )}
+
+                            {/* Activity Step Node */}
+                            <motion.button
+                              whileHover={{
+                                scale: activity.isLocked ? 1 : 1.2,
+                              }}
+                              whileTap={{
+                                scale: activity.isLocked ? 1 : 0.95,
+                              }}
+                              onClick={() => {
+                                if (!activity.isLocked) {
+                                  onStartActivity(
+                                    activity.lessonId,
+                                    activity.id
+                                  )
+                                }
+                              }}
+                              disabled={activity.isLocked}
+                              className={`relative z-10 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                activity.isLocked
+                                  ? 'bg-gray-200 cursor-not-allowed border-2 border-gray-300'
+                                  : activity.isCompleted
+                                    ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-lg shadow-green-200 border-2 border-green-300'
+                                    : activity.isCurrent
+                                      ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-xl shadow-blue-300 ring-4 ring-blue-200 animate-pulse-slow'
+                                      : 'bg-white border-3 border-gray-400 shadow-md hover:shadow-lg hover:border-blue-400'
+                              }`}
+                              title={activity.title}
                             >
-                              {/* Connection line to next activity (VERTICAL) */}
-                              {actIndex < lesson.activities.length - 1 && (
-                                <div
-                                  className={`absolute top-full left-1/2 w-1 h-12 ${
-                                    activity.isCompleted
-                                      ? 'bg-gradient-to-b from-green-400 to-green-300'
-                                      : 'bg-gradient-to-b from-gray-300 to-gray-200'
-                                  } -translate-x-1/2 z-0 rounded-full`}
+                              {/* Inner glow effect */}
+                              {!activity.isLocked && !activity.isCompleted && (
+                                <div className="absolute inset-1 rounded-full bg-white opacity-20" />
+                              )}
+
+                              {activity.isCompleted ? (
+                                <CheckCircle className="w-7 h-7 text-white drop-shadow-md" />
+                              ) : (
+                                <Icon
+                                  className={`w-6 h-6 ${
+                                    activity.isCurrent
+                                      ? 'text-white drop-shadow-md'
+                                      : colorClass
+                                  }`}
                                 />
                               )}
 
-                              {/* Activity Step Node */}
-                              <motion.button
-                                whileHover={{
-                                  scale: activity.isLocked ? 1 : 1.2,
-                                }}
-                                whileTap={{
-                                  scale: activity.isLocked ? 1 : 0.95,
-                                }}
-                                onClick={() => {
-                                  if (!activity.isLocked) {
-                                    onStartActivity(
-                                      activity.lessonId,
-                                      activity.id
-                                    )
-                                  }
-                                }}
-                                disabled={activity.isLocked}
-                                className={`relative z-10 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
-                                  activity.isLocked
-                                    ? 'bg-gray-200 cursor-not-allowed border-2 border-gray-300'
-                                    : activity.isCompleted
-                                      ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-lg shadow-green-200 border-2 border-green-300'
-                                      : activity.isCurrent
-                                        ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-xl shadow-blue-300 ring-4 ring-blue-200 animate-pulse-slow'
-                                        : 'bg-white border-3 border-gray-400 shadow-md hover:shadow-lg hover:border-blue-400'
-                                }`}
-                                title={activity.title}
-                              >
-                                {/* Inner glow effect */}
-                                {!activity.isLocked &&
-                                  !activity.isCompleted && (
-                                    <div className="absolute inset-1 rounded-full bg-white opacity-20" />
-                                  )}
-
-                                {activity.isCompleted ? (
-                                  <CheckCircle className="w-7 h-7 text-white drop-shadow-md" />
-                                ) : (
-                                  <Icon
-                                    className={`w-6 h-6 ${
-                                      activity.isCurrent
-                                        ? 'text-white drop-shadow-md'
-                                        : colorClass
-                                    }`}
-                                  />
-                                )}
-
-                                {/* Sparkle effect for completed */}
-                                {activity.isCompleted && (
-                                  <>
-                                    <motion.div
-                                      className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-300 rounded-full"
-                                      animate={{
-                                        scale: [0, 1, 0],
-                                        opacity: [0, 1, 0],
-                                      }}
-                                      transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        delay: 0,
-                                      }}
-                                    />
-                                    <motion.div
-                                      className="absolute -bottom-1 -left-1 w-2 h-2 bg-yellow-400 rounded-full"
-                                      animate={{
-                                        scale: [0, 1, 0],
-                                        opacity: [0, 1, 0],
-                                      }}
-                                      transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        delay: 0.5,
-                                      }}
-                                    />
-                                  </>
-                                )}
-
-                                {/* Avatar - show on current activity */}
-                                {activity.isCurrent && userAvatarUrl && (
+                              {/* Sparkle effect for completed */}
+                              {activity.isCompleted && (
+                                <>
                                   <motion.div
-                                    initial={{ scale: 0, x: -40, opacity: 0 }}
-                                    animate={{ scale: 1, x: 0, opacity: 1 }}
-                                    transition={{
-                                      type: 'spring',
-                                      stiffness: 260,
-                                      damping: 20,
-                                      delay: 0.2,
+                                    className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-300 rounded-full"
+                                    animate={{
+                                      scale: [0, 1, 0],
+                                      opacity: [0, 1, 0],
                                     }}
-                                    className="absolute left-full ml-8 top-1/2 transform -translate-y-1/2"
-                                  >
-                                    <div className="relative flex items-center gap-4">
-                                      {/* Animated arrow pointing left to activity */}
+                                    transition={{
+                                      duration: 2,
+                                      repeat: Infinity,
+                                      delay: 0,
+                                    }}
+                                  />
+                                  <motion.div
+                                    className="absolute -bottom-1 -left-1 w-2 h-2 bg-yellow-400 rounded-full"
+                                    animate={{
+                                      scale: [0, 1, 0],
+                                      opacity: [0, 1, 0],
+                                    }}
+                                    transition={{
+                                      duration: 2,
+                                      repeat: Infinity,
+                                      delay: 0.5,
+                                    }}
+                                  />
+                                </>
+                              )}
+
+                              {/* Avatar - show on current activity */}
+                              {activity.isCurrent && userAvatarUrl && (
+                                <motion.div
+                                  initial={{ scale: 0, x: -40, opacity: 0 }}
+                                  animate={{ scale: 1, x: 0, opacity: 1 }}
+                                  transition={{
+                                    type: 'spring',
+                                    stiffness: 260,
+                                    damping: 20,
+                                    delay: 0.2,
+                                  }}
+                                  className="absolute left-full ml-8 top-1/2 transform -translate-y-1/2"
+                                >
+                                  <div className="relative flex items-center gap-4">
+                                    {/* Animated arrow pointing left to activity */}
+                                    <motion.div
+                                      animate={{ x: [-6, 0, -6] }}
+                                      transition={{
+                                        duration: 1.5,
+                                        repeat: Infinity,
+                                        ease: 'easeInOut',
+                                      }}
+                                      className="flex flex-col items-center gap-1"
+                                    >
+                                      <div className="w-0 h-0 border-t-[6px] border-b-[6px] border-r-[10px] border-t-transparent border-b-transparent border-r-blue-500 drop-shadow-md" />
+                                    </motion.div>
+
+                                    <div className="relative">
+                                      <img
+                                        src={userAvatarUrl}
+                                        alt="Vị trí hiện tại"
+                                        className="w-16 h-16 rounded-full border-4 border-white shadow-2xl ring-2 ring-blue-400"
+                                      />
+                                      {/* Multiple pulse rings */}
                                       <motion.div
-                                        animate={{ x: [-6, 0, -6] }}
+                                        className="absolute inset-0 rounded-full bg-blue-400"
+                                        animate={{
+                                          scale: [1, 1.5, 1],
+                                          opacity: [0.6, 0, 0.6],
+                                        }}
                                         transition={{
-                                          duration: 1.5,
+                                          duration: 2,
                                           repeat: Infinity,
                                           ease: 'easeInOut',
                                         }}
-                                        className="flex flex-col items-center gap-1"
-                                      >
-                                        <div className="w-0 h-0 border-t-[6px] border-b-[6px] border-r-[10px] border-t-transparent border-b-transparent border-r-blue-500 drop-shadow-md" />
-                                      </motion.div>
+                                      />
+                                      <motion.div
+                                        className="absolute inset-0 rounded-full bg-blue-300"
+                                        animate={{
+                                          scale: [1, 1.8, 1],
+                                          opacity: [0.4, 0, 0.4],
+                                        }}
+                                        transition={{
+                                          duration: 2,
+                                          repeat: Infinity,
+                                          ease: 'easeInOut',
+                                          delay: 0.5,
+                                        }}
+                                      />
 
-                                      <div className="relative">
-                                        <img
-                                          src={userAvatarUrl}
-                                          alt="Vị trí hiện tại"
-                                          className="w-16 h-16 rounded-full border-4 border-white shadow-2xl ring-2 ring-blue-400"
-                                        />
-                                        {/* Multiple pulse rings */}
-                                        <motion.div
-                                          className="absolute inset-0 rounded-full bg-blue-400"
-                                          animate={{
-                                            scale: [1, 1.5, 1],
-                                            opacity: [0.6, 0, 0.6],
-                                          }}
-                                          transition={{
-                                            duration: 2,
-                                            repeat: Infinity,
-                                            ease: 'easeInOut',
-                                          }}
-                                        />
-                                        <motion.div
-                                          className="absolute inset-0 rounded-full bg-blue-300"
-                                          animate={{
-                                            scale: [1, 1.8, 1],
-                                            opacity: [0.4, 0, 0.4],
-                                          }}
-                                          transition={{
-                                            duration: 2,
-                                            repeat: Infinity,
-                                            ease: 'easeInOut',
-                                            delay: 0.5,
-                                          }}
-                                        />
-
-                                        {/* "You are here" badge */}
-                                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md whitespace-nowrap">
-                                          Bạn đang ở đây
-                                        </div>
+                                      {/* "You are here" badge */}
+                                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md whitespace-nowrap">
+                                        Bạn đang ở đây
                                       </div>
                                     </div>
-                                  </motion.div>
-                                )}
-
-                                {/* Activity number badge with better styling */}
-                                <div className="absolute left-full ml-3 flex items-center gap-2">
-                                  <div
-                                    className={`text-sm font-bold px-2 py-0.5 rounded-full ${
-                                      activity.isCompleted
-                                        ? 'bg-green-100 text-green-700'
-                                        : activity.isCurrent
-                                          ? 'bg-blue-100 text-blue-700'
-                                          : 'bg-gray-100 text-gray-600'
-                                    }`}
-                                  >
-                                    #{activity.orderNo}
                                   </div>
-                                </div>
-                              </motion.button>
+                                </motion.div>
+                              )}
 
-                              {/* Enhanced tooltip on hover - positioned above activity */}
-                              <div className="absolute bottom-full mb-3 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-30 group-hover:-translate-y-1">
-                                <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl border border-gray-700 whitespace-nowrap">
-                                  <div className="font-semibold">
-                                    {activity.title}
-                                  </div>
-                                  <div className="text-[10px] text-gray-300 mt-1">
-                                    {activity.isCompleted
-                                      ? '✓ Đã hoàn thành'
+                              {/* Activity number badge with better styling */}
+                              <div className="absolute left-full ml-3 flex items-center gap-2">
+                                <div
+                                  className={`text-sm font-bold px-2 py-0.5 rounded-full ${
+                                    activity.isCompleted
+                                      ? 'bg-green-100 text-green-700'
                                       : activity.isCurrent
-                                        ? '▶ Đang học'
-                                        : 'Chưa bắt đầu'}
-                                  </div>
-                                  {/* Arrow pointing down */}
-                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-gray-900" />
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  #{activity.orderNo}
                                 </div>
                               </div>
+                            </motion.button>
 
-                              {/* Progress indicator line on the left side */}
-                              <div
-                                className={`absolute right-full mr-3 w-8 h-0.5 rounded-full ${
-                                  activity.isCompleted
-                                    ? 'bg-green-400'
+                            {/* Enhanced tooltip on hover - positioned above activity */}
+                            <div className="absolute bottom-full mb-3 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-30 group-hover:-translate-y-1">
+                              <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl border border-gray-700 whitespace-nowrap">
+                                <div className="font-semibold">
+                                  {activity.title}
+                                </div>
+                                <div className="text-[10px] text-gray-300 mt-1">
+                                  {activity.isCompleted
+                                    ? '✓ Đã hoàn thành'
                                     : activity.isCurrent
-                                      ? 'bg-blue-400'
-                                      : 'bg-gray-300'
-                                }`}
-                              />
+                                      ? '▶ Đang học'
+                                      : 'Chưa bắt đầu'}
+                                </div>
+                                {/* Arrow pointing down */}
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-gray-900" />
+                              </div>
                             </div>
-                          )
-                        })}
-                      </div>
 
-                      {/* Enhanced arrow pointing to next lesson */}
-                      <div className="flex justify-center mt-8">
-                        <div className="flex flex-col items-center gap-2">
-                          <motion.div
-                            animate={{ y: [0, 8, 0] }}
-                            transition={{
-                              duration: 2.5,
-                              repeat: Infinity,
-                              ease: 'easeInOut',
-                            }}
-                            className="flex flex-col items-center"
-                          >
-                            <div className="w-1 h-16 bg-gradient-to-b from-gray-400 via-gray-300 to-transparent rounded-full" />
-                            <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-gray-400" />
-                          </motion.div>
-                          <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                            Bài tiếp theo
+                            {/* Progress indicator line on the left side */}
+                            <div
+                              className={`absolute right-full mr-3 w-8 h-0.5 rounded-full ${
+                                activity.isCompleted
+                                  ? 'bg-green-400'
+                                  : activity.isCurrent
+                                    ? 'bg-blue-400'
+                                    : 'bg-gray-300'
+                              }`}
+                            />
                           </div>
-                        </div>
-                      </div>
+                        )
+                      })}
                     </div>
-                  )}
-                </motion.div>
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Enhanced arrow pointing to next lesson - Only show if not last lesson */}
+              {lessonIndex < journeyLessons.length - 1 && (
+                <div className="flex justify-center mt-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <motion.div
+                      animate={{ y: [0, 8, 0] }}
+                      transition={{
+                        duration: 2.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                      className="flex flex-col items-center"
+                    >
+                      <div className="w-1 h-16 bg-gradient-to-b from-gray-400 via-gray-300 to-transparent rounded-full" />
+                      <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-gray-400" />
+                    </motion.div>
+                    <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                      Bài tiếp theo
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )
@@ -1462,7 +1482,7 @@ export default function ClassroomDetail(props: {
   } = useClassroomDetail(classroomIdFromParams)
 
   // Get certificates for this course
-  const { data: certificatesData } = useQuery({
+  const { data: certificatesData } = useQuery<GetMyCertificatesResponse>({
     queryKey: ['my-certificates'],
     queryFn: () => certificateApi.getMyCertificates({ skip: 0, take: 100 }),
     enabled: !!user?.id,
@@ -1471,8 +1491,10 @@ export default function ClassroomDetail(props: {
   // Find certificate for this course
   const courseCertificate = useMemo(() => {
     if (!certificatesData?.data || !classroomDetail?.course?.id) return null
+    // certificatesData is GetMyCertificatesResponse = { data: IssuedCertificate[], total: number }
+    // certificatesData.data is the array of certificates
     return certificatesData.data.find(
-      (cert) => cert.courseId === classroomDetail.course?.id
+      (cert: any) => cert.courseId === classroomDetail.course?.id
     )
   }, [certificatesData, classroomDetail?.course?.id])
 
@@ -1956,6 +1978,9 @@ export default function ClassroomDetail(props: {
               {/* NEW: Game Map Journey */}
               <GameMapJourney
                 lessons={(detail?.lessons || []).map((lesson, index) => {
+                  // Check if in preview mode (upcoming classroom)
+                  const isPreviewMode = detail?.status === 'upcoming'
+
                   // Check if previous lesson is completed (100%)
                   const prevLesson =
                     index > 0 ? detail?.lessons[index - 1] : null
@@ -1964,8 +1989,10 @@ export default function ClassroomDetail(props: {
                     : true // First lesson is always unlocked
 
                   // Override isLocked based on previous lesson completion
-                  const isLessonLocked =
-                    lesson.isLocked || !isPrevLessonCompleted
+                  // In preview mode, unlock all lessons
+                  const isLessonLocked = isPreviewMode
+                    ? false
+                    : lesson.isLocked || !isPrevLessonCompleted
 
                   return {
                     ...lesson,

@@ -2,6 +2,7 @@ import { Calendar, Clock, MessageCircle, User } from 'lucide-react'
 import React from 'react'
 import { useAiSpeakingConversation } from '../../hooks/useAiSpeakingConversations'
 import { formatDate } from '../../utils/dateUtils'
+import TextInteractionWrapper from '../common/TextInteractionWrapper'
 
 interface ConversationDetailProps {
   conversationId: string
@@ -156,9 +157,11 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                           </div>
                           <div className="flex-1 space-y-1">
                             <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 shadow-sm max-w-[85%]">
-                              <p className="text-sm text-gray-800">
-                                {turn.aiPrompt}
-                              </p>
+                              <TextInteractionWrapper>
+                                <p className="text-sm text-gray-800">
+                                  {turn.aiPrompt}
+                                </p>
+                              </TextInteractionWrapper>
                             </div>
                             {turn.aiAudioUrl && (
                               <div className="flex items-center gap-2 pl-2">
@@ -224,9 +227,11 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                 <h4 className="text-sm font-medium text-gray-700">
                   Tóm tắt phiên
                 </h4>
-                <p className="mt-1 text-sm text-gray-600 line-clamp-3">
-                  {session.summary}
-                </p>
+                <TextInteractionWrapper>
+                  <p className="mt-1 text-sm text-gray-600 line-clamp-3">
+                    {session.summary}
+                  </p>
+                </TextInteractionWrapper>
               </div>
             )}
           </div>

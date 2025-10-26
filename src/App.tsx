@@ -21,6 +21,7 @@ import CreatePodcastPageUpdated from './pages/CreatePodcastPageBeautiful'
 import DictionaryPage from './pages/DictionaryPage'
 import FlashcardReviewPage from './pages/FlashcardReviewPage'
 import HomePage from './pages/HomePage' // Import HomePage
+import LeaderboardPage from './pages/LeaderboardPage'
 import LearnPlayerPage from './pages/LearnPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
 import { ListeningResultPage } from './pages/ListeningResultPage'
@@ -98,6 +99,14 @@ function App() {
               element={
                 <HomeLayout>
                   <SchedulePage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/leaderboard"
+              element={
+                <HomeLayout>
+                  <LeaderboardPage />
                 </HomeLayout>
               }
             />

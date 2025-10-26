@@ -1,17 +1,28 @@
 import { useMutation } from '@tanstack/react-query'
-import { BookOpen, Loader2 } from 'lucide-react'
+import { BookOpen, Loader2, Save } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import {
   translateText,
   type TranslateTextResponse,
 } from '../../services/translate.api'
+import { vocabularyAPI } from '../../services/vocabulary.api'
 
 type TextInteractionWrapperProps = {
   children: React.ReactNode
 }
 
-const CustomToast = ({ data, t }: { data: TranslateTextResponse; t: any }) => (
+const CustomToast = ({
+  data,
+  t,
+  onSaveWord,
+  isSaving,
+}: {
+  data: TranslateTextResponse
+  t: any
+  onSaveWord: () => void
+  isSaving: boolean
+}) => (
   <div
     className={`${
       t.visible ? 'animate-enter' : 'animate-leave'
@@ -40,10 +51,22 @@ const CustomToast = ({ data, t }: { data: TranslateTextResponse; t: any }) => (
         </div>
       </div>
     </div>
-    <div className="flex border-l border-gray-200">
+    <div className="flex flex-col border-l border-gray-200">
+      <button
+        onClick={onSaveWord}
+        disabled={isSaving}
+        className="flex-1 border-b border-gray-200 rounded-none p-3 flex items-center justify-center text-sm font-medium text-green-600 hover:text-green-500 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+        title="Lưu từ vào từ điển của bạn"
+      >
+        {isSaving ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Save className="h-4 w-4" />
+        )}
+      </button>
       <button
         onClick={() => toast.dismiss(t.id)}
-        className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="flex-1 border border-transparent rounded-none rounded-br-lg p-3 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
       >
         Close
       </button>
@@ -59,13 +82,36 @@ const TextInteractionWrapper: React.FC<TextInteractionWrapperProps> = ({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
   const wrapperRef = useRef<HTMLDivElement>(null)
 
+  const saveWordMutation = useMutation({
+    mutationFn: (word: string) => vocabularyAPI.saveWord(word),
+    onSuccess: () => {
+      toast.success('Đã lưu từ vào từ điển của bạn!', {
+        duration: 2000,
+      })
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Không thể lưu từ.'
+      toast.error(message)
+    },
+  })
+
   const translateMutation = useMutation({
     mutationFn: (text: string) => translateText(text),
     onSuccess: (response) => {
       const data = response.data
-      toast.custom((t) => <CustomToast data={data} t={t} />, {
-        duration: 6000,
-      })
+      toast.custom(
+        (t) => (
+          <CustomToast
+            data={data}
+            t={t}
+            onSaveWord={() => saveWordMutation.mutate(data.text)}
+            isSaving={saveWordMutation.isPending}
+          />
+        ),
+        {
+          duration: 6000,
+        }
+      )
     },
     onError: () => {
       toast.error('Could not translate the selected text.')

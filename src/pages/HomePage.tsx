@@ -1,11 +1,13 @@
 import {
   BookOpen,
+  Calendar,
   CheckCircle,
   ChevronRight,
   Clock,
   CreditCard,
   Crown,
   FileText,
+  Globe,
   PlayCircle,
   Users,
 } from 'lucide-react'
@@ -142,9 +144,6 @@ export default function HomePage(): JSX.Element {
     return Array.from({ length: 6 }, (_, index) => current - index)
   }, [])
 
-  const selectedClassroom =
-    classrooms.find((c) => c.id === selectedClassId) ?? primaryClassroom
-
   const {
     data: leaderboardData,
     isLoading: isLoadingLeaderboard,
@@ -188,13 +187,6 @@ export default function HomePage(): JSX.Element {
   const emptyClassMessage = isTeacher
     ? 'Bạn chưa được phân công lớp nào. Hãy liên hệ quản trị viên để được cấp lớp.'
     : 'Bạn chưa tham gia lớp nào. Hãy liên hệ giáo viên để được thêm vào lớp học.'
-
-  const baseLeaderboardTitle = isTeacher
-    ? 'Bảng xếp hạng học viên'
-    : 'Bảng xếp hạng'
-  const leaderboardTitle = selectedClassroom?.name
-    ? `${baseLeaderboardTitle} • ${selectedClassroom.name}`
-    : baseLeaderboardTitle
 
   const noLeaderboardMessage = !selectedClassId
     ? classrooms.length === 0
@@ -471,73 +463,109 @@ export default function HomePage(): JSX.Element {
           <WordOfTheDayWidget />
 
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-            <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                <Crown className="h-5 w-5 text-yellow-500" />
-                {leaderboardTitle}
-              </h3>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {classrooms.length > 0 && (
-                  <select
-                    value={selectedClassId}
-                    onChange={(event) => setSelectedClassId(event.target.value)}
-                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Chọn lớp"
-                  >
-                    {classrooms.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <select
-                  value={periodType}
-                  onChange={(event) =>
-                    setPeriodType(event.target.value as 'month' | 'all')
-                  }
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label="Chọn khoảng thời gian"
+            {/* Header Section */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 shadow-md">
+                    <Crown className="h-5 w-5 text-white" />
+                  </div>
+                  Bảng Xếp Hạng
+                </h3>
+                <Link
+                  to="/leaderboard"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg hover:scale-105"
                 >
-                  <option value="month">Theo tháng</option>
-                  <option value="all">Toàn bộ thời gian</option>
-                </select>
+                  Xem tất cả
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
 
-                {periodType === 'month' && (
-                  <>
+              {/* Filters Section */}
+              <div className="flex flex-col gap-3">
+                {/* Row 1: Classroom selector */}
+                {classrooms.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide min-w-[60px]">
+                      Lớp học:
+                    </span>
                     <select
-                      value={selectedMonth}
+                      value={selectedClassId}
                       onChange={(event) =>
-                        setSelectedMonth(Number(event.target.value))
+                        setSelectedClassId(event.target.value)
                       }
-                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      aria-label="Chọn tháng"
+                      className="flex-1 rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      aria-label="Chọn lớp"
                     >
-                      {monthOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
+                      {classrooms.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
-
-                    <select
-                      value={selectedYear}
-                      onChange={(event) =>
-                        setSelectedYear(Number(event.target.value))
-                      }
-                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      aria-label="Chọn năm"
-                    >
-                      {yearOptions.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </>
+                  </div>
                 )}
+
+                {/* Row 2: Period filters */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide min-w-[60px]">
+                    Thời gian:
+                  </span>
+                  <div className="relative">
+                    <select
+                      value={periodType}
+                      onChange={(event) =>
+                        setPeriodType(event.target.value as 'month' | 'all')
+                      }
+                      className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 pl-9 pr-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 appearance-none"
+                      aria-label="Chọn khoảng thời gian"
+                    >
+                      <option value="month">Theo tháng</option>
+                      <option value="all">Toàn bộ</option>
+                    </select>
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      {periodType === 'month' ? (
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Globe className="h-4 w-4 text-green-600" />
+                      )}
+                    </div>
+                  </div>
+
+                  {periodType === 'month' && (
+                    <>
+                      <select
+                        value={selectedMonth}
+                        onChange={(event) =>
+                          setSelectedMonth(Number(event.target.value))
+                        }
+                        className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        aria-label="Chọn tháng"
+                      >
+                        {monthOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={selectedYear}
+                        onChange={(event) =>
+                          setSelectedYear(Number(event.target.value))
+                        }
+                        className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        aria-label="Chọn năm"
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -555,27 +583,195 @@ export default function HomePage(): JSX.Element {
             ) : leaderboardEntries.length === 0 ? (
               <p className="text-sm text-gray-500">{noLeaderboardMessage}</p>
             ) : (
-              <div className="space-y-3">
-                {leaderboardEntries.map((item) => (
+              <div className="space-y-4">
+                {/* Top 3 Podium - Always show top performers */}
+                {leaderboardEntries.length > 0 && (
+                  <div
+                    className={`mb-6 ${
+                      leaderboardEntries.length === 1
+                        ? 'flex justify-center'
+                        : leaderboardEntries.length === 2
+                          ? 'grid grid-cols-2 gap-4'
+                          : 'grid grid-cols-3 gap-3'
+                    }`}
+                  >
+                    {/* 2nd Place (only if exists and we have 3+ people) */}
+                    {leaderboardEntries.length >= 3 &&
+                      leaderboardEntries[1] && (
+                        <div className="flex flex-col items-center pt-8">
+                          <div className="relative mb-3">
+                            <img
+                              src={
+                                leaderboardEntries[1].avatarUrl ||
+                                '/default-avatar.png'
+                              }
+                              alt={leaderboardEntries[1].displayName}
+                              className="h-16 w-16 rounded-full border-4 border-gray-300 shadow-lg"
+                            />
+                            <div className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white shadow-lg">
+                              <span className="text-lg">🥈</span>
+                            </div>
+                          </div>
+                          <div className="w-full rounded-t-xl bg-gradient-to-t from-gray-300 to-gray-400 p-4 text-center shadow-lg">
+                            <p className="text-xs font-bold text-white mb-1 truncate">
+                              {leaderboardEntries[1].displayName}
+                            </p>
+                            <p className="text-xl font-bold text-white">
+                              {Number(
+                                leaderboardEntries[1].totalScore ?? 0
+                              ).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-white/80">điểm</p>
+                          </div>
+                        </div>
+                      )}
+
+                    {/* 1st Place - Always show if we have any data */}
+                    {leaderboardEntries[0] && (
+                      <div
+                        className={`flex flex-col items-center ${
+                          leaderboardEntries.length === 1 ? 'w-64' : ''
+                        }`}
+                      >
+                        <div className="relative mb-3">
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 animate-bounce">
+                            <Crown className="h-8 w-8 text-yellow-500 drop-shadow-lg" />
+                          </div>
+                          <img
+                            src={
+                              leaderboardEntries[0].avatarUrl ||
+                              '/default-avatar.png'
+                            }
+                            alt={leaderboardEntries[0].displayName}
+                            className="h-20 w-20 rounded-full border-4 border-yellow-400 shadow-2xl ring-4 ring-yellow-200"
+                          />
+                          <div className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500 text-white shadow-xl">
+                            <span className="text-xl">🥇</span>
+                          </div>
+                        </div>
+                        <div className="w-full rounded-t-xl bg-gradient-to-t from-yellow-400 via-yellow-500 to-yellow-600 p-5 text-center shadow-2xl">
+                          <p className="text-sm font-bold text-white mb-1 truncate">
+                            {leaderboardEntries[0].displayName}
+                          </p>
+                          <p className="text-2xl font-bold text-white">
+                            {Number(
+                              leaderboardEntries[0].totalScore ?? 0
+                            ).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-white/90">điểm</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2nd Place (when only 2 people) */}
+                    {leaderboardEntries.length === 2 &&
+                      leaderboardEntries[1] && (
+                        <div className="flex flex-col items-center pt-4">
+                          <div className="relative mb-3">
+                            <img
+                              src={
+                                leaderboardEntries[1].avatarUrl ||
+                                '/default-avatar.png'
+                              }
+                              alt={leaderboardEntries[1].displayName}
+                              className="h-16 w-16 rounded-full border-4 border-gray-300 shadow-lg"
+                            />
+                            <div className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white shadow-lg">
+                              <span className="text-lg">🥈</span>
+                            </div>
+                          </div>
+                          <div className="w-full rounded-t-xl bg-gradient-to-t from-gray-300 to-gray-400 p-4 text-center shadow-lg">
+                            <p className="text-xs font-bold text-white mb-1 truncate">
+                              {leaderboardEntries[1].displayName}
+                            </p>
+                            <p className="text-xl font-bold text-white">
+                              {Number(
+                                leaderboardEntries[1].totalScore ?? 0
+                              ).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-white/80">điểm</p>
+                          </div>
+                        </div>
+                      )}
+
+                    {/* 3rd Place (only when we have 3+ people) */}
+                    {leaderboardEntries.length >= 3 &&
+                      leaderboardEntries[2] && (
+                        <div className="flex flex-col items-center pt-12">
+                          <div className="relative mb-3">
+                            <img
+                              src={
+                                leaderboardEntries[2].avatarUrl ||
+                                '/default-avatar.png'
+                              }
+                              alt={leaderboardEntries[2].displayName}
+                              className="h-14 w-14 rounded-full border-4 border-amber-600 shadow-lg"
+                            />
+                            <div className="absolute -bottom-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-amber-600 text-white shadow-lg">
+                              <span className="text-base">🥉</span>
+                            </div>
+                          </div>
+                          <div className="w-full rounded-t-xl bg-gradient-to-t from-amber-500 to-amber-600 p-3 text-center shadow-lg">
+                            <p className="text-xs font-bold text-white mb-1 truncate">
+                              {leaderboardEntries[2].displayName}
+                            </p>
+                            <p className="text-lg font-bold text-white">
+                              {Number(
+                                leaderboardEntries[2].totalScore ?? 0
+                              ).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-white/80">điểm</p>
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                {/* Remaining Rankings */}
+                {leaderboardEntries.slice(3, 8).map((item) => (
                   <div
                     key={`${item.userId}-${item.rank}`}
-                    className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+                    className="group flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 transition hover:border-blue-300 hover:shadow-md"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white font-semibold text-gray-700">
-                        {item.rank}
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gray-100 to-gray-200 font-bold text-gray-700 transition group-hover:from-blue-100 group-hover:to-blue-200">
+                        #{item.rank}
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">
+                      <img
+                        src={item.avatarUrl || '/default-avatar.png'}
+                        alt={item.displayName}
+                        className="h-10 w-10 rounded-full border-2 border-gray-200 shadow-sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
                           {item.displayName || 'Chưa rõ'}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {Number(item.totalScore ?? 0).toLocaleString()} điểm
+                          Hạng {item.rank}
                         </p>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">
+                        {Number(item.totalScore ?? 0).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-500">điểm</p>
+                    </div>
                   </div>
                 ))}
+
+                {/* Show remaining count if more than 8 */}
+                {leaderboardEntries.length > 8 && (
+                  <div className="text-center">
+                    <Link
+                      to="/leaderboard"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      Và {leaderboardEntries.length - 8} người khác
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>

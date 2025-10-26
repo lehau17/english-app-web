@@ -19,7 +19,7 @@ const ListeningPracticePage: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterSource, setFilterSource] = useState('all')
   const [filterDuration, setFilterDuration] = useState('all')
-  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortBy, setSortBy] = useState('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage] = useState(1)
 
@@ -33,17 +33,45 @@ const ListeningPracticePage: React.FC = () => {
     limit: 12,
     category: filterCategory === 'all' ? undefined : filterCategory,
     search: searchQuery || undefined,
+    tab:
+      activeTab === 'all'
+        ? undefined
+        : (activeTab as 'recommended' | 'listening' | 'completed'),
+    source: filterSource === 'all' ? undefined : filterSource,
+    duration:
+      filterDuration === 'all'
+        ? undefined
+        : (filterDuration as 'short' | 'medium' | 'long'),
+    sortBy: sortBy,
   })
 
   console.log('Podcasts Response:', podcastsResponse)
 
   const podcasts = podcastsResponse?.data || []
+  const totalPodcasts = podcastsResponse?.total || 0
 
   const tabs = [
-    { key: 'all', label: 'Tất cả', count: podcasts.length },
-    { key: 'recommended', label: 'Bài bạn đáng', icon: Crown },
-    { key: 'listening', label: 'Bài đang nghe' },
-    { key: 'completed', label: 'Bài đã nghe' },
+    {
+      key: 'all',
+      label: 'Tất cả',
+      count: activeTab === 'all' ? totalPodcasts : undefined,
+    },
+    {
+      key: 'recommended',
+      label: 'Bài bạn đăng',
+      icon: Crown,
+      count: activeTab === 'recommended' ? totalPodcasts : undefined,
+    },
+    {
+      key: 'listening',
+      label: 'Bài đang nghe',
+      count: activeTab === 'listening' ? totalPodcasts : undefined,
+    },
+    {
+      key: 'completed',
+      label: 'Bài đã nghe',
+      count: activeTab === 'completed' ? totalPodcasts : undefined,
+    },
   ]
 
   const handlePlayPause = (id: number) => {
@@ -242,20 +270,30 @@ const ListeningPracticePage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Progress indicator - có thể sẽ có sau khi user nghe */}
-                    {podcast.status === 'COMPLETED' && (
-                      <div className="absolute -bottom-2 left-0 right-0">
-                        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                            style={{ width: '100%' }}
-                          />
+                    {/* Progress indicator - based on userProgress */}
+                    {podcast.userProgress &&
+                      podcast.userProgress.length > 0 &&
+                      podcast.userProgress[0].completionRate > 0 && (
+                        <div className="absolute -bottom-2 left-0 right-0">
+                          <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                podcast.userProgress[0].isCompleted
+                                  ? 'bg-green-500'
+                                  : 'bg-blue-500'
+                              }`}
+                              style={{
+                                width: `${podcast.userProgress[0].completionRate}%`,
+                              }}
+                            />
+                          </div>
+                          {podcast.userProgress[0].isCompleted && (
+                            <div className="absolute -top-6 -right-2 bg-green-500 text-white rounded-full px-2 py-1 text-xs font-medium">
+                              Hoàn thành
+                            </div>
+                          )}
                         </div>
-                        <div className="absolute -top-6 -right-2 bg-blue-500 text-white rounded-full px-2 py-1 text-xs font-medium">
-                          Hoàn thành
-                        </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Duration badge */}
                     <div className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-lg px-2 py-1 text-xs font-medium">
@@ -313,9 +351,26 @@ const ListeningPracticePage: React.FC = () => {
                         <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
                           {podcast.difficulty}
                         </span>
-                        <span className="text-xs text-gray-500">
-                          {podcast.status}
-                        </span>
+                        {podcast.userProgress &&
+                        podcast.userProgress.length > 0 ? (
+                          podcast.userProgress[0].isCompleted ? (
+                            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
+                              Hoàn thành
+                            </span>
+                          ) : podcast.userProgress[0].completionRate > 0 ? (
+                            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
+                              Đang học (
+                              {Math.round(
+                                podcast.userProgress[0].completionRate
+                              )}
+                              %)
+                            </span>
+                          ) : null
+                        ) : (
+                          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                            Chưa học
+                          </span>
+                        )}
                       </div>
 
                       <motion.button

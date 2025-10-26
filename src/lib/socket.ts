@@ -1,12 +1,10 @@
 export const resolveSocketUrl = () => {
-  const fromEnv = (import.meta as any)?.env?.VITE_SOCKET_URL as
-    | string
-    | undefined
+  const fromEnv = import.meta?.env?.VITE_SOCKET_URL as string | undefined
   if (fromEnv) {
     return fromEnv
   }
 
-  const api = (import.meta as any)?.env?.VITE_API_URL as string | undefined
+  const api = import.meta?.env?.VITE_API_URL as string | undefined
   if (api) {
     try {
       const parsed = new URL(api)
@@ -16,5 +14,5 @@ export const resolveSocketUrl = () => {
     }
   }
 
-  return 'http://localhost:3000'
+  return 'https://api.haudev.io.vn'
 }

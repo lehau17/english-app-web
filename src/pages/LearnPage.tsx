@@ -3564,12 +3564,78 @@ export default function LearnPlayerPage(): JSX.Element {
     }
   }, [lessonData, targetActivityId])
 
-  const handleStartActivity = async (activityId: string) => {
-    if (!user?.id) return
+  const handleStartActivity = useCallback(
+    async (activityId: string) => {
+      if (!user?.id) return
 
-    try {
-      // In preview mode, skip API validation and just set as in_progress
-      if (isPreviewMode) {
+      try {
+        // In preview mode, skip API validation and just set as in_progress
+        if (isPreviewMode) {
+          setActivities((prev) =>
+            prev.map((a) =>
+              a.id === activityId
+                ? { ...a, state: 'in_progress' as ProgressState }
+                : a
+            )
+          )
+          setErrorMessage(null)
+          setErrorDetails(null)
+          return
+        }
+
+        // Don't call start API if activity is already completed
+        const currentActivity = activities.find((a) => a.id === activityId)
+        if (
+          currentActivity?.state &&
+          ['done', 'mastered', 'review_needed'].includes(currentActivity.state)
+        ) {
+          // Activity already completed, just clear errors and return
+          setErrorMessage(null)
+          setErrorDetails(null)
+          return
+        }
+
+        // Kiểm tra xem có thể start activity không
+        const canStartResponse = await canStartActivityMutation.mutateAsync({
+          userId: user.id,
+          activityId,
+        })
+        const canStart = canStartResponse.data
+
+        if (!canStart.allowed) {
+          // Hiển thị lý do không thể start
+          let errorMessage = 'Không thể bắt đầu hoạt động này'
+
+          if (canStart.reason === 'previous_activity_not_passed') {
+            errorMessage = 'Bạn cần hoàn thành hoạt động trước đó trước'
+          } else if (canStart.reason === 'unmet_prerequisites') {
+            errorMessage = 'Bạn chưa đáp ứng đủ điều kiện tiên quyết'
+          } else if (canStart.reason === 'activity_not_found') {
+            errorMessage = 'Hoạt động không tồn tại'
+          } else if (canStart.reason) {
+            errorMessage = canStart.reason
+          }
+
+          setErrorMessage(errorMessage)
+          setErrorDetails(canStart)
+
+          // Quay về activity trước đó nếu có thể
+          const currentIndex = activities.findIndex((a) => a.id === activityId)
+          if (currentIndex > 0) {
+            const prevActivity = activities[currentIndex - 1]
+            setActiveId(prevActivity.id)
+          }
+
+          return
+        }
+
+        // Nếu được phép, tiến hành start activity
+        await startActivityMutation.mutateAsync({
+          activityId,
+          userId: user.id,
+        })
+
+        // Update local state to mark as in progress
         setActivities((prev) =>
           prev.map((a) =>
             a.id === activityId
@@ -3577,99 +3643,44 @@ export default function LearnPlayerPage(): JSX.Element {
               : a
           )
         )
+
+        // Clear any previous error
         setErrorMessage(null)
         setErrorDetails(null)
-        return
-      }
+      } catch (error: any) {
+        console.error('Failed to start activity:', error)
 
-      // Don't call start API if activity is already completed
-      const currentActivity = activities.find((a) => a.id === activityId)
-      if (
-        currentActivity?.state &&
-        ['done', 'mastered', 'review_needed'].includes(currentActivity.state)
-      ) {
-        // Activity already completed, just clear errors and return
-        setErrorMessage(null)
-        setErrorDetails(null)
-        return
-      }
+        // Handle API error response
+        if (error.response?.status === 400) {
+          const errorData = error.response.data
+          const errorMessage =
+            errorData?.message || 'Không thể bắt đầu hoạt động này'
+          setErrorMessage(errorMessage)
 
-      // Kiểm tra xem có thể start activity không
-      const canStartResponse = await canStartActivityMutation.mutateAsync({
-        userId: user.id,
-        activityId,
-      })
-      const canStart = canStartResponse.data
+          // Quay về activity trước đó nếu có thể
+          const currentIndex = activities.findIndex((a) => a.id === activityId)
+          if (currentIndex > 0) {
+            const prevActivity = activities[currentIndex - 1]
+            setActiveId(prevActivity.id)
+          }
 
-      if (!canStart.allowed) {
-        // Hiển thị lý do không thể start
-        let errorMessage = 'Không thể bắt đầu hoạt động này'
-
-        if (canStart.reason === 'previous_activity_not_passed') {
-          errorMessage = 'Bạn cần hoàn thành hoạt động trước đó trước'
-        } else if (canStart.reason === 'unmet_prerequisites') {
-          errorMessage = 'Bạn chưa đáp ứng đủ điều kiện tiên quyết'
-        } else if (canStart.reason === 'activity_not_found') {
-          errorMessage = 'Hoạt động không tồn tại'
-        } else if (canStart.reason) {
-          errorMessage = canStart.reason
+          return
         }
 
-        setErrorMessage(errorMessage)
-        setErrorDetails(canStart)
-
-        // Quay về activity trước đó nếu có thể
-        const currentIndex = activities.findIndex((a) => a.id === activityId)
-        if (currentIndex > 0) {
-          const prevActivity = activities[currentIndex - 1]
-          setActiveId(prevActivity.id)
-        }
-
-        return
-      }
-
-      // Nếu được phép, tiến hành start activity
-      await startActivityMutation.mutateAsync({
-        activityId,
-        userId: user.id,
-      })
-
-      // Update local state to mark as in progress
-      setActivities((prev) =>
-        prev.map((a) =>
-          a.id === activityId
-            ? { ...a, state: 'in_progress' as ProgressState }
-            : a
+        // For other errors, show generic message
+        setErrorMessage(
+          'Có lỗi xảy ra khi bắt đầu hoạt động. Vui lòng thử lại.'
         )
-      )
-
-      // Clear any previous error
-      setErrorMessage(null)
-      setErrorDetails(null)
-    } catch (error: any) {
-      console.error('Failed to start activity:', error)
-
-      // Handle API error response
-      if (error.response?.status === 400) {
-        const errorData = error.response.data
-        const errorMessage =
-          errorData?.message || 'Không thể bắt đầu hoạt động này'
-        setErrorMessage(errorMessage)
-
-        // Quay về activity trước đó nếu có thể
-        const currentIndex = activities.findIndex((a) => a.id === activityId)
-        if (currentIndex > 0) {
-          const prevActivity = activities[currentIndex - 1]
-          setActiveId(prevActivity.id)
-        }
-
-        return
       }
-
-      // For other errors, show generic message
-      setErrorMessage('Có lỗi xảy ra khi bắt đầu hoạt động. Vui lòng thử lại.')
-    }
-  }
+    },
+    [
+      user?.id,
+      activities,
+      isPreviewMode,
+      canStartActivityMutation,
+      startActivityMutation,
+    ]
+  )
 
   // Handle error from query
   useEffect(() => {

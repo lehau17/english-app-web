@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
+import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { useAuth } from '../context/AuthContext'
 import { resolveSocketUrl } from '../lib/socket'
 import type {
@@ -313,11 +314,25 @@ const AiSpeakingSessionPage: React.FC = () => {
 
       socket.on(
         'ai-speaking:tts-end',
-        (payload: { turnId: string; audioUrl?: string | null }) => {
+        (payload: {
+          turnId: string
+          audioUrl?: string | null
+          text?: string | null
+        }) => {
           setTtsState(payload.audioUrl ? 'ready' : 'idle')
           const mergedUrl = payload.audioUrl
             ? payload.audioUrl
             : createAudioUrlFromChunks(audioBuffersRef.current)
+
+          // ✅ Ưu tiên lấy text từ payload, nếu không có thì fallback sang turnPromptRef
+          const promptText =
+            payload.text ??
+            turnPromptRef.current.get(payload.turnId) ??
+            sessionRef.current?.turns?.find(
+              (turn) => turn.id === payload.turnId
+            )?.aiPrompt ??
+            null
+
           if (mergedUrl) {
             setAiAudioUrl((prev) => {
               if (prev) URL.revokeObjectURL(prev)
@@ -327,12 +342,6 @@ const AiSpeakingSessionPage: React.FC = () => {
               'AI đã phản hồi, hãy nhấn phát để nghe âm thanh.'
             )
             setAiErrorMessage(null)
-            const promptText =
-              turnPromptRef.current.get(payload.turnId) ??
-              sessionRef.current?.turns?.find(
-                (turn) => turn.id === payload.turnId
-              )?.aiPrompt ??
-              null
             appendAudioToConversation({
               role: 'ai',
               turnId: payload.turnId,
@@ -344,12 +353,6 @@ const AiSpeakingSessionPage: React.FC = () => {
             setAiErrorMessage(
               'Không nhận được âm thanh từ AI. Vui lòng xem transcript hoặc thử lại.'
             )
-            const promptText =
-              turnPromptRef.current.get(payload.turnId) ??
-              sessionRef.current?.turns?.find(
-                (turn) => turn.id === payload.turnId
-              )?.aiPrompt ??
-              null
             appendAudioToConversation({
               role: 'ai',
               turnId: payload.turnId,
@@ -366,6 +369,64 @@ const AiSpeakingSessionPage: React.FC = () => {
         setAiErrorMessage(payload?.message ?? 'Không thể phát âm AI.')
         setAiStatusMessage('AI gặp lỗi khi phát âm thanh.')
       })
+
+      // ✅ Listen for profanity warnings
+      socket.on(
+        'ai-speaking:profanity-warning',
+        (payload: {
+          turnId: string
+          severity: string
+          violationCount: number
+          maxViolations: number
+          message: string
+        }) => {
+          console.warn('[Profanity Warning]', payload)
+
+          if (payload.violationCount >= payload.maxViolations) {
+            // Banned - show severe error
+            toast.error(payload.message, {
+              duration: 10000,
+              icon: '🚫',
+              style: {
+                background: '#DC2626',
+                color: '#fff',
+                fontWeight: 'bold',
+              },
+            })
+          } else {
+            // Warning - show alert
+            toast(payload.message, {
+              duration: 6000,
+              icon: '⚠️',
+              style: {
+                background: '#F59E0B',
+                color: '#fff',
+                fontWeight: 'bold',
+              },
+            })
+          }
+        }
+      )
+
+      // ✅ Listen for session ended (from profanity ban)
+      socket.on(
+        'ai-speaking:session-ended',
+        (payload: { sessionId: string; reason: string; message: string }) => {
+          console.warn('[Session Ended]', payload)
+
+          if (payload.reason === 'profanity-ban') {
+            toast.error(payload.message, {
+              duration: 10000,
+              icon: '🚫',
+            })
+
+            // Navigate back after delay
+            setTimeout(() => {
+              navigate('/ai-speaking')
+            }, 3000)
+          }
+        }
+      )
 
       socket.on(
         'ai-speaking:asr-partial',
@@ -514,6 +575,11 @@ const AiSpeakingSessionPage: React.FC = () => {
           setAiStatusMessage('AI đang chuẩn bị câu hỏi mới cho bạn...')
           setAiErrorMessage(null)
           turnPromptRef.current.set(payload.turnId, payload.prompt)
+
+          // Update turn count
+          setSession((prev) =>
+            prev ? { ...prev, turnCount: prev.turnCount + 1 } : prev
+          )
         }
       )
 
@@ -544,6 +610,55 @@ const AiSpeakingSessionPage: React.FC = () => {
               ? 'Không nghe thấy phản hồi, AI sẽ gợi ý câu hỏi dễ hơn.'
               : 'Không nghe thấy bạn, hãy thử nói to hơn nhé.'
           )
+        }
+      )
+
+      socket.on(
+        'ai-speaking:turn-evaluated',
+        (payload: {
+          turnId: string
+          evaluation: {
+            score: number
+            feedback: string
+            transcript?: string
+            categories?: Array<{ name: string; comment: string }>
+            detail?: {
+              duration?: number
+              suggestedPhrases?: string[]
+            }
+          }
+        }) => {
+          console.log('📊 Turn evaluated:', payload)
+          setEvaluation({
+            score: payload.evaluation.score,
+            feedback: payload.evaluation.feedback,
+            categories: payload.evaluation.categories ?? [],
+          })
+          setFinalTranscript(payload.evaluation.transcript ?? '')
+          setRecordingState('idle')
+
+          // Show feedback toast
+          if (payload.evaluation.score === 0) {
+            toast(payload.evaluation.feedback, {
+              duration: 6000,
+              icon: 'ℹ️',
+              style: {
+                background: '#3b82f6',
+                color: 'white',
+              },
+            })
+          } else if (payload.evaluation.score < 50) {
+            toast(payload.evaluation.feedback, {
+              duration: 5000,
+              icon: '⚠️',
+              style: {
+                background: '#f59e0b',
+                color: 'white',
+              },
+            })
+          } else {
+            toast.success(payload.evaluation.feedback, { duration: 4000 })
+          }
         }
       )
 
@@ -677,19 +792,10 @@ const AiSpeakingSessionPage: React.FC = () => {
       }
       recorder.stop()
 
-      // ✅ Ngay lập tức cập nhật UI: ẩn "Đang ghi âm..." khi user nhấn dừng
-      if (currentTurnId) {
-        const messageId = `user-${currentTurnId}`
-        upsertConversationMessage({
-          id: messageId,
-          role: 'user',
-          turnId: currentTurnId,
-          text: undefined, // Ẩn loading text ngay lập tức
-          createdAt: Date.now(),
-        } as ConversationMessage)
-      }
+      // ✅ User stopped recording
+      // KHÔNG xóa message text ở đây - ASR final event sẽ update transcript sau
     }
-  }, [currentTurnId, upsertConversationMessage])
+  }, [currentTurnId])
 
   const handleFinalizeSession = async () => {
     if (!session) return
@@ -782,9 +888,27 @@ const AiSpeakingSessionPage: React.FC = () => {
 
         toast.success('Đã bắt đầu phiên luyện nói với AI')
       } catch (error: any) {
+        const status = error?.response?.status
         const message =
           error?.response?.data?.message ?? 'Không thể khởi tạo phiên'
-        toast.error(message)
+
+        // ✅ Handle profanity ban (403 Forbidden)
+        if (
+          status === 403 &&
+          (message.includes('cấm') || message.includes('vi phạm'))
+        ) {
+          toast.error(message, {
+            duration: 10000,
+            icon: '🚫',
+            style: {
+              background: '#DC2626',
+              color: '#fff',
+              fontWeight: 'bold',
+            },
+          })
+        } else {
+          toast.error(message)
+        }
         navigate('/ai-speaking')
       }
     }
@@ -879,9 +1003,11 @@ const AiSpeakingSessionPage: React.FC = () => {
                                   </p>
                                 </div>
                               ) : (
-                                <p className="text-sm text-gray-800 whitespace-pre-line">
-                                  {message.text}
-                                </p>
+                                <TextInteractionWrapper>
+                                  <p className="text-sm text-gray-800 whitespace-pre-line">
+                                    {message.text}
+                                  </p>
+                                </TextInteractionWrapper>
                               )}
                             </div>
                           )}
@@ -1067,7 +1193,7 @@ const AiSpeakingSessionPage: React.FC = () => {
               <li>
                 Lượt hiện tại: {session.turnCount}/{session.maxTurns}
               </li>
-              <li>Cảnh báo im lặng: {session.silenceWarnings}</li>
+              <li>Cảnh báo im lặng: {silenceWarnings}</li>
               <li>Chủ đề: {session.topic ?? 'Tự do'}</li>
             </ul>
             <button

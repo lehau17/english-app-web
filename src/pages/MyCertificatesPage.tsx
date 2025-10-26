@@ -3,20 +3,23 @@ import { Award, Search, TrendingUp } from 'lucide-react'
 import React, { useState } from 'react'
 import certificateApi from '../apis/certificate.api'
 import CertificateCard from '../components/certificates/CertificateCard'
+import type { GetMyCertificatesResponse } from '../types/certificate.type'
 
 const MyCertificatesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
 
   // Fetch certificates
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<GetMyCertificatesResponse>({
     queryKey: ['my-certificates'],
     queryFn: () => certificateApi.getMyCertificates({ skip: 0, take: 100 }),
   })
 
   // Filter certificates based on search
+  // data is GetMyCertificatesResponse = { data: IssuedCertificate[], total: number }
+  // data.data is the array of certificates
   const filteredCertificates =
-    data?.data.filter(
-      (cert) =>
+    data?.data?.filter(
+      (cert: any) =>
         cert.courseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         cert.certificateNumber.toLowerCase().includes(searchQuery.toLowerCase())
     ) || []
@@ -89,12 +92,14 @@ const MyCertificatesPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Điểm trung bình</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {data?.data.length
+                  {data?.data?.length
                     ? Math.round(
                         data.data
-                          .filter((c) => c.finalScore)
-                          .reduce((sum, c) => sum + (c.finalScore || 0), 0) /
-                          data.data.filter((c) => c.finalScore).length
+                          .filter((c: any) => c.finalScore)
+                          .reduce(
+                            (sum: number, c: any) => sum + (c.finalScore || 0),
+                            0
+                          ) / data.data.filter((c: any) => c.finalScore).length
                       )
                     : 0}
                   %
@@ -111,7 +116,8 @@ const MyCertificatesPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Hoàn thành 100%</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {data?.data.filter((c) => c.progress === 100).length || 0}
+                  {data?.data?.filter((c: any) => c.progress === 100).length ||
+                    0}
                 </p>
               </div>
               <div className="bg-green-100 rounded-full p-3">
@@ -138,7 +144,7 @@ const MyCertificatesPage: React.FC = () => {
         {/* Certificates Grid */}
         {filteredCertificates.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCertificates.map((certificate) => (
+            {filteredCertificates.map((certificate: any) => (
               <CertificateCard key={certificate.id} certificate={certificate} />
             ))}
           </div>

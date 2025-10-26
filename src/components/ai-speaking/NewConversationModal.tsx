@@ -241,7 +241,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
             <input
               type="range"
               min={4}
-              max={16}
+              max={12}
               step={2}
               value={maxTurns}
               onChange={(e) => setMaxTurns(parseInt(e.target.value))}
@@ -250,7 +250,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Ngắn (4 lượt)</span>
               <span>Vừa phải (8-10 lượt)</span>
-              <span>Dài (16 lượt)</span>
+              <span>Dài (12 lượt)</span>
             </div>
           </div>
 

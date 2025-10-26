@@ -21,10 +21,17 @@ export const certificateApi = {
     if (params?.take !== undefined)
       queryParams.append('take', params.take.toString())
 
-    const response = await axiosInstance.get(
-      `${API_PREFIX}/certificates/private/v1/my-certificates?${queryParams.toString()}`
+    const response = await axiosInstance.get<{
+      statusCode: number
+      message: string
+      data: GetMyCertificatesResponse
+    }>(
+      `${API_PREFIX}/private/v1/certificates/my-certificates?${queryParams.toString()}`
     )
-    return response.data
+    // API returns { statusCode, message, data: { data: [], total: 0 } }
+    // response.data = { statusCode, message, data: { data: [], total: 0 } }
+    // response.data.data = { data: [], total: 0 }
+    return response.data.data
   },
 
   /**
@@ -32,7 +39,7 @@ export const certificateApi = {
    */
   getCertificateById: async (id: string): Promise<IssuedCertificate> => {
     const response = await axiosInstance.get(
-      `${API_PREFIX}/certificates/private/v1/${id}`
+      `${API_PREFIX}/private/v1/certificates/${id}`
     )
     return response.data
   },
@@ -45,7 +52,7 @@ export const certificateApi = {
   ): Promise<VerifyCertificateResponse> => {
     try {
       const response = await axiosInstance.get(
-        `${API_PREFIX}/certificates/public/v1/verify/code/${verificationCode}`
+        `${API_PREFIX}/public/v1/certificates/verify/code/${verificationCode}`
       )
       return {
         success: true,
@@ -67,7 +74,7 @@ export const certificateApi = {
   ): Promise<VerifyCertificateResponse> => {
     try {
       const response = await axiosInstance.get(
-        `${API_PREFIX}/certificates/public/v1/verify/number/${certificateNumber}`
+        `${API_PREFIX}/public/v1/certificates/verify/number/${certificateNumber}`
       )
       return {
         success: true,
@@ -86,7 +93,7 @@ export const certificateApi = {
    */
   downloadCertificate: async (certificateId: string): Promise<Blob> => {
     const response = await axiosInstance.get(
-      `${API_PREFIX}/certificates/private/v1/${certificateId}/download`,
+      `${API_PREFIX}/private/v1/certificates/${certificateId}/download`,
       {
         responseType: 'blob',
       }

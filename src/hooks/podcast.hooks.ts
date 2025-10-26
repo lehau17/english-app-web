@@ -8,6 +8,11 @@ export const usePodcasts = (params?: {
   category?: string
   difficulty?: string
   search?: string
+  tab?: 'all' | 'recommended' | 'listening' | 'completed'
+  source?: string
+  duration?: 'short' | 'medium' | 'long'
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }) => {
   return useQuery({
     queryKey: ['podcasts', params],
