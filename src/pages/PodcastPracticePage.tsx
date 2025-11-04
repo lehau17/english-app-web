@@ -15,6 +15,10 @@ import {
 } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import {
+  MediaPlayer,
+  type MediaPlayerRef,
+} from '../components/podcast/MediaPlayer'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { usePodcast } from '../hooks/podcast.hooks'
@@ -25,6 +29,7 @@ import {
   useSubmitAttempt,
 } from '../hooks/podcastAttempt.hooks'
 import type { PodcastAttempt } from '../types/podcastAttempt.type'
+import { PodcastMediaType } from '../types/podcast.type'
 
 const PodcastPracticePage: React.FC = () => {
   const { podcastId } = useParams<{ podcastId: string }>()
@@ -49,7 +54,7 @@ const PodcastPracticePage: React.FC = () => {
   const [showExitModal, setShowExitModal] = useState(false)
   // Refs
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const audioRef = useRef<HTMLAudioElement>(null)
+  const mediaPlayerRef = useRef<MediaPlayerRef>(null)
   const playStartTimeRef = useRef<number>(0) // Thời gian bắt đầu play
   const lastCurrentTimeRef = useRef<number>(0) // Current time cuối cùng được ghi nhận
 
@@ -69,8 +74,8 @@ const PodcastPracticePage: React.FC = () => {
     // Nếu đang play, cập nhật time trước khi save
     let currentTimeSpent = audioTimeSpent
 
-    if (isTrackingTime && audioRef.current) {
-      const currentAudioTime = audioRef.current.currentTime
+    if (isTrackingTime && mediaPlayerRef.current) {
+      const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
       const playedDuration = Math.abs(
         currentAudioTime - lastCurrentTimeRef.current
       )
@@ -151,16 +156,16 @@ const PodcastPracticePage: React.FC = () => {
     setIsPlaying(true)
     setIsTrackingTime(true)
     playStartTimeRef.current = Date.now()
-    if (audioRef.current) {
-      lastCurrentTimeRef.current = audioRef.current.currentTime
+    if (mediaPlayerRef.current) {
+      lastCurrentTimeRef.current = mediaPlayerRef.current.getCurrentTime()
     }
   }, [])
 
   const handleAudioPause = useCallback(() => {
     setIsPlaying(false)
 
-    if (isTrackingTime && audioRef.current) {
-      const currentAudioTime = audioRef.current.currentTime
+    if (isTrackingTime && mediaPlayerRef.current) {
+      const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
       const playedDuration = Math.abs(
         currentAudioTime - lastCurrentTimeRef.current
       )
@@ -176,15 +181,15 @@ const PodcastPracticePage: React.FC = () => {
   }, [isTrackingTime])
 
   const handleTimeUpdate = useCallback(() => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime)
+    if (mediaPlayerRef.current) {
+      setCurrentTime(mediaPlayerRef.current.getCurrentTime())
     }
   }, [])
 
   useEffect(() => {
     return () => {
-      if (isTrackingTime && audioRef.current) {
-        const currentAudioTime = audioRef.current.currentTime
+      if (isTrackingTime && mediaPlayerRef.current) {
+        const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
         const playedDuration = Math.abs(
           currentAudioTime - lastCurrentTimeRef.current
         )
@@ -197,19 +202,19 @@ const PodcastPracticePage: React.FC = () => {
   }, [isTrackingTime])
 
   const togglePlay = useCallback(() => {
-    if (audioRef.current) {
+    if (mediaPlayerRef.current) {
       if (isPlaying) {
-        audioRef.current.pause()
+        mediaPlayerRef.current.pause()
       } else {
-        audioRef.current.play()
+        mediaPlayerRef.current.play()
       }
     }
   }, [isPlaying])
 
   // Update playback rate when changed
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = playbackRate
+    if (mediaPlayerRef.current) {
+      mediaPlayerRef.current.setPlaybackRate(playbackRate)
     }
   }, [playbackRate])
 
@@ -241,10 +246,10 @@ const PodcastPracticePage: React.FC = () => {
 
   const handleSeek = useCallback(
     (time: number) => {
-      if (audioRef.current) {
+      if (mediaPlayerRef.current) {
         // Nếu đang play, save time trước khi seek
         if (isTrackingTime) {
-          const currentAudioTime = audioRef.current.currentTime
+          const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
           const playedDuration = Math.abs(
             currentAudioTime - lastCurrentTimeRef.current
           )
@@ -254,7 +259,7 @@ const PodcastPracticePage: React.FC = () => {
           }
         }
 
-        audioRef.current.currentTime = time
+        mediaPlayerRef.current.seek(time)
         setCurrentTime(time)
 
         // Update reference sau khi seek
@@ -265,16 +270,16 @@ const PodcastPracticePage: React.FC = () => {
   )
 
   const handleLoadedMetadata = useCallback(() => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration)
+    if (mediaPlayerRef.current) {
+      setDuration(mediaPlayerRef.current.getDuration())
     }
   }, [])
 
   const replayAudio = useCallback(() => {
-    if (audioRef.current) {
+    if (mediaPlayerRef.current) {
       // Save current progress nếu đang play
       if (isTrackingTime) {
-        const currentAudioTime = audioRef.current.currentTime
+        const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
         const playedDuration = Math.abs(
           currentAudioTime - lastCurrentTimeRef.current
         )
@@ -284,8 +289,8 @@ const PodcastPracticePage: React.FC = () => {
         }
       }
 
-      audioRef.current.currentTime = 0
-      audioRef.current.play()
+      mediaPlayerRef.current.seek(0)
+      mediaPlayerRef.current.play()
       lastCurrentTimeRef.current = 0
     }
   }, [isTrackingTime])
@@ -612,6 +617,25 @@ const PodcastPracticePage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Video Player (if video podcast) */}
+              {podcastData?.mediaType === PodcastMediaType.VIDEO &&
+                podcastData.videoUrl && (
+                  <div className="mb-6">
+                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                      <MediaPlayer
+                        ref={mediaPlayerRef}
+                        mediaType={PodcastMediaType.VIDEO}
+                        videoUrl={podcastData.videoUrl}
+                        onTimeUpdate={handleTimeUpdate}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onPlay={handleAudioPlay}
+                        onPause={handleAudioPause}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  </div>
+                )}
+
               {/* Transcript with inputs */}
               <div className="prose max-w-none">
                 <div className="text-xs sm:text-sm lg:text-[14px] leading-relaxed">
@@ -896,19 +920,22 @@ const PodcastPracticePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Hidden Audio Element */}
-        <audio
-          ref={audioRef}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={handleAudioPlay}
-          onPause={handleAudioPause}
-          preload="metadata"
-        >
-          {podcastData?.audioUrl && (
-            <source src={podcastData.audioUrl} type="audio/mpeg" />
-          )}
-        </audio>
+        {/* Media Player (Audio or Video) */}
+        {podcastData && (
+          <MediaPlayer
+            ref={mediaPlayerRef}
+            mediaType={podcastData.mediaType || PodcastMediaType.AUDIO}
+            audioUrl={podcastData.audioUrl}
+            videoUrl={podcastData.videoUrl}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onPlay={handleAudioPlay}
+            onPause={handleAudioPause}
+            className={
+              podcastData.mediaType === PodcastMediaType.VIDEO ? '' : 'hidden'
+            }
+          />
+        )}
       </div>
 
       {/* Results Modal */}

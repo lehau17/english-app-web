@@ -4,6 +4,7 @@ import {
   Eye,
   FileText,
   Mic,
+  Play,
   Settings,
   Sparkles,
   Tag,
@@ -31,7 +32,9 @@ import { Textarea } from '../components/ui/textarea'
 import { useCreatePodcast } from '../hooks/podcast.hooks'
 import { podcastApi } from '../services/podcast.api'
 import { apiTranSlation } from '../services/translate.api'
+import { youtubeApi } from '../services/youtube.api'
 import type { CreatePodcastData } from '../types/podcast.type'
+import { PodcastMediaType } from '../types/podcast.type'
 import {
   extractGapsFromContent,
   previewGapsInContent,
@@ -41,7 +44,9 @@ interface FormData {
   title: string
   description: string
   content: string
+  mediaType: 'audio' | 'video'
   audioUrl: string
+  videoUrl?: string
   category: string
   difficulty: string
   audioMode: 'upload' | 'generate'
@@ -57,6 +62,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
   const [audioMode, setAudioMode] = useState<'upload' | 'generate'>('generate')
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isExtractingTranscript, setIsExtractingTranscript] = useState(false)
   const [gapPreview, setGapPreview] = useState<string>('')
   const [audioDuration, setAudioDuration] = useState<number>(0)
   const [ttsStatus, setTtsStatus] = useState<
@@ -74,6 +80,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
+      mediaType: 'audio',
       audioMode: 'generate',
       voiceType: 'female_en_us',
       speechSpeed: 1,
@@ -110,6 +117,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
 
   const createPodcastMutation = useCreatePodcast()
   const watchContent = watch('content')
+  const watchMediaType = watch('mediaType')
   const tagInput = (watch('__tag_input') as string) || ''
   const isLoading = createPodcastMutation.isPending
 
@@ -317,12 +325,64 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     }
   }
 
+  // Handle extract YouTube transcript
+  const handleExtractYouTubeTranscript = async () => {
+    const videoUrl = watch('videoUrl')
+
+    if (!videoUrl?.trim()) {
+      toast.error('Vui lòng nhập URL video trước')
+      return
+    }
+
+    // Check if it's a YouTube URL
+    const isYouTube =
+      videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
+
+    if (!isYouTube) {
+      toast.error(
+        'Chỉ hỗ trợ trích xuất transcript từ YouTube. Với video khác, vui lòng nhập transcript thủ công.'
+      )
+      return
+    }
+
+    setIsExtractingTranscript(true)
+    try {
+      const result = await youtubeApi.extractTranscript(videoUrl)
+
+      // Auto-fill content textarea with transcript
+      setValue('content', result.transcript)
+
+      toast.success(
+        `Đã trích xuất transcript thành công! (${result.segments.length} phân đoạn)`
+      )
+    } catch (error: any) {
+      console.error('Extract transcript error:', error)
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Không thể trích xuất transcript'
+
+      toast.error(errorMessage)
+    } finally {
+      setIsExtractingTranscript(false)
+    }
+  }
+
   // Handle form submission
   const onSubmit = async (formData: FormData) => {
-    // Allow submission even if audio is being generated in background
-    if (!formData.audioUrl && !queuedForTTS) {
-      toast.error('Vui lòng cung cấp audio (upload file hoặc generate từ text)')
-      return
+    // Validation based on mediaType
+    if (formData.mediaType === 'audio') {
+      if (!formData.audioUrl && !queuedForTTS) {
+        toast.error(
+          'Vui lòng cung cấp audio (upload file hoặc generate từ text)'
+        )
+        return
+      }
+    } else if (formData.mediaType === 'video') {
+      if (!formData.videoUrl) {
+        toast.error('Vui lòng cung cấp URL video')
+        return
+      }
     }
 
     // Extract gaps từ content
@@ -332,7 +392,16 @@ export const CreatePodcastPageUpdated: React.FC = () => {
       title: formData.title,
       description: formData.description,
       content: cleanContent,
-      audioUrl: formData.audioUrl || '', // Allow empty if queued for TTS
+      mediaType:
+        formData.mediaType === 'video'
+          ? PodcastMediaType.VIDEO
+          : PodcastMediaType.AUDIO,
+      ...(formData.mediaType === 'audio' && {
+        audioUrl: formData.audioUrl || '', // Allow empty if queued for TTS
+      }),
+      ...(formData.mediaType === 'video' && {
+        videoUrl: formData.videoUrl,
+      }),
       thumbnailUrl: formData.thumbnailUrl,
       category: formData.category,
       difficulty: formData.difficulty,
@@ -742,203 +811,329 @@ export const CreatePodcastPageUpdated: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Audio Section */}
+            {/* Media Type Selection Card */}
             <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+              <CardHeader className="pb-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                    <Volume2 className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Audio</CardTitle>
+                    <CardTitle className="text-xl">Loại Media</CardTitle>
                     <CardDescription>
-                      {audioMode === 'upload'
-                        ? 'Upload file audio của bạn'
-                        : 'Tạo audio từ văn bản'}
+                      Chọn loại nội dung: Audio hoặc Video
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                {/* Mode Selection Tabs */}
-                <div className="flex justify-center mb-6">
+                <div className="flex justify-center">
                   <div className="inline-flex bg-white/60 backdrop-blur-sm rounded-lg p-1 border border-gray-200">
                     <button
                       type="button"
-                      onClick={() => {
-                        setAudioMode('upload')
-                        setValue('audioMode', 'upload')
-                      }}
+                      onClick={() => setValue('mediaType', 'audio')}
                       className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                        audioMode === 'upload'
-                          ? 'bg-blue-500 text-white shadow-sm'
+                        watchMediaType === 'audio'
+                          ? 'bg-green-500 text-white shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      <Upload className="h-4 w-4 inline mr-2" />
-                      Upload Audio
+                      <Volume2 className="h-4 w-4 inline mr-2" />
+                      Audio Podcast
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setAudioMode('generate')
-                        setValue('audioMode', 'generate')
-                      }}
+                      onClick={() => setValue('mediaType', 'video')}
                       className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                        audioMode === 'generate'
-                          ? 'bg-blue-500 text-white shadow-sm'
+                        watchMediaType === 'video'
+                          ? 'bg-green-500 text-white shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      <Mic className="h-4 w-4 inline mr-2" />
-                      Generate từ Text
+                      <Play className="h-4 w-4 inline mr-2" />
+                      Video Podcast
                     </button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {audioMode === 'upload' ? (
+            {/* Audio/Video Section */}
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="pb-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                    {watchMediaType === 'video' ? (
+                      <Play className="h-5 w-5 text-white" />
+                    ) : (
+                      <Volume2 className="h-5 w-5 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">
+                      {watchMediaType === 'video' ? 'Video' : 'Audio'}
+                    </CardTitle>
+                    <CardDescription>
+                      {watchMediaType === 'video'
+                        ? 'Nhập URL video của bạn'
+                        : audioMode === 'upload'
+                          ? 'Upload file audio của bạn'
+                          : 'Tạo audio từ văn bản'}
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {watchMediaType === 'video' ? (
+                  /* Video URL Input */
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="font-medium">Upload file audio</Label>
-                      <DragDropFile
-                        accept="audio/*"
-                        label="Audio File"
-                        help="Kéo thả file audio (MP3/WAV) vào đây hoặc click để chọn"
-                        onUploaded={(url) => {
-                          setPreviewUrl(url)
-                          setValue('audioUrl', url)
-                          // Get audio duration
-                          const audio = new Audio(url)
-                          audio.addEventListener('loadedmetadata', () => {
-                            setAudioDuration(audio.duration)
-                          })
-                        }}
+                      <Label htmlFor="videoUrl" className="font-medium">
+                        URL Video <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="videoUrl"
+                        type="url"
+                        {...register('videoUrl', {
+                          required:
+                            watchMediaType === 'video'
+                              ? 'URL video là bắt buộc'
+                              : false,
+                          pattern: {
+                            value: /^https?:\/\/.+/,
+                            message: 'URL không hợp lệ',
+                          },
+                        })}
+                        placeholder="https://example.com/video.mp4"
+                        className="h-11"
                       />
+                      {errors.videoUrl && (
+                        <p className="text-sm text-red-500">
+                          {errors.videoUrl.message}
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
-                        Chấp nhận file MP3, WAV
+                        Nhập URL video (MP4, WebM, YouTube, v.v.)
                       </p>
+
+                      {/* Extract YouTube Transcript Button */}
+                      {watch('videoUrl') && (
+                        <Button
+                          type="button"
+                          onClick={handleExtractYouTubeTranscript}
+                          disabled={isExtractingTranscript}
+                          className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                        >
+                          {isExtractingTranscript ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Đang trích xuất transcript...
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              Trích xuất transcript từ YouTube
+                            </div>
+                          )}
+                        </Button>
+                      )}
+
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs text-blue-800">
+                          💡 <strong>YouTube:</strong> Click "Trích xuất
+                          transcript" để tự động lấy phụ đề
+                          <br />
+                          💡 <strong>Video khác:</strong> Vui lòng nhập
+                          transcript thủ công trong tab "Content" bên dưới
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="voice"
-                          className="flex items-center gap-2 font-medium"
+                  <>
+                    {/* Mode Selection Tabs - Only for Audio */}
+                    <div className="flex justify-center mb-6">
+                      <div className="inline-flex bg-white/60 backdrop-blur-sm rounded-lg p-1 border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAudioMode('upload')
+                            setValue('audioMode', 'upload')
+                          }}
+                          className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+                            audioMode === 'upload'
+                              ? 'bg-blue-500 text-white shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
                         >
-                          <Volume2 className="h-4 w-4" />
-                          Giọng đọc
-                        </Label>
-                        <select
-                          id="voice"
-                          {...register('voiceType')}
-                          className="h-11 w-full rounded-lg border border-input/30 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/20"
+                          <Upload className="h-4 w-4 inline mr-2" />
+                          Upload Audio
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAudioMode('generate')
+                            setValue('audioMode', 'generate')
+                          }}
+                          className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+                            audioMode === 'generate'
+                              ? 'bg-blue-500 text-white shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
                         >
-                          {voiceOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="speed" className="font-medium">
-                          Tốc độ đọc
-                        </Label>
-                        <select
-                          id="speed"
-                          {...register('speechSpeed')}
-                          className="h-11 w-full rounded-lg border border-input/30 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/20"
-                        >
-                          <option value={0.8}>Chậm (0.8x)</option>
-                          <option value={1.0}>Bình thường (1.0x)</option>
-                          <option value={1.2}>Nhanh (1.2x)</option>
-                        </select>
+                          <Mic className="h-4 w-4 inline mr-2" />
+                          Generate từ Text
+                        </button>
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      onClick={handleGenerateAudio}
-                      disabled={isGenerating || !watchContent?.trim()}
-                      className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
-                    >
-                      {isGenerating ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Đang tạo audio...
+                    {audioMode === 'upload' ? (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="font-medium">
+                            Upload file audio
+                          </Label>
+                          <DragDropFile
+                            accept="audio/*"
+                            label="Audio File"
+                            help="Kéo thả file audio (MP3/WAV) vào đây hoặc click để chọn"
+                            onUploaded={(url) => {
+                              setPreviewUrl(url)
+                              setValue('audioUrl', url)
+                              // Get audio duration
+                              const audio = new Audio(url)
+                              audio.addEventListener('loadedmetadata', () => {
+                                setAudioDuration(audio.duration)
+                              })
+                            }}
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Chấp nhận file MP3, WAV
+                          </p>
                         </div>
-                      ) : ttsStatus === 'generating' && queuedForTTS ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Audio đang được tạo...
-                        </div>
-                      ) : ttsStatus === 'completed' ? (
-                        <div className="flex items-center gap-2">
-                          <Mic className="h-4 w-4" />
-                          Tạo lại Audio
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Mic className="h-4 w-4" />
-                          Tạo Audio
-                        </div>
-                      )}
-                    </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="voice"
+                              className="flex items-center gap-2 font-medium"
+                            >
+                              <Volume2 className="h-4 w-4" />
+                              Giọng đọc
+                            </Label>
+                            <select
+                              id="voice"
+                              {...register('voiceType')}
+                              className="h-11 w-full rounded-lg border border-input/30 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/20"
+                            >
+                              {voiceOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                    {/* TTS Status Indicator */}
-                    {ttsStatus !== 'idle' && queuedForTTS && (
-                      <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50">
-                        <div className="flex items-center gap-2 text-amber-800">
-                          {ttsStatus === 'generating' && (
-                            <>
-                              <div className="w-4 h-4 border-2 border-amber-600/30 border-t-amber-600 rounded-full animate-spin"></div>
-                              <span className="text-sm font-medium">
-                                Audio đang được tạo trong nền...
-                              </span>
-                            </>
-                          )}
-                          {ttsStatus === 'error' && (
-                            <>
-                              <span className="text-red-500">⚠️</span>
-                              <span className="text-sm font-medium text-red-700">
-                                Có lỗi khi tạo audio
-                              </span>
-                            </>
-                          )}
+                          <div className="space-y-2">
+                            <Label htmlFor="speed" className="font-medium">
+                              Tốc độ đọc
+                            </Label>
+                            <select
+                              id="speed"
+                              {...register('speechSpeed')}
+                              className="h-11 w-full rounded-lg border border-input/30 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/20"
+                            >
+                              <option value={0.8}>Chậm (0.8x)</option>
+                              <option value={1.0}>Bình thường (1.0x)</option>
+                              <option value={1.2}>Nhanh (1.2x)</option>
+                            </select>
+                          </div>
                         </div>
-                        <p className="text-xs text-amber-700 mt-1">
-                          Bạn có thể tiếp tục tạo podcast. Audio sẽ được cập
-                          nhật khi hoàn thành.
+
+                        <Button
+                          type="button"
+                          onClick={handleGenerateAudio}
+                          disabled={isGenerating || !watchContent?.trim()}
+                          className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                        >
+                          {isGenerating ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Đang tạo audio...
+                            </div>
+                          ) : ttsStatus === 'generating' && queuedForTTS ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Audio đang được tạo...
+                            </div>
+                          ) : ttsStatus === 'completed' ? (
+                            <div className="flex items-center gap-2">
+                              <Mic className="h-4 w-4" />
+                              Tạo lại Audio
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Mic className="h-4 w-4" />
+                              Tạo Audio
+                            </div>
+                          )}
+                        </Button>
+
+                        {/* TTS Status Indicator */}
+                        {ttsStatus !== 'idle' && queuedForTTS && (
+                          <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                            <div className="flex items-center gap-2 text-amber-800">
+                              {ttsStatus === 'generating' && (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-amber-600/30 border-t-amber-600 rounded-full animate-spin"></div>
+                                  <span className="text-sm font-medium">
+                                    Audio đang được tạo trong nền...
+                                  </span>
+                                </>
+                              )}
+                              {ttsStatus === 'error' && (
+                                <>
+                                  <span className="text-red-500">⚠️</span>
+                                  <span className="text-sm font-medium text-red-700">
+                                    Có lỗi khi tạo audio
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <p className="text-xs text-amber-700 mt-1">
+                              Bạn có thể tiếp tục tạo podcast. Audio sẽ được cập
+                              nhật khi hoàn thành.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Audio Preview */}
+                    {previewUrl && (
+                      <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-gray-50 to-slate-50 border">
+                        <Label className="font-medium mb-2 block">
+                          Preview Audio
+                        </Label>
+                        <audio
+                          controls
+                          src={previewUrl}
+                          className="w-full"
+                          onLoadedMetadata={(e) =>
+                            setAudioDuration(e.currentTarget.duration || 0)
+                          }
+                        />
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Duration:{' '}
+                          {audioDuration
+                            ? formatDuration(audioDuration)
+                            : 'Unknown'}
                         </p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* Audio Preview */}
-                {previewUrl && (
-                  <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-gray-50 to-slate-50 border">
-                    <Label className="font-medium mb-2 block">
-                      Preview Audio
-                    </Label>
-                    <audio
-                      controls
-                      src={previewUrl}
-                      className="w-full"
-                      onLoadedMetadata={(e) =>
-                        setAudioDuration(e.currentTarget.duration || 0)
-                      }
-                    />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Duration:{' '}
-                      {audioDuration
-                        ? formatDuration(audioDuration)
-                        : 'Unknown'}
-                    </p>
-                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>

@@ -40,7 +40,9 @@ export interface CreatePodcastDto {
   title: string
   description: string
   content: string // transcript cho upload hoặc text cho generate
-  audioUrl: string
+  audioUrl?: string // Optional - for audio podcasts
+  videoUrl?: string // Optional - for video podcasts
+  mediaType: 'audio' | 'video' // Required - type of media
   thumbnailUrl?: string
   category: string
   difficulty: string

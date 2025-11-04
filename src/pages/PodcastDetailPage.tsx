@@ -11,6 +11,8 @@ import {
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CommentSection } from '../components/podcast-comment/CommentSection'
+import { MediaPlayer } from '../components/podcast/MediaPlayer'
+import { PodcastMediaType } from '../types/podcast.type'
 import { useAuth } from '../context/AuthContext'
 import {
   useAggregateRating,
@@ -384,9 +386,41 @@ const PodcastDetailPage: React.FC = () => {
 
           {/* Sidebar - Right Side */}
           <div className="lg:col-span-1">
-            {/* Podcast Artwork */}
+            {/* Podcast Media (Video/Audio/Artwork) */}
             <div className="rounded-lg overflow-hidden mb-6 shadow-sm">
-              {podcastData.thumbnailUrl ? (
+              {podcastData.mediaType === PodcastMediaType.VIDEO &&
+              podcastData.videoUrl ? (
+                /* Video Player */
+                <div className="aspect-video bg-black">
+                  <MediaPlayer
+                    mediaType={PodcastMediaType.VIDEO}
+                    videoUrl={podcastData.videoUrl}
+                    className="w-full h-full"
+                  />
+                </div>
+              ) : podcastData.mediaType === PodcastMediaType.AUDIO &&
+                podcastData.audioUrl ? (
+                /* Audio Player */
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6">
+                  <div className="aspect-square bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center mb-4">
+                    {podcastData.thumbnailUrl ? (
+                      <img
+                        src={podcastData.thumbnailUrl}
+                        alt={podcastData.title}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="text-4xl">🎧</div>
+                    )}
+                  </div>
+                  <MediaPlayer
+                    mediaType={PodcastMediaType.AUDIO}
+                    audioUrl={podcastData.audioUrl}
+                    className="w-full"
+                  />
+                </div>
+              ) : podcastData.thumbnailUrl ? (
+                /* Thumbnail Only */
                 <div className="aspect-square">
                   <img
                     src={podcastData.thumbnailUrl}
@@ -395,6 +429,7 @@ const PodcastDetailPage: React.FC = () => {
                   />
                 </div>
               ) : (
+                /* No Media */
                 <div className="aspect-square bg-gradient-to-br from-yellow-200 via-orange-200 to-green-200 relative">
                   <div className="absolute inset-0 p-6 flex items-center justify-center">
                     <div className="w-full h-full rounded-lg bg-gradient-to-br from-yellow-300 via-orange-300 to-green-300 flex items-center justify-center relative">

@@ -1,3 +1,9 @@
+// Media type enum
+export enum PodcastMediaType {
+  AUDIO = 'audio',
+  VIDEO = 'video',
+}
+
 // Unified create podcast data - matches backend CreatePodcastDto
 export interface CreatePodcastGapData {
   startIndex: number
@@ -10,7 +16,9 @@ export interface CreatePodcastData {
   title: string
   description: string
   content: string // transcript cho upload hoặc text cho generate
-  audioUrl: string
+  audioUrl?: string // Optional for video
+  videoUrl?: string // New for video
+  mediaType: PodcastMediaType // New field
   thumbnailUrl?: string
   category: string
   difficulty: string
@@ -43,7 +51,9 @@ export interface Podcast {
   id: string
   title: string
   description: string
-  audioUrl: string
+  audioUrl?: string // Optional now
+  videoUrl?: string // New field
+  mediaType: PodcastMediaType // New field
   duration: number
   transcript: string
   category: string

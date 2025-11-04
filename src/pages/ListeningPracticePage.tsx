@@ -7,10 +7,13 @@ import {
   Search,
   SortAsc,
   Sparkles,
+  Video,
+  Volume2,
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePodcasts } from '../hooks/podcast.hooks'
+import { PodcastMediaType } from '../types/podcast.type'
 
 const ListeningPracticePage: React.FC = () => {
   const navigate = useNavigate()
@@ -300,6 +303,29 @@ const ListeningPracticePage: React.FC = () => {
                           )}
                         </div>
                       )}
+
+                    {/* Media Type Badge */}
+                    <div
+                      className={`absolute -top-2 -left-2 ${
+                        podcast.mediaType === PodcastMediaType.VIDEO ||
+                        podcast.mediaType === 'video'
+                          ? 'bg-red-600'
+                          : 'bg-purple-600'
+                      } text-white rounded-lg px-2 py-1 text-xs font-medium flex items-center gap-1`}
+                    >
+                      {podcast.mediaType === PodcastMediaType.VIDEO ||
+                      podcast.mediaType === 'video' ? (
+                        <>
+                          <Video size={12} />
+                          <span>Video</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 size={12} />
+                          <span>Audio</span>
+                        </>
+                      )}
+                    </div>
 
                     {/* Duration badge */}
                     <div className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-lg px-2 py-1 text-xs font-medium">
