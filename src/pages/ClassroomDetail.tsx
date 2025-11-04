@@ -1776,7 +1776,7 @@ export default function ClassroomDetail(props: {
               >
                 {detail?.teacher?.displayName}
               </button>
-              <span className="hidden xs:inline">•</span>
+              <span>•</span>
               <span
                 className={`text-xs sm:text-sm ${
                   detail?.isActive ? 'text-green-600' : 'text-red-600'
@@ -1793,26 +1793,23 @@ export default function ClassroomDetail(props: {
           {user?.role === 'student' && (
             <button
               onClick={handleContinueLearning}
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-blue-700 transition flex-1 sm:flex-initial"
+              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-blue-700 transition flex-1 sm:flex-initial whitespace-nowrap"
             >
               <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="hidden xs:inline">
+              <span>
                 {detail?.status === 'upcoming'
                   ? 'Xem trước buổi học'
                   : 'Tiếp tục học'}
-              </span>
-              <span className="xs:hidden">
-                {detail?.status === 'upcoming' ? 'Xem trước' : 'Học'}
               </span>
             </button>
           )}
 
           <button
             onClick={() => copyClassCode(detail?.classCode ?? '')}
-            className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-gray-100 px-2 sm:px-3 py-2 text-xs sm:text-sm hover:bg-gray-200 transition flex-shrink-0"
+            className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-gray-100 px-2 sm:px-3 py-2 text-xs sm:text-sm hover:bg-gray-200 transition flex-shrink-0 whitespace-nowrap"
           >
             <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden xs:inline">{detail?.classCode}</span>
+            <span>{detail?.classCode}</span>
           </button>
           <button
             className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 transition flex-shrink-0 hidden sm:block"
@@ -1903,9 +1900,9 @@ export default function ClassroomDetail(props: {
                   {detail?.course?.title}"
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-green-600">
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
                     <Calendar className="h-3 w-3 flex-shrink-0" />
-                    <span className="hidden xs:inline">Hoàn thành: </span>
+                    <span>Hoàn thành: </span>
                     {new Date(
                       courseCertificate.completionDate
                     ).toLocaleDateString('vi-VN')}
@@ -1969,14 +1966,14 @@ export default function ClassroomDetail(props: {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition ${
+            className={`flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition whitespace-nowrap ${
               activeTab === id
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-            <span className="hidden xs:inline">{label}</span>
+            <span>{label}</span>
           </button>
         ))}
       </div>

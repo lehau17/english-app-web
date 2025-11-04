@@ -119,8 +119,8 @@ const ListeningPracticePage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 sm:mb-8 overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
-          <div className="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200 w-max sm:w-auto min-w-full sm:min-w-0">
+        <div className="mb-6 sm:mb-8 overflow-x-auto scrollbar-hide -mx-3 sm:mx-0 px-3 sm:px-0">
+          <div className="flex space-x-1 sm:space-x-2 bg-white p-1 rounded-lg border border-gray-200 w-max min-w-full sm:min-w-0">
             {tabs.map((tab) => (
               <motion.button
                 key={tab.key}
@@ -134,11 +134,10 @@ const ListeningPracticePage: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {tab.icon && <tab.icon size={14} className="sm:mr-2 mr-1" />}
-                <span className="hidden xs:inline">{tab.label}</span>
-                <span className="xs:hidden">{tab.label.split(' ')[0]}</span>
+                {tab.icon && <tab.icon size={16} className="mr-1.5 sm:mr-2" />}
+                <span>{tab.label}</span>
                 {tab.count !== undefined && (
-                  <span className="ml-1 sm:ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 sm:px-2 py-0.5 rounded-full">
+                  <span className="ml-1.5 sm:ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 sm:px-2 py-0.5 rounded-full">
                     {tab.count}
                   </span>
                 )}

@@ -325,11 +325,10 @@ const SchedulePage = () => {
             <button
               type="button"
               onClick={goToCurrentWeek}
-              className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 sm:px-3 text-xs sm:text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-100 flex-1 sm:flex-initial"
+              className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 sm:px-3 text-xs sm:text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-100 flex-1 sm:flex-initial whitespace-nowrap"
             >
               <CalendarDays className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden xs:inline">Tuần hiện tại</span>
-              <span className="xs:hidden">Hiện tại</span>
+              <span>Tuần hiện tại</span>
             </button>
 
             <button
@@ -342,14 +341,14 @@ const SchedulePage = () => {
                   toast.error('Không thể tải lại lịch học')
                 }
               }}
-              className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-gray-200 bg-white px-2 sm:px-3 text-xs sm:text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 flex-1 sm:flex-initial"
+              className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-gray-200 bg-white px-2 sm:px-3 text-xs sm:text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 flex-1 sm:flex-initial whitespace-nowrap"
             >
               {isFetchingWeekly ? (
                 <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4 flex-shrink-0" />
               )}
-              <span className="hidden xs:inline">Làm mới</span>
+              <span>Làm mới</span>
             </button>
           </div>
         </div>

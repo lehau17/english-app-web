@@ -217,9 +217,7 @@ function Stepper({
                 <span className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-gray-100 text-[10px] sm:text-xs font-medium flex-shrink-0">
                   {a.orderNo}
                 </span>
-                <span className="whitespace-nowrap hidden xs:inline">
-                  {a.title}
-                </span>
+                <span className="whitespace-nowrap truncate">{a.title}</span>
                 {done && (
                   <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
                 )}
@@ -261,8 +259,8 @@ function TopBar({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-600 overflow-hidden">
             <Home className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-            <span className="hidden xs:inline">Lớp học</span>
-            <span className="hidden xs:inline">›</span>
+            <span>Lớp học</span>
+            <span>›</span>
             <span className="hidden sm:inline truncate">
               {lesson?.title ?? 'Lesson'}
             </span>
@@ -297,10 +295,10 @@ function TopBar({
         </button>
         <button
           onClick={onExit}
-          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50 whitespace-nowrap"
         >
-          <span className="hidden xs:inline">Thoát</span>
-          <X className="h-3.5 w-3.5 xs:hidden" />
+          <span>Thoát</span>
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -4017,12 +4015,9 @@ export default function LearnPlayerPage(): JSX.Element {
                   </h2>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] sm:text-xs text-gray-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] sm:text-xs text-gray-700 whitespace-nowrap">
                     <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                    <span className="hidden xs:inline">
-                      Cố gắng trả lời rõ ràng
-                    </span>
-                    <span className="xs:hidden">Trả lời rõ</span>
+                    <span>Cố gắng trả lời rõ ràng</span>
                   </span>
                 </div>
               </div>
