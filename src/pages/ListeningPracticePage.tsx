@@ -80,52 +80,52 @@ const ListeningPracticePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
                 Luyện Nghe
               </h1>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Nâng cao kỹ năng nghe tiếng Anh với các bài học chất lượng cao
               </p>
             </div>
             <motion.button
               onClick={() => navigate('/listening-practice/create')}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-all shadow-sm"
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 transition-all shadow-sm w-full sm:w-auto justify-center"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Sparkles size={20} />
+              <Sparkles size={18} />
               Tạo Podcast
             </motion.button>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="relative mb-8">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+        <div className="relative mb-6 sm:mb-8">
+          <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
           </div>
           <input
             type="text"
             placeholder="Tìm kiếm bài học..."
-            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+            className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
         {/* Tabs */}
-        <div className="mb-8">
-          <div className="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200 w-fit">
+        <div className="mb-6 sm:mb-8 overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+          <div className="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200 w-max sm:w-auto min-w-full sm:min-w-0">
             {tabs.map((tab) => (
               <motion.button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-6 py-3 text-sm font-medium rounded-lg transition-all flex flex-row items-center
+                className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg transition-all flex flex-row items-center whitespace-nowrap
                   ${
                     activeTab === tab.key
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -134,10 +134,11 @@ const ListeningPracticePage: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {tab.icon && <tab.icon size={16} className="mr-2" />}
-                {tab.label}
-                {tab.count && (
-                  <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+                {tab.icon && <tab.icon size={14} className="sm:mr-2 mr-1" />}
+                <span className="hidden xs:inline">{tab.label}</span>
+                <span className="xs:hidden">{tab.label.split(' ')[0]}</span>
+                {tab.count !== undefined && (
+                  <span className="ml-1 sm:ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 sm:px-2 py-0.5 rounded-full">
                     {tab.count}
                   </span>
                 )}
@@ -147,58 +148,64 @@ const ListeningPracticePage: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          {/* Filter Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Filter className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Bộ lọc:</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700">
+                Bộ lọc:
+              </span>
             </div>
 
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Tất cả thể loại</option>
-              <option value="study">Du học</option>
-              <option value="business">Kinh doanh</option>
-              <option value="tech">Công nghệ</option>
-            </select>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Tất cả thể loại</option>
+                <option value="study">Du học</option>
+                <option value="business">Kinh doanh</option>
+                <option value="tech">Công nghệ</option>
+              </select>
 
-            <select
-              value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Tất cả nguồn</option>
-              <option value="wele">WELE Partners</option>
-              <option value="ted">TED Talks</option>
-              <option value="bbc">BBC</option>
-            </select>
+              <select
+                value={filterSource}
+                onChange={(e) => setFilterSource(e.target.value)}
+                className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Tất cả nguồn</option>
+                <option value="wele">WELE Partners</option>
+                <option value="ted">TED Talks</option>
+                <option value="bbc">BBC</option>
+              </select>
 
-            <select
-              value={filterDuration}
-              onChange={(e) => setFilterDuration(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Tất cả độ dài</option>
-              <option value="short">&lt; 10 phút</option>
-              <option value="medium">10-20 phút</option>
-              <option value="long">&gt; 20 phút</option>
-            </select>
+              <select
+                value={filterDuration}
+                onChange={(e) => setFilterDuration(e.target.value)}
+                className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Tất cả độ dài</option>
+                <option value="short">&lt; 10 phút</option>
+                <option value="medium">10-20 phút</option>
+                <option value="long">&gt; 20 phút</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
+          {/* Sort Section */}
+          <div className="flex flex-col xs:flex-row xs:items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <SortAsc className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-xs sm:text-sm font-medium text-gray-700">
                 Sắp xếp:
               </span>
             </div>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 xs:flex-initial xs:min-w-[150px] px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="newest">Mới nhất</option>
               <option value="popular">Phổ biến</option>
@@ -228,19 +235,19 @@ const ListeningPracticePage: React.FC = () => {
 
         {/* Podcast Grid */}
         {!isLoading && !error && (
-          <div className="grid gap-6">
+          <div className="grid gap-4 sm:gap-6">
             {podcasts.map((podcast: any, index: number) => (
               <motion.div
                 key={podcast.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-300 hover:border-blue-300"
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-all duration-300 hover:border-blue-300"
               >
-                <div className="flex gap-6 items-center">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                   {/* Thumbnail with enhanced design */}
-                  <div className="relative flex-shrink-0 flex items-center justify-center">
-                    <div className="w-32 h-32 rounded-lg overflow-hidden shadow-md">
+                  <div className="relative flex-shrink-0 w-full sm:w-auto flex items-center justify-center">
+                    <div className="w-full sm:w-32 aspect-square sm:h-32 rounded-lg overflow-hidden shadow-md">
                       {podcast.thumbnailUrl ? (
                         <img
                           src={podcast.thumbnailUrl}
@@ -304,40 +311,40 @@ const ListeningPracticePage: React.FC = () => {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-xl mb-2 hover:text-blue-600 transition-colors cursor-pointer">
+                        <h3 className="font-semibold text-gray-900 text-lg sm:text-xl mb-2 hover:text-blue-600 transition-colors cursor-pointer">
                           {podcast.title}
                         </h3>
-                        <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600 mb-3">
-                          <span className="bg-gray-100 px-3 py-1 rounded-full font-medium">
+                        <div className="flex items-center flex-wrap gap-2 text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
+                          <span className="bg-gray-100 px-2 sm:px-3 py-1 rounded-full font-medium">
                             {podcast.code}
                           </span>
-                          <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
+                          <span className="bg-blue-100 text-blue-700 px-2 sm:px-3 py-1 rounded-full font-medium">
                             {podcast.category}
                           </span>
                         </div>
                       </div>
-                      <span className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
+                      <span className="text-xs sm:text-sm text-gray-500 bg-gray-50 px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">
                         {new Date(podcast.createdAt).toLocaleDateString(
                           'vi-VN'
                         )}
                       </span>
                     </div>
 
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+                    <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-2 leading-relaxed">
                       {podcast.description || 'Không có mô tả'}
                     </p>
 
                     {/* Tags */}
                     {podcast.tags && podcast.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                         {podcast.tags
                           .slice(0, 3)
                           .map((tag: string, tagIndex: number) => (
                             <span
                               key={tagIndex}
-                              className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs"
+                              className="bg-purple-100 text-purple-700 px-2 py-0.5 sm:py-1 rounded text-xs"
                             >
                               {tag}
                             </span>
@@ -346,19 +353,19 @@ const ListeningPracticePage: React.FC = () => {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
+                    <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-3">
+                      <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
+                        <span className="bg-green-100 text-green-700 px-2 sm:px-3 py-1 rounded-full text-xs font-medium">
                           {podcast.difficulty}
                         </span>
                         {podcast.userProgress &&
                         podcast.userProgress.length > 0 ? (
                           podcast.userProgress[0].isCompleted ? (
-                            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
+                            <span className="bg-green-100 text-green-700 px-2 sm:px-3 py-1 rounded-full text-xs font-medium">
                               Hoàn thành
                             </span>
                           ) : podcast.userProgress[0].completionRate > 0 ? (
-                            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
+                            <span className="bg-blue-100 text-blue-700 px-2 sm:px-3 py-1 rounded-full text-xs font-medium">
                               Đang học (
                               {Math.round(
                                 podcast.userProgress[0].completionRate
@@ -367,7 +374,7 @@ const ListeningPracticePage: React.FC = () => {
                             </span>
                           ) : null
                         ) : (
-                          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                          <span className="bg-gray-100 text-gray-600 px-2 sm:px-3 py-1 rounded-full text-xs font-medium">
                             Chưa học
                           </span>
                         )}
@@ -377,7 +384,7 @@ const ListeningPracticePage: React.FC = () => {
                         onClick={() =>
                           navigate(`/listening-practice/${podcast.id}`)
                         }
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-sm"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-all shadow-sm"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
@@ -392,9 +399,9 @@ const ListeningPracticePage: React.FC = () => {
         )}
 
         {/* Load more button */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-6 sm:mt-8">
           <motion.button
-            className="bg-white border border-gray-300 hover:border-blue-500 text-gray-700 hover:text-blue-600 px-8 py-3 rounded-lg font-medium transition-all shadow-sm hover:shadow-md"
+            className="bg-white border border-gray-300 hover:border-blue-500 text-gray-700 hover:text-blue-600 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-all shadow-sm hover:shadow-md w-full sm:w-auto"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

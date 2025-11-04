@@ -301,7 +301,7 @@ export default function ProfilePage() {
       </section>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 rounded-2xl bg-gray-100 p-1">
+      <div className="flex gap-1 rounded-2xl bg-gray-100 p-1 overflow-x-auto">
         {(
           [
             { id: 'overview', label: 'Tổng quan', icon: User },
@@ -321,14 +321,14 @@ export default function ProfilePage() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${
+            className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition whitespace-nowrap ${
               activeTab === id
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Icon className="h-4 w-4" />
-            <span className="hidden sm:inline">{label}</span>
+            <Icon className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">{label}</span>
           </button>
         ))}
       </div>
@@ -340,20 +340,22 @@ export default function ProfilePage() {
             {/* Learning Stats */}
             <LearningStatsCard stats={learningStats} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Personal Information */}
-              <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Thông tin cá nhân</h3>
+              <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <h3 className="text-base sm:text-lg font-semibold">
+                    Thông tin cá nhân
+                  </h3>
                   <button
                     onClick={handleEditClick}
-                    className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
+                    className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
                   >
                     <Edit className="h-4 w-4" />
-                    Chỉnh sửa
+                    <span>Chỉnh sửa</span>
                   </button>
                 </div>
-                <div className="grid grid-cols-1 gap-4 text-sm">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 text-sm">
                   <div>
                     <p className="text-gray-500">Họ và tên</p>
                     <p className="font-medium text-gray-900">{profile.name}</p>

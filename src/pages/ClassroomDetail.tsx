@@ -1755,28 +1755,30 @@ export default function ClassroomDetail(props: {
     )
   }
   return (
-    <div className="min-h-screen space-y-6">
+    <div className="min-h-screen space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-start sm:items-center gap-2 sm:gap-4 min-w-0 flex-1 w-full sm:w-auto">
           <button
             onClick={onBack}
-            className="rounded-lg p-2 hover:bg-gray-100 transition"
+            className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 transition flex-shrink-0"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{detail?.name}</h1>
-            <div className="flex items-center gap-2 text-gray-600">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
+              {detail?.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600">
               <button
-                className="underline underline-offset-2 hover:text-gray-900"
+                className="underline underline-offset-2 hover:text-gray-900 truncate max-w-[150px] sm:max-w-none"
                 onClick={() => setOpenTeacherId(detail?.teacher?.id || null)}
               >
                 {detail?.teacher?.displayName}
               </button>
-              <span>•</span>
+              <span className="hidden xs:inline">•</span>
               <span
-                className={`text-sm ${
+                className={`text-xs sm:text-sm ${
                   detail?.isActive ? 'text-green-600' : 'text-red-600'
                 }`}
               >
@@ -1786,83 +1788,90 @@ export default function ClassroomDetail(props: {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* NEW: Global CTA “Tiếp tục học” */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto">
+          {/* NEW: Global CTA "Tiếp tục học" */}
           {user?.role === 'student' && (
             <button
               onClick={handleContinueLearning}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 transition"
+              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-blue-700 transition flex-1 sm:flex-initial"
             >
-              <Play className="h-4 w-4" />
-              {detail?.status === 'upcoming'
-                ? 'Xem trước buổi học'
-                : 'Tiếp tục học'}
+              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden xs:inline">
+                {detail?.status === 'upcoming'
+                  ? 'Xem trước buổi học'
+                  : 'Tiếp tục học'}
+              </span>
+              <span className="xs:hidden">
+                {detail?.status === 'upcoming' ? 'Xem trước' : 'Học'}
+              </span>
             </button>
           )}
 
           <button
             onClick={() => copyClassCode(detail?.classCode ?? '')}
-            className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200 transition"
+            className="flex items-center gap-1.5 sm:gap-2 rounded-lg bg-gray-100 px-2 sm:px-3 py-2 text-xs sm:text-sm hover:bg-gray-200 transition flex-shrink-0"
           >
-            <Copy className="h-4 w-4" />
-            {detail?.classCode}
+            <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">{detail?.classCode}</span>
           </button>
           <button
-            className="rounded-lg p-2 hover:bg-gray-100 transition"
+            className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 transition flex-shrink-0 hidden sm:block"
             aria-label="Share class"
           >
-            <Share2 className="h-5 w-5" />
+            <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <button
-            className="rounded-lg p-2 hover:bg-gray-100 transition"
+            className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 transition flex-shrink-0"
             aria-label="More actions"
           >
-            <MoreVertical className="h-5 w-5" />
+            <MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
-          <div className="flex items-center gap-3">
-            <Users className="h-6 w-6 text-blue-600" />
-            <div>
-              <p className="text-sm text-blue-700">Học sinh</p>
-              <p className="text-xl font-bold text-blue-900">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-xl bg-blue-50 p-3 sm:p-4 border border-blue-200">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Users className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-blue-700">Học sinh</p>
+              <p className="text-lg sm:text-xl font-bold text-blue-900 truncate">
                 {detail?._count?.students ?? 0}/{detail?.maxStudents ?? 0}
               </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl bg-green-50 p-4 border border-green-200">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-green-600" />
-            <div>
-              <p className="text-sm text-green-700">Bài tập</p>
-              <p className="text-xl font-bold text-green-900">
+        <div className="rounded-xl bg-green-50 p-3 sm:p-4 border border-green-200">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-green-700">Bài tập</p>
+              <p className="text-lg sm:text-xl font-bold text-green-900 truncate">
                 {detail?._count?.assignments ?? 0}
               </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl bg-orange-50 p-4 border border-orange-200">
-          <div className="flex items-center gap-3">
-            <Bell className="h-6 w-6 text-orange-600" />
-            <div>
-              <p className="text-sm text-orange-700">Thông báo</p>
-              <p className="text-xl font-bold text-orange-900">
+        <div className="rounded-xl bg-orange-50 p-3 sm:p-4 border border-orange-200">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Bell className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-orange-700">Thông báo</p>
+              <p className="text-lg sm:text-xl font-bold text-orange-900 truncate">
                 {announcementTotal}
               </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl bg-purple-50 p-4 border border-purple-200">
-          <div className="flex items-center gap-3">
-            <Trophy className="h-6 w-6 text-purple-600" />
-            <div>
-              <p className="text-sm text-purple-700">Điểm trung bình</p>
-              <p className="text-xl font-bold text-purple-900">
+        <div className="rounded-xl bg-purple-50 p-3 sm:p-4 border border-purple-200">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-purple-700">
+                Điểm trung bình
+              </p>
+              <p className="text-lg sm:text-xl font-bold text-purple-900 truncate">
                 {averageScore}
               </p>
             </div>
@@ -1875,26 +1884,28 @@ export default function ClassroomDetail(props: {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-6"
+          className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-4 sm:p-6"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <Award className="h-6 w-6 text-green-600" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                <Award className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-green-900 flex items-center gap-2">
-                  <Trophy className="h-5 w-5" />
-                  Chúc mừng! Bạn đã hoàn thành khóa học
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-green-900 flex items-center gap-2">
+                  <Trophy className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span className="truncate">
+                    Chúc mừng! Bạn đã hoàn thành khóa học
+                  </span>
                 </h3>
-                <p className="text-sm text-green-700">
+                <p className="text-xs sm:text-sm text-green-700 mt-1">
                   Bạn đã nhận được chứng chỉ cho khóa học "
                   {detail?.course?.title}"
                 </p>
-                <div className="mt-2 flex items-center gap-4 text-xs text-green-600">
+                <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-green-600">
                   <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    Hoàn thành:{' '}
+                    <Calendar className="h-3 w-3 flex-shrink-0" />
+                    <span className="hidden xs:inline">Hoàn thành: </span>
                     {new Date(
                       courseCertificate.completionDate
                     ).toLocaleDateString('vi-VN')}
@@ -1905,15 +1916,15 @@ export default function ClassroomDetail(props: {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto flex-shrink-0">
               <button
                 onClick={() =>
                   navigate(`/certificates/${courseCertificate.id}`)
                 }
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-green-700 transition"
               >
-                <Eye className="h-4 w-4" />
-                Xem chứng chỉ
+                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>Xem chứng chỉ</span>
               </button>
               <button
                 onClick={async () => {
@@ -1935,7 +1946,7 @@ export default function ClassroomDetail(props: {
                     toast.error('Không thể tải xuống chứng chỉ')
                   }
                 }}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-blue-700 transition"
               >
                 <Download className="h-4 w-4" />
                 Tải PDF
@@ -1953,25 +1964,25 @@ export default function ClassroomDetail(props: {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 rounded-2xl bg-gray-100 p-1">
+      <div className="flex gap-1 rounded-xl sm:rounded-2xl bg-gray-100 p-1">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${
+            className={`flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition ${
               activeTab === id
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Icon className="h-4 w-4" />
-            <span className="hidden sm:inline">{label}</span>
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">{label}</span>
           </button>
         ))}
       </div>
 
       {/* Tab Content */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {activeTab === 'overview' && (
             <div className="space-y-6">

@@ -134,11 +134,11 @@ const PodcastDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
         {/* Header with breadcrumb and play button */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600 font-medium">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm sm:text-base text-gray-600 font-medium">
               {podcastData.code}
             </span>
             <button className="p-2 rounded-full hover:bg-gray-100">
@@ -154,39 +154,39 @@ const PodcastDetailPage: React.FC = () => {
             onClick={() => {
               navigate(`/listening-practice/${podcastData.id}/test`)
             }}
-            className={`${getButtonColorClass(statusInfo.status)} text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-sm`}
+            className={`${getButtonColorClass(statusInfo.status)} text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-sm sm:text-base font-medium shadow-sm w-full sm:w-auto justify-center`}
           >
             <Play size={16} fill="currentColor" />
             <span>{getButtonText(statusInfo.status)}</span>
           </motion.button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Main Content - Left Side */}
           <div className="lg:col-span-2">
             {/* Title */}
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
               {podcastData.title}
             </h1>
 
             {/* Practice Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-3">
-                <h2 className="text-lg font-semibold text-gray-900">
+            <div className="mb-6 sm:mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                   Luyện tập
                 </h2>
-                <span className="text-orange-500 text-sm flex items-center gap-1">
+                <span className="text-orange-500 text-xs sm:text-sm flex items-center gap-1">
                   (Điền từ khuyết){' '}
                   <LinkIcon size={14} className="text-blue-500" />
                 </span>
               </div>
-              <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+              <p className="text-gray-600 text-sm mb-4 sm:mb-6 leading-relaxed">
                 {podcastData.description ||
                   'Rèn luyện kỹ năng nghe với bài tập điền từ khuyết'}
               </p>
 
               {/* Activity Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {activities.map((activity) => (
                   <motion.div
                     key={activity.id}
@@ -298,13 +298,13 @@ const PodcastDetailPage: React.FC = () => {
 
               {/* Interactive rating for logged-in users */}
               {auth?.user ? (
-                <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
-                  <div className="text-sm text-gray-700 mb-4">
+                <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 sm:p-4">
+                  <div className="text-sm text-gray-700 mb-3 sm:mb-4">
                     {hasRated ? 'Bạn đã đánh giá' : 'Gửi đánh giá của bạn'}
                   </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-20">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">
+                      <span className="text-xs sm:text-sm font-medium xs:w-20">
                         Tổng thể:
                       </span>
                       <StarRating
@@ -318,8 +318,10 @@ const PodcastDetailPage: React.FC = () => {
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-20">Độ khó:</span>
+                    <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">
+                      <span className="text-xs sm:text-sm font-medium xs:w-20">
+                        Độ khó:
+                      </span>
                       <StarRating
                         rating={userRatings.difficultyRating}
                         interactive
@@ -331,8 +333,8 @@ const PodcastDetailPage: React.FC = () => {
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-20">
+                    <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">
+                      <span className="text-xs sm:text-sm font-medium xs:w-20">
                         Chất lượng:
                       </span>
                       <StarRating

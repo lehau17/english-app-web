@@ -280,53 +280,56 @@ const SchedulePage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <p className="text-sm font-medium text-blue-600">Lịch học</p>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <p className="text-xs sm:text-sm font-medium text-blue-600">
+            Lịch học
+          </p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Lịch học, lịch thi theo tuần
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs sm:text-sm text-gray-500">
             {formatWeekRange(weekStartDate, timezone)} · Múi giờ{' '}
             {timezone.replace('_', '/')}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
+          <div className="flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm w-full sm:w-auto">
             <button
               type="button"
               onClick={handlePrevWeek}
-              className="inline-flex h-10 w-10 items-center justify-center border-r border-gray-200 text-gray-600 hover:bg-gray-50"
+              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center border-r border-gray-200 text-gray-600 hover:bg-gray-50"
               aria-label="Tuần trước"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="flex items-center px-3">
-              <CalendarDays className="mr-2 h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-gray-900">
+            <div className="flex items-center px-2 sm:px-3 flex-1 min-w-0">
+              <CalendarDays className="mr-1 sm:mr-2 h-4 w-4 text-blue-600 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                 {formatWeekRange(weekStartDate, timezone)}
               </span>
             </div>
             <button
               type="button"
               onClick={handleNextWeek}
-              className="inline-flex h-10 w-10 items-center justify-center border-l border-gray-200 text-gray-600 hover:bg-gray-50"
+              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center border-l border-gray-200 text-gray-600 hover:bg-gray-50"
               aria-label="Tuần sau"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-row gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={goToCurrentWeek}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-100"
+              className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 sm:px-3 text-xs sm:text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-100 flex-1 sm:flex-initial"
             >
-              <CalendarDays className="h-4 w-4" />
-              Tuần hiện tại
+              <CalendarDays className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden xs:inline">Tuần hiện tại</span>
+              <span className="xs:hidden">Hiện tại</span>
             </button>
 
             <button
@@ -339,14 +342,14 @@ const SchedulePage = () => {
                   toast.error('Không thể tải lại lịch học')
                 }
               }}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50"
+              className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-gray-200 bg-white px-2 sm:px-3 text-xs sm:text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 flex-1 sm:flex-initial"
             >
               {isFetchingWeekly ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
               ) : (
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4 flex-shrink-0" />
               )}
-              Làm mới
+              <span className="hidden xs:inline">Làm mới</span>
             </button>
           </div>
         </div>
@@ -360,10 +363,10 @@ const SchedulePage = () => {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 border-b border-gray-100 px-3 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
+                <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                   Tuần {formatWeekRange(weekStartDate, timezone)}
                 </h2>
               </div>
@@ -375,7 +378,7 @@ const SchedulePage = () => {
             <div className="overflow-x-auto">
               <div className="min-w-[900px]">
                 <div className="grid grid-cols-8 border-b border-gray-200">
-                  <div className="p-3 bg-yellow-100 border-r border-gray-200 text-sm font-medium text-gray-700">
+                  <div className="p-2 sm:p-3 bg-yellow-100 border-r border-gray-200 text-xs sm:text-sm font-medium text-gray-700">
                     Ca học
                   </div>
                   {WEEKDAYS.map((weekday, index) => {
@@ -383,17 +386,18 @@ const SchedulePage = () => {
                     const dateStr = date.toLocaleDateString('vi-VN', {
                       day: '2-digit',
                       month: '2-digit',
-                      year: 'numeric',
                     })
                     return (
                       <div
                         key={weekday.key}
-                        className="p-3 bg-blue-50 border-r border-gray-200 text-center"
+                        className="p-2 sm:p-3 bg-blue-50 border-r border-gray-200 text-center"
                       >
-                        <div className="text-sm font-medium text-blue-700">
+                        <div className="text-xs sm:text-sm font-medium text-blue-700">
                           {weekday.label}
                         </div>
-                        <div className="text-xs text-blue-600">{dateStr}</div>
+                        <div className="text-[10px] sm:text-xs text-blue-600">
+                          {dateStr}
+                        </div>
                       </div>
                     )
                   })}
@@ -404,7 +408,7 @@ const SchedulePage = () => {
                     key={period.key}
                     className="grid grid-cols-8 border-b border-gray-200"
                   >
-                    <div className="p-3 bg-yellow-100 border-r border-gray-200 text-center text-sm font-medium text-gray-700">
+                    <div className="p-2 sm:p-3 bg-yellow-100 border-r border-gray-200 text-center text-xs sm:text-sm font-medium text-gray-700">
                       {period.label}
                     </div>
                     {WEEKDAYS.map((weekday) => {
@@ -413,10 +417,10 @@ const SchedulePage = () => {
                       return (
                         <div
                           key={`${period.key}-${weekday.key}`}
-                          className="min-h-[96px] border-r border-gray-200 p-2"
+                          className="min-h-[80px] sm:min-h-[96px] border-r border-gray-200 p-1.5 sm:p-2"
                         >
                           {sessions.length > 0 ? (
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-1.5 sm:gap-2">
                               {sessions.map((session) => {
                                 const style = stateStyles[session.state]
                                 const sessionTimezone =
@@ -431,50 +435,48 @@ const SchedulePage = () => {
                                   <div
                                     key={session.sessionId}
                                     onClick={() => handleSessionClick(session)}
-                                    className="space-y-1 rounded-lg border border-gray-100 bg-gray-50 p-2 text-xs text-gray-600 shadow-sm cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                                    className="space-y-0.5 sm:space-y-1 rounded-md sm:rounded-lg border border-gray-100 bg-gray-50 p-1.5 sm:p-2 text-[10px] sm:text-xs text-gray-600 shadow-sm cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
                                   >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="font-semibold text-gray-800">
+                                    <div className="flex items-start justify-between gap-1">
+                                      <p className="font-semibold text-gray-800 text-[10px] sm:text-xs leading-tight line-clamp-2">
                                         {session.title}
                                       </p>
                                       <span
-                                        className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${style.bg} ${style.text}`}
+                                        className={`inline-flex shrink-0 items-center rounded-full px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold ${style.bg} ${style.text}`}
                                       >
                                         {style.label}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                                      <Clock className="h-3 w-3 text-blue-500" />
-                                      <span>
-                                        {timeLabel} ·{' '}
-                                        {sessionTimezone.replace('_', '/')}
+                                    <div className="flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] text-gray-500">
+                                      <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-500 flex-shrink-0" />
+                                      <span className="truncate">
+                                        {timeLabel}
                                       </span>
                                     </div>
-                                    <div className="text-[11px] text-gray-500">
+                                    <div className="text-[9px] sm:text-[11px] text-gray-500 truncate">
                                       {session.classroomName}
                                     </div>
                                     {session.course && (
-                                      <div className="text-[11px] text-gray-600 font-medium">
-                                        Khóa học: {session.course.title}
+                                      <div className="text-[9px] sm:text-[11px] text-gray-600 font-medium truncate">
+                                        {session.course.title}
                                       </div>
                                     )}
                                     {session.sessionSchedule && (
-                                      <div className="text-[11px] text-purple-600">
+                                      <div className="text-[9px] sm:text-[11px] text-purple-600">
                                         Buổi{' '}
                                         {session.sessionSchedule.sessionNumber}
                                       </div>
                                     )}
                                     {session.activities &&
                                       session.activities.length > 0 && (
-                                        <div className="text-[11px] text-green-600">
+                                        <div className="text-[9px] sm:text-[11px] text-green-600">
                                           {session.activities.length} hoạt động
-                                          học tập
                                         </div>
                                       )}
                                     {session.instructor?.displayName && (
-                                      <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                                        <UserIcon className="h-3 w-3 text-gray-400" />
-                                        <span>
+                                      <div className="flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] text-gray-500">
+                                        <UserIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400 flex-shrink-0" />
+                                        <span className="truncate">
                                           {session.instructor.displayName}
                                         </span>
                                       </div>
@@ -484,9 +486,10 @@ const SchedulePage = () => {
                                         href={session.meetingUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center text-[11px] font-medium text-blue-600 hover:underline"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center text-[9px] sm:text-[11px] font-medium text-blue-600 hover:underline"
                                       >
-                                        Tham gia học
+                                        Tham gia
                                       </a>
                                     )}
                                   </div>
@@ -495,7 +498,7 @@ const SchedulePage = () => {
                             </div>
                           ) : (
                             <div className="flex h-full items-center justify-center">
-                              <span className="text-[11px] text-gray-300">
+                              <span className="text-[9px] sm:text-[11px] text-gray-300">
                                 Không có lịch
                               </span>
                             </div>

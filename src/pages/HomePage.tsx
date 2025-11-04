@@ -309,58 +309,63 @@ export default function HomePage(): JSX.Element {
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => setActiveTab('all')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                     activeTab === 'all'
                       ? 'bg-blue-100 text-blue-700 border border-blue-200'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  Tất cả ({classroomCounts?.total || 0})
+                  <span className="hidden sm:inline">Tất cả </span>
+                  <span>({classroomCounts?.total || 0})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('ongoing')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                     activeTab === 'ongoing'
                       ? 'bg-green-100 text-green-700 border border-green-200'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  <CheckCircle className="w-4 h-4 inline mr-1" />
-                  Đang diễn ra ({classroomCounts?.ongoing || 0})
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  <span className="hidden sm:inline">Đang diễn ra </span>
+                  <span>({classroomCounts?.ongoing || 0})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('upcoming')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                     activeTab === 'upcoming'
                       ? 'bg-blue-100 text-blue-700 border border-blue-200'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Sắp diễn ra ({classroomCounts?.upcoming || 0})
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  <span className="hidden sm:inline">Sắp diễn ra </span>
+                  <span>({classroomCounts?.upcoming || 0})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('completed')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                     activeTab === 'completed'
                       ? 'bg-gray-100 text-gray-700 border border-gray-200'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  <CheckCircle className="w-4 h-4 inline mr-1" />
-                  Đã hoàn thành ({classroomCounts?.completed || 0})
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  <span className="hidden sm:inline">Hoàn thành </span>
+                  <span>({classroomCounts?.completed || 0})</span>
                 </button>
                 {isStudent && classroomCounts && classroomCounts.unpaid > 0 && (
                   <button
                     onClick={() => setActiveTab('unpaid')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                       activeTab === 'unpaid'
                         ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    <CreditCard className="w-4 h-4 inline mr-1" />
-                    Chưa thanh toán ({classroomCounts.unpaid})
+                    <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                    <span className="hidden sm:inline">Chưa thanh toán </span>
+                    <span>({classroomCounts.unpaid})</span>
                   </button>
                 )}
               </div>
@@ -485,8 +490,8 @@ export default function HomePage(): JSX.Element {
               <div className="flex flex-col gap-3">
                 {/* Row 1: Classroom selector */}
                 {classrooms.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide min-w-[60px]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide sm:min-w-[60px]">
                       Lớp học:
                     </span>
                     <select
@@ -507,64 +512,66 @@ export default function HomePage(): JSX.Element {
                 )}
 
                 {/* Row 2: Period filters */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide min-w-[60px]">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide sm:min-w-[60px]">
                     Thời gian:
                   </span>
-                  <div className="relative">
-                    <select
-                      value={periodType}
-                      onChange={(event) =>
-                        setPeriodType(event.target.value as 'month' | 'all')
-                      }
-                      className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 pl-9 pr-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 appearance-none"
-                      aria-label="Chọn khoảng thời gian"
-                    >
-                      <option value="month">Theo tháng</option>
-                      <option value="all">Toàn bộ</option>
-                    </select>
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      {periodType === 'month' ? (
-                        <Calendar className="h-4 w-4 text-blue-600" />
-                      ) : (
-                        <Globe className="h-4 w-4 text-green-600" />
-                      )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <select
+                        value={periodType}
+                        onChange={(event) =>
+                          setPeriodType(event.target.value as 'month' | 'all')
+                        }
+                        className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 pl-9 pr-8 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 appearance-none"
+                        aria-label="Chọn khoảng thời gian"
+                      >
+                        <option value="month">Theo tháng</option>
+                        <option value="all">Toàn bộ</option>
+                      </select>
+                      <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {periodType === 'month' ? (
+                          <Calendar className="h-4 w-4 text-blue-600" />
+                        ) : (
+                          <Globe className="h-4 w-4 text-green-600" />
+                        )}
+                      </div>
                     </div>
+
+                    {periodType === 'month' && (
+                      <>
+                        <select
+                          value={selectedMonth}
+                          onChange={(event) =>
+                            setSelectedMonth(Number(event.target.value))
+                          }
+                          className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          aria-label="Chọn tháng"
+                        >
+                          {monthOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          value={selectedYear}
+                          onChange={(event) =>
+                            setSelectedYear(Number(event.target.value))
+                          }
+                          className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          aria-label="Chọn năm"
+                        >
+                          {yearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
                   </div>
-
-                  {periodType === 'month' && (
-                    <>
-                      <select
-                        value={selectedMonth}
-                        onChange={(event) =>
-                          setSelectedMonth(Number(event.target.value))
-                        }
-                        className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        aria-label="Chọn tháng"
-                      >
-                        {monthOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      <select
-                        value={selectedYear}
-                        onChange={(event) =>
-                          setSelectedYear(Number(event.target.value))
-                        }
-                        className="rounded-lg border border-gray-300 bg-gradient-to-br from-white to-gray-50 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        aria-label="Chọn năm"
-                      >
-                        {yearOptions.map((year) => (
-                          <option key={year} value={year}>
-                            {year}
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
                 </div>
               </div>
             </div>

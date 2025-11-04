@@ -170,8 +170,8 @@ function Stepper({
 }): JSX.Element {
   if (!items || items.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-3">
-        <div className="text-sm text-gray-500 text-center">
+      <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
+        <div className="text-xs sm:text-sm text-gray-500 text-center">
           Không có hoạt động nào
         </div>
       </div>
@@ -179,8 +179,8 @@ function Stepper({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3">
-      <div className="flex items-center gap-2 overflow-x-auto">
+    <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 -mx-2 px-2 sm:mx-0 sm:px-0">
         {items
           .sort((a, b) => a.orderNo - b.orderNo)
           .map((a) => {
@@ -203,7 +203,7 @@ function Stepper({
                     : a.title
                 }
                 className={classNames(
-                  'group flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition',
+                  'group flex items-center gap-1.5 sm:gap-2 rounded-lg border px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition flex-shrink-0',
                   isActive
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : isReviewNeeded
@@ -214,13 +214,17 @@ function Stepper({
                 )}
                 disabled={!canAccess}
               >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-medium">
+                <span className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-gray-100 text-[10px] sm:text-xs font-medium flex-shrink-0">
                   {a.orderNo}
                 </span>
-                <span className="whitespace-nowrap">{a.title}</span>
-                {done && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                <span className="whitespace-nowrap hidden xs:inline">
+                  {a.title}
+                </span>
+                {done && (
+                  <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                )}
                 {isReviewNeeded && (
-                  <RotateCcw className="h-4 w-4 text-orange-600" />
+                  <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-600 flex-shrink-0" />
                 )}
               </button>
             )
@@ -245,52 +249,58 @@ function TopBar({
   onExit: () => void
 }): JSX.Element {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
         <button
           onClick={onBack}
-          className="rounded-lg p-2 hover:bg-gray-100 transition"
+          className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 transition flex-shrink-0"
           aria-label="Quay lại lớp học"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
-        <div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Home className="h-4 w-4" /> <span>Lớp học</span> <span>›</span>{' '}
-            <span>{lesson?.title ?? 'Lesson'}</span> <span>›</span>
-            <span className="font-medium text-gray-900">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-600 overflow-hidden">
+            <Home className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">Lớp học</span>
+            <span className="hidden xs:inline">›</span>
+            <span className="hidden sm:inline truncate">
+              {lesson?.title ?? 'Lesson'}
+            </span>
+            <span className="hidden sm:inline">›</span>
+            <span className="font-medium text-gray-900 truncate">
               {activity?.title ?? 'Activity'}
             </span>
           </div>
-          <div className="mt-0.5 text-xs text-gray-500">
+          <div className="mt-0.5 text-[10px] sm:text-xs text-gray-500 hidden sm:block">
             Hoàn thành để mở khóa hoạt động tiếp theo
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <button
-          className="rounded-lg p-2 hover:bg-gray-100"
+          className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 hidden sm:block"
           aria-label="Âm lượng"
         >
-          <Volume2 className="h-5 w-5" />
+          <Volume2 className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <button
-          className="rounded-lg p-2 hover:bg-gray-100"
+          className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 hidden sm:block"
           aria-label="Trợ giúp"
         >
-          <HelpCircle className="h-5 w-5" />
+          <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <button
-          className="rounded-lg p-2 hover:bg-gray-100"
+          className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 hidden xs:block"
           aria-label="Cài đặt"
         >
-          <Settings className="h-5 w-5" />
+          <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <button
           onClick={onExit}
-          className="ml-1 inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
         >
-          Thoát
+          <span className="hidden xs:inline">Thoát</span>
+          <X className="h-3.5 w-3.5 xs:hidden" />
         </button>
       </div>
     </div>
@@ -302,29 +312,29 @@ function TopBar({
  * ======================== */
 function RightSidebar({ activity }: { activity?: Activity }): JSX.Element {
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <h4 className="mb-2 font-semibold">Gợi ý</h4>
+    <div className="space-y-3 sm:space-y-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+        <h4 className="mb-2 text-sm sm:text-base font-semibold">Gợi ý</h4>
         {activity?.hints?.length ? (
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+          <ul className="list-disc pl-4 sm:pl-5 text-xs sm:text-sm text-gray-700 space-y-1">
             {activity.hints!.map((h, i) => (
               <li key={i}>{h}</li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-gray-500">
+          <p className="text-xs sm:text-sm text-gray-500">
             Không có gợi ý cho hoạt động này.
           </p>
         )}
       </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <h4 className="mb-2 font-semibold">Tài liệu</h4>
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+        <h4 className="mb-2 text-sm sm:text-base font-semibold">Tài liệu</h4>
         {activity?.materials?.length ? (
-          <ul className="space-y-2 text-sm text-blue-700">
+          <ul className="space-y-2 text-xs sm:text-sm text-blue-700">
             {activity.materials!.map((m) => (
               <li key={m.label}>
                 <a
-                  className="hover:underline"
+                  className="hover:underline break-words"
                   href={m.url}
                   target="_blank"
                   rel="noreferrer"
@@ -335,13 +345,15 @@ function RightSidebar({ activity }: { activity?: Activity }): JSX.Element {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-gray-500">Chưa có tài liệu đính kèm.</p>
+          <p className="text-xs sm:text-sm text-gray-500">
+            Chưa có tài liệu đính kèm.
+          </p>
         )}
       </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <h4 className="mb-2 font-semibold">Ghi chú</h4>
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+        <h4 className="mb-2 text-sm sm:text-base font-semibold">Ghi chú</h4>
         <textarea
-          className="w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 p-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           rows={5}
           placeholder="Ghi chú nhanh trong lúc học..."
         />
@@ -3385,43 +3397,51 @@ function BottomNav({
 }): JSX.Element {
   const canGoNext = hasNext && currentActivityCompleted
   return (
-    <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3">
+    <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2 sm:gap-3 rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
       <button
         disabled={!hasPrev}
         onClick={onPrev}
         className={classNames(
-          'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+          'inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg border px-3 sm:px-4 py-2 text-xs sm:text-sm',
           hasPrev
             ? 'border-gray-300 hover:bg-gray-50'
             : 'border-gray-200 opacity-50'
         )}
       >
-        <ChevronLeft className="h-4 w-4" /> Trước
+        <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+        <span>Trước</span>
       </button>
-      <div className="flex items-center gap-4 text-sm text-gray-600">
+      <div className="hidden lg:flex items-center gap-3 xl:gap-4 text-xs xl:text-sm text-gray-600">
         <span className="inline-flex items-center gap-1">
-          <Clock className="h-4 w-4" /> Thời gian học chất lượng
+          <Clock className="h-3.5 w-3.5 xl:h-4 xl:w-4 flex-shrink-0" />
+          <span className="hidden xl:inline">Thời gian học chất lượng</span>
+          <span className="xl:hidden">Thời gian</span>
         </span>
         <span className="inline-flex items-center gap-1">
-          <Trophy className="h-4 w-4" /> Thu thập XP
+          <Trophy className="h-3.5 w-3.5 xl:h-4 xl:w-4 flex-shrink-0" />
+          <span className="hidden xl:inline">Thu thập XP</span>
+          <span className="xl:hidden">XP</span>
         </span>
         <span className="inline-flex items-center gap-1">
-          <Flag className="h-4 w-4" /> Lưu tiến độ
+          <Flag className="h-3.5 w-3.5 xl:h-4 xl:w-4 flex-shrink-0" />
+          <span className="hidden xl:inline">Lưu tiến độ</span>
+          <span className="xl:hidden">Lưu</span>
         </span>
       </div>
       {allCompleted && nextLesson ? (
         <button
           onClick={onGoToNextLesson}
-          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+          className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-xs sm:text-sm text-white hover:bg-green-700"
         >
-          Bài học tiếp theo <ChevronRight className="h-4 w-4" />
+          <span>Bài học tiếp theo</span>
+          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
       ) : (
         <button
           disabled={!canGoNext}
           onClick={onNext}
           className={classNames(
-            'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+            'inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm text-white',
             !canGoNext && 'opacity-50 cursor-not-allowed'
           )}
           title={
@@ -3430,7 +3450,8 @@ function BottomNav({
               : ''
           }
         >
-          Tiếp theo <ChevronRight className="h-4 w-4" />
+          <span>Tiếp theo</span>
+          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
       )}
     </div>
@@ -3890,7 +3911,7 @@ export default function LearnPlayerPage(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl space-y-4 p-4 md:p-6">
+      <div className="mx-auto max-w-7xl space-y-3 sm:space-y-4 p-3 sm:p-4 md:p-6">
         <TopBar
           lesson={lesson}
           activity={active}
@@ -3900,16 +3921,16 @@ export default function LearnPlayerPage(): JSX.Element {
 
         {/* Preview Mode Banner */}
         {isPreviewMode && (
-          <div className="rounded-xl border-2 border-blue-300 bg-blue-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-blue-100 p-2">
-                <ShieldCheck className="h-5 w-5 text-blue-600" />
+          <div className="rounded-xl border-2 border-blue-300 bg-blue-50 p-3 sm:p-4">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="rounded-full bg-blue-100 p-1.5 sm:p-2 flex-shrink-0">
+                <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs sm:text-sm font-semibold text-blue-900">
                   🔍 Chế độ xem trước
                 </h3>
-                <p className="text-sm text-blue-700 mt-1">
+                <p className="text-xs sm:text-sm text-blue-700 mt-1">
                   Lớp học chưa bắt đầu. Bạn có thể xem tất cả các hoạt động
                   nhưng không thể nộp bài hoặc lưu tiến trình.
                 </p>
@@ -3920,21 +3941,23 @@ export default function LearnPlayerPage(): JSX.Element {
 
         {/* Error Banner */}
         {errorMessage && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <XCircle className="h-5 w-5 text-red-600" />
-                <div>
-                  <h3 className="text-sm font-medium text-red-800">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-sm font-medium text-red-800">
                     Không thể bắt đầu hoạt động
                   </h3>
-                  <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+                  <p className="text-xs sm:text-sm text-red-700 mt-1">
+                    {errorMessage}
+                  </p>
                   {errorDetails?.unmet && errorDetails.unmet.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-xs text-red-600 font-medium">
+                      <p className="text-[10px] sm:text-xs text-red-600 font-medium">
                         Điều kiện chưa đáp ứng:
                       </p>
-                      <ul className="mt-1 text-xs text-red-600 list-disc list-inside">
+                      <ul className="mt-1 text-[10px] sm:text-xs text-red-600 list-disc list-inside">
                         {errorDetails.unmet.map((item: any, index: number) => (
                           <li key={index}>
                             {item.type === 'activity_done'
@@ -3947,7 +3970,7 @@ export default function LearnPlayerPage(): JSX.Element {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => {
                     setErrorMessage(null)
@@ -3968,7 +3991,7 @@ export default function LearnPlayerPage(): JSX.Element {
                   className="rounded-lg p-1 hover:bg-red-100 transition-colors"
                   aria-label="Đóng thông báo lỗi"
                 >
-                  <X className="h-4 w-4 text-red-600" />
+                  <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-600" />
                 </button>
               </div>
             </div>
@@ -3981,22 +4004,25 @@ export default function LearnPlayerPage(): JSX.Element {
           onJump={jumpTo}
           isPreviewMode={isPreviewMode}
         />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-gray-500">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+              <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] sm:text-xs text-gray-500">
                     Hoạt động #{active?.orderNo}
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
                     {active?.title}
                   </h2>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">
-                    <MessageSquare className="h-3.5 w-3.5" /> Cố gắng trả lời rõ
-                    ràng
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] sm:text-xs text-gray-700">
+                    <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                    <span className="hidden xs:inline">
+                      Cố gắng trả lời rõ ràng
+                    </span>
+                    <span className="xs:hidden">Trả lời rõ</span>
                   </span>
                 </div>
               </div>
@@ -4139,7 +4165,7 @@ export default function LearnPlayerPage(): JSX.Element {
               }
             />
           </div>
-          <div>
+          <div className="hidden lg:block">
             <RightSidebar activity={active} />
           </div>
         </div>

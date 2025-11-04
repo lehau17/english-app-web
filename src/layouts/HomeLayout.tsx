@@ -41,6 +41,7 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [unread, setUnread] = useState(0)
 
   const socketUrl = useMemo(() => resolveSocketUrl(), [])
@@ -91,18 +92,22 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
         <header className="sticky top-0 z-30 border-b border-black/5 bg-white/70 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-100 md:hidden">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-100 md:hidden"
+                aria-label="Toggle menu"
+              >
                 <Menu className="h-5 w-5" />
               </button>
               <Link
                 to={user?.role === 'parent' ? '/parent-home' : '/'}
-                className="text-xl font-extrabold tracking-tight"
+                className="text-lg sm:text-xl font-extrabold tracking-tight"
               >
                 <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   EnglishApp
                 </span>
               </Link>
-              <nav className="hidden items-center gap-4 md:flex">
+              <nav className="hidden items-center gap-3 lg:gap-4 md:flex">
                 {user?.role === 'parent' ? (
                   // Parent navigation
                   <>
@@ -198,8 +203,8 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
               </nav>
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-full border border-black/5 bg-white/60 px-2 py-1 backdrop-blur md:flex">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="hidden items-center gap-2 rounded-full border border-black/5 bg-white/60 px-2 py-1 backdrop-blur lg:flex">
                 <Search className="h-4 w-4 text-gray-400" />
                 <input
                   placeholder={
@@ -207,9 +212,15 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       ? 'Tìm con, hoạt động...'
                       : 'Tim bai hoc, khoa hoc...'
                   }
-                  className="w-56 bg-transparent text-sm outline-none placeholder:text-gray-400"
+                  className="w-40 xl:w-56 bg-transparent text-sm outline-none placeholder:text-gray-400"
                 />
               </div>
+              <button
+                className="rounded-full p-2 text-gray-600 hover:bg-gray-100 lg:hidden"
+                aria-label="Search"
+              >
+                <Search className="h-5 w-5" />
+              </button>
               <Link
                 to="/notifications"
                 className="relative rounded-full p-2 text-gray-600 hover:bg-gray-100"
@@ -233,13 +244,13 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
               <div className="relative">
                 <button
                   onClick={() => setOpen((value) => !value)}
-                  className="flex items-center gap-2 rounded-full bg-gray-900 px-2 py-1 pr-3 text-white"
+                  className="flex items-center gap-2 rounded-full bg-gray-900 px-2 py-1 pr-2 sm:pr-3 text-white"
                 >
                   <Avatar
                     src={'/vite.svg'}
                     alt={user?.displayName || user?.email}
                   />
-                  <span className="hidden text-sm md:inline">
+                  <span className="hidden text-sm sm:inline truncate max-w-[100px] lg:max-w-none">
                     {user?.displayName ||
                       user?.firstName ||
                       user?.lastName ||
@@ -276,10 +287,131 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
               </div>
             </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 bg-white">
+              <nav className="mx-auto max-w-7xl px-4 py-3 space-y-1">
+                {user?.role === 'parent' ? (
+                  <>
+                    <NavLink
+                      to="/parent-home"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <Users className="h-5 w-5" />
+                      Tổng quan
+                    </NavLink>
+                    <NavLink
+                      to="/parent-activities"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <BookOpen className="h-5 w-5" />
+                      Hoạt động của con
+                    </NavLink>
+                    <NavLink
+                      to="/parent-reports"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <BarChart3 className="h-5 w-5" />
+                      Báo cáo học tập
+                    </NavLink>
+                    <NavLink
+                      to="/parent-rewards"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <Gift className="h-5 w-5" />
+                      Phần thưởng
+                    </NavLink>
+                    <NavLink
+                      to="/parent-settings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <Settings className="h-5 w-5" />
+                      Cài đặt
+                    </NavLink>
+                  </>
+                ) : (
+                  <>
+                    <NavLink
+                      to="/listening-practice"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      Luyện nghe
+                    </NavLink>
+                    <NavLink
+                      to="/ai-speaking"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      Luyện nói AI
+                    </NavLink>
+                    <NavLink
+                      to="/schedule"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      Lịch Học
+                    </NavLink>
+                    <NavLink
+                      to="/leaderboard"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      Bảng xếp hạng
+                    </NavLink>
+                    <NavLink
+                      to="/dictionary"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      Từ điển
+                    </NavLink>
+                    <NavLink
+                      to="/certificates"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      Chứng chỉ
+                    </NavLink>
+                  </>
+                )}
+              </nav>
+            </div>
+          )}
         </header>
 
         {/* Content */}
-        <main className="mx-auto w-full max-w-7xl px-4 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-3 sm:px-4 py-4 sm:py-6">
+          {children}
+        </main>
 
         {/* Footer */}
         <footer className="border-t border-black/5 py-6">

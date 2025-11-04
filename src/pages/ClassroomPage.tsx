@@ -166,8 +166,8 @@ export default function ClassroomsPage({
         setJoinCode={setJoinCode}
       />
 
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Toolbar and Stats */}
+      <div className="flex flex-col gap-4">
         <ClassroomToolbar
           query={query}
           setQuery={setQuery}
@@ -180,7 +180,7 @@ export default function ClassroomsPage({
         />
 
         {/* Summary pills */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <StatPill
             icon={Users}
             value={transformedClassrooms.reduce(
