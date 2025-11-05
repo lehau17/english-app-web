@@ -32,7 +32,7 @@ import { Textarea } from '../components/ui/textarea'
 import { useCreatePodcast } from '../hooks/podcast.hooks'
 import { podcastApi } from '../services/podcast.api'
 import { apiTranSlation } from '../services/translate.api'
-import { youtubeApi } from '../services/youtube.api'
+import { uploadVideo } from '../services/video-upload.api'
 import type { CreatePodcastData } from '../types/podcast.type'
 import { PodcastMediaType } from '../types/podcast.type'
 import {
@@ -62,7 +62,8 @@ export const CreatePodcastPageUpdated: React.FC = () => {
   const [audioMode, setAudioMode] = useState<'upload' | 'generate'>('generate')
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [isExtractingTranscript, setIsExtractingTranscript] = useState(false)
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0)
   const [gapPreview, setGapPreview] = useState<string>('')
   const [audioDuration, setAudioDuration] = useState<number>(0)
   const [ttsStatus, setTtsStatus] = useState<
@@ -325,46 +326,65 @@ export const CreatePodcastPageUpdated: React.FC = () => {
     }
   }
 
-  // Handle extract YouTube transcript
-  const handleExtractYouTubeTranscript = async () => {
-    const videoUrl = watch('videoUrl')
+  // Handle video file upload
+  const handleVideoUpload = async (file: File) => {
+    if (!file) return
 
-    if (!videoUrl?.trim()) {
-      toast.error('Vui lòng nhập URL video trước')
-      return
-    }
-
-    // Check if it's a YouTube URL
-    const isYouTube =
-      videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
-
-    if (!isYouTube) {
+    // Validate file type
+    const validTypes = [
+      'video/mp4',
+      'video/avi',
+      'video/quicktime',
+      'video/webm',
+      'video/x-matroska',
+    ]
+    if (!validTypes.includes(file.type)) {
       toast.error(
-        'Chỉ hỗ trợ trích xuất transcript từ YouTube. Với video khác, vui lòng nhập transcript thủ công.'
+        'Định dạng video không hợp lệ. Chỉ chấp nhận MP4, AVI, MOV, WebM, MKV'
       )
       return
     }
 
-    setIsExtractingTranscript(true)
-    try {
-      const result = await youtubeApi.extractTranscript(videoUrl)
+    // Validate file size (max 500MB)
+    const maxSize = 500 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error('File quá lớn! Kích thước tối đa: 500MB')
+      return
+    }
 
-      // Auto-fill content textarea with transcript
-      setValue('content', result.transcript)
+    setIsUploadingVideo(true)
+    setVideoUploadProgress(0)
+
+    try {
+      const result = await uploadVideo(file, (progress) => {
+        setVideoUploadProgress(progress)
+      })
+
+      // Auto-fill form fields
+      setValue('videoUrl', result.videoUrl)
+      if (result.audioUrl) {
+        setValue('audioUrl', result.audioUrl)
+      }
+
+      // If transcript is available, fill content
+      if (result.transcript) {
+        setValue('content', result.transcript)
+      }
 
       toast.success(
-        `Đã trích xuất transcript thành công! (${result.segments.length} phân đoạn)`
+        `Video đã được upload và xử lý thành công! (${(result.duration / 60).toFixed(1)} phút)`
       )
     } catch (error: any) {
-      console.error('Extract transcript error:', error)
+      console.error('Video upload error:', error)
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
-        'Không thể trích xuất transcript'
+        'Không thể upload video'
 
       toast.error(errorMessage)
     } finally {
-      setIsExtractingTranscript(false)
+      setIsUploadingVideo(false)
+      setVideoUploadProgress(0)
     }
   }
 
@@ -478,26 +498,26 @@ export const CreatePodcastPageUpdated: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="container max-w-6xl mx-auto py-8 px-4">
         {/* Header */}
         <div className="mb-8">
           <Button
             variant="ghost"
             onClick={() => navigate('/listening-practice')}
-            className="mb-4 -ml-2 hover:bg-white/50"
+            className="mb-4 -ml-2 hover:bg-gray-100"
           >
             Quay lại
           </Button>
 
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-4">
-              <Mic className="h-8 w-8 text-white" />
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-xl shadow-sm mb-3">
+              <Sparkles className="h-7 w-7 text-white" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900">
               Tạo Podcast Mới
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base text-gray-600 max-w-2xl mx-auto">
               Upload audio có sẵn hoặc tạo bài nghe từ văn bản với AI
             </p>
           </div>
@@ -510,15 +530,17 @@ export const CreatePodcastPageUpdated: React.FC = () => {
           {/* LEFT: Form */}
           <div className="lg:col-span-8 space-y-6">
             {/* Basic Information */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Thông tin cơ bản</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Thông tin cơ bản
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
                       Nhập tiêu đề và mô tả cho podcast của bạn
                     </CardDescription>
                   </div>
@@ -562,19 +584,19 @@ export const CreatePodcastPageUpdated: React.FC = () => {
             </Card>
 
             {/* Content Section */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                    <BookOpen className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">
+                    <CardTitle className="text-lg font-semibold text-gray-900">
                       {audioMode === 'upload'
                         ? 'Transcript'
                         : 'Nội dung văn bản'}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-sm text-gray-600">
                       {audioMode === 'upload'
                         ? 'Nhập transcript của audio file'
                         : 'Dán văn bản tiếng Anh mà bạn muốn chuyển thành podcast'}
@@ -812,15 +834,17 @@ export const CreatePodcastPageUpdated: React.FC = () => {
             </Card>
 
             {/* Media Type Selection Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-purple-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Loại Media</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Loại Media
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
                       Chọn loại nội dung: Audio hoặc Video
                     </CardDescription>
                   </div>
@@ -834,8 +858,8 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                       onClick={() => setValue('mediaType', 'audio')}
                       className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
                         watchMediaType === 'audio'
-                          ? 'bg-green-500 text-white shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
                       <Volume2 className="h-4 w-4 inline mr-2" />
@@ -846,8 +870,8 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                       onClick={() => setValue('mediaType', 'video')}
                       className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
                         watchMediaType === 'video'
-                          ? 'bg-green-500 text-white shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
                       <Play className="h-4 w-4 inline mr-2" />
@@ -859,21 +883,21 @@ export const CreatePodcastPageUpdated: React.FC = () => {
             </Card>
 
             {/* Audio/Video Section */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                  <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
                     {watchMediaType === 'video' ? (
-                      <Play className="h-5 w-5 text-white" />
+                      <Play className="h-5 w-5 text-indigo-600" />
                     ) : (
-                      <Volume2 className="h-5 w-5 text-white" />
+                      <Volume2 className="h-5 w-5 text-indigo-600" />
                     )}
                   </div>
                   <div>
-                    <CardTitle className="text-xl">
+                    <CardTitle className="text-lg font-semibold text-gray-900">
                       {watchMediaType === 'video' ? 'Video' : 'Audio'}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-sm text-gray-600">
                       {watchMediaType === 'video'
                         ? 'Nhập URL video của bạn'
                         : audioMode === 'upload'
@@ -885,66 +909,99 @@ export const CreatePodcastPageUpdated: React.FC = () => {
               </CardHeader>
               <CardContent className="p-6">
                 {watchMediaType === 'video' ? (
-                  /* Video URL Input */
+                  /* Video File Upload */
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="videoUrl" className="font-medium">
-                        URL Video <span className="text-red-500">*</span>
+                      <Label htmlFor="videoFile" className="font-medium">
+                        Upload Video <span className="text-red-500">*</span>
                       </Label>
-                      <Input
-                        id="videoUrl"
-                        type="url"
-                        {...register('videoUrl', {
-                          required:
-                            watchMediaType === 'video'
-                              ? 'URL video là bắt buộc'
-                              : false,
-                          pattern: {
-                            value: /^https?:\/\/.+/,
-                            message: 'URL không hợp lệ',
-                          },
-                        })}
-                        placeholder="https://example.com/video.mp4"
-                        className="h-11"
-                      />
-                      {errors.videoUrl && (
-                        <p className="text-sm text-red-500">
-                          {errors.videoUrl.message}
-                        </p>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        Nhập URL video (MP4, WebM, YouTube, v.v.)
-                      </p>
 
-                      {/* Extract YouTube Transcript Button */}
-                      {watch('videoUrl') && (
-                        <Button
-                          type="button"
-                          onClick={handleExtractYouTubeTranscript}
-                          disabled={isExtractingTranscript}
-                          className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
-                        >
-                          {isExtractingTranscript ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                              Đang trích xuất transcript...
+                      {!watch('videoUrl') ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                          <input
+                            type="file"
+                            id="videoFile"
+                            accept="video/mp4,video/avi,video/quicktime,video/webm,video/x-matroska"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                handleVideoUpload(file)
+                              }
+                            }}
+                            className="hidden"
+                            disabled={isUploadingVideo}
+                          />
+                          <label htmlFor="videoFile" className="cursor-pointer">
+                            {isUploadingVideo ? (
+                              <div className="space-y-3">
+                                <div className="w-12 h-12 mx-auto border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                                <p className="text-sm text-gray-600">
+                                  Đang upload và xử lý video...
+                                </p>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${videoUploadProgress}%` }}
+                                  ></div>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  {videoUploadProgress}%
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Upload className="h-12 w-12 mx-auto text-gray-400" />
+                                <p className="text-sm text-gray-600">
+                                  Click để chọn video hoặc kéo thả vào đây
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  MP4, AVI, MOV, WebM, MKV (Max 500MB)
+                                </p>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <Play className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-green-800">
+                                  Video đã upload thành công
+                                </p>
+                                <p className="text-xs text-green-600 mt-1 break-all">
+                                  {watch('videoUrl')}
+                                </p>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4" />
-                              Trích xuất transcript từ YouTube
-                            </div>
-                          )}
-                        </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setValue('videoUrl', '')
+                                setValue('audioUrl', '')
+                              }}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
                       )}
 
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <p className="text-xs text-blue-800">
-                          💡 <strong>YouTube:</strong> Click "Trích xuất
-                          transcript" để tự động lấy phụ đề
+                          💡 Video sẽ được tự động xử lý:
                           <br />
-                          💡 <strong>Video khác:</strong> Vui lòng nhập
-                          transcript thủ công trong tab "Content" bên dưới
+                          • Upload lên hệ thống
+                          <br />
+                          • Trích xuất audio
+                          <br />• Vui lòng nhập transcript trong tab "Content"
+                          bên dưới
                         </p>
                       </div>
                     </div>
@@ -1056,7 +1113,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                           type="button"
                           onClick={handleGenerateAudio}
                           disabled={isGenerating || !watchContent?.trim()}
-                          className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                          className="bg-blue-600 hover:bg-blue-700 text-white w-full"
                         >
                           {isGenerating ? (
                             <div className="flex items-center gap-2">
@@ -1139,15 +1196,17 @@ export const CreatePodcastPageUpdated: React.FC = () => {
             </Card>
 
             {/* Category and Difficulty */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-indigo-50 to-cyan-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                    <Settings className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-cyan-100 rounded-lg flex items-center justify-center">
+                    <Settings className="h-5 w-5 text-cyan-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Phân loại</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Phân loại
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
                       Chọn danh mục và độ khó của podcast
                     </CardDescription>
                   </div>
@@ -1193,15 +1252,17 @@ export const CreatePodcastPageUpdated: React.FC = () => {
             </Card>
 
             {/* Tags */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                    <Tag className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Tag className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Thẻ từ khóa</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Thẻ từ khóa
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
                       Thêm các từ khóa để dễ tìm kiếm podcast sau này
                     </CardDescription>
                   </div>
@@ -1220,9 +1281,8 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                   />
                   <Button
                     type="button"
-                    variant="outline"
                     onClick={handleAddTag}
-                    className="px-6 h-11 bg-gradient-to-r from-orange-500 to-red-600 text-white border-0 hover:from-orange-600 hover:to-red-700"
+                    className="px-6 h-11 bg-blue-600 text-white hover:bg-blue-700"
                   >
                     Thêm
                   </Button>
@@ -1233,7 +1293,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                     {((watch('tags') || []) as string[]).map((tag, index) => (
                       <Badge
                         key={index}
-                        className="gap-2 px-3 py-1.5 bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border-orange-200 hover:from-orange-200 hover:to-red-200"
+                        className="gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 border border-orange-200"
                       >
                         {tag}
                         <Button
@@ -1253,15 +1313,17 @@ export const CreatePodcastPageUpdated: React.FC = () => {
             </Card>
 
             {/* Thumbnail */}
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-xl">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-teal-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-teal-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Thumbnail</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Thumbnail
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
                       Upload ảnh thumbnail (jpg/png) để hiển thị trong danh sách
                     </CardDescription>
                   </div>
@@ -1285,15 +1347,17 @@ export const CreatePodcastPageUpdated: React.FC = () => {
 
           {/* RIGHT: Preview / Actions */}
           <div className="lg:col-span-4 space-y-6">
-            <Card className="sticky top-6 shadow-xl border-0 bg-gradient-to-br from-white to-gray-50 overflow-hidden">
-              <CardHeader className="pb-4 bg-gradient-to-r from-indigo-50 to-blue-50">
+            <Card className="sticky top-6 shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-lg flex items-center justify-center">
-                    <Eye className="h-5 w-5 text-white" />
+                  <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <Eye className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Tổng quan</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Tổng quan
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
                       Xem nhanh thông số bài nghe
                     </CardDescription>
                   </div>
@@ -1301,19 +1365,19 @@ export const CreatePodcastPageUpdated: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4 p-6">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-center">
-                    <div className="text-xs text-blue-600 font-medium mb-1">
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center">
+                    <div className="text-xs text-blue-700 font-medium mb-1">
                       Số từ
                     </div>
-                    <div className="text-2xl font-bold text-blue-900">
+                    <div className="text-2xl font-bold text-gray-900">
                       {getWordCount(watchContent)}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-4 text-center">
-                    <div className="text-xs text-purple-600 font-medium mb-1">
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 text-center">
+                    <div className="text-xs text-purple-700 font-medium mb-1">
                       Ước tính
                     </div>
-                    <div className="text-2xl font-bold text-purple-900">
+                    <div className="text-2xl font-bold text-gray-900">
                       ~
                       {getEstimatedDuration(
                         watchContent,
@@ -1324,8 +1388,8 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-gray-100 bg-gradient-to-br from-gray-50 to-slate-50 p-4">
-                  <div className="text-xs text-gray-600 font-medium mb-3 flex items-center gap-2">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-xs text-gray-700 font-medium mb-3 flex items-center gap-2">
                     <Settings className="h-4 w-4" />
                     Thiết lập
                   </div>
@@ -1399,7 +1463,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                       !(watch('content') as string)?.trim() ||
                       (!previewUrl && !queuedForTTS)
                     }
-                    className="h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <div className="flex items-center gap-2">
