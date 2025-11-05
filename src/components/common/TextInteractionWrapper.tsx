@@ -6,7 +6,6 @@ import {
   translateText,
   type TranslateTextResponse,
 } from '../../services/translate.api'
-import { vocabularyAPI } from '../../services/vocabulary.api'
 
 type TextInteractionWrapperProps = {
   children: React.ReactNode
@@ -82,8 +81,12 @@ const TextInteractionWrapper: React.FC<TextInteractionWrapperProps> = ({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
   const wrapperRef = useRef<HTMLDivElement>(null)
 
+  // TODO: Implement save word to vocabulary v2
   const saveWordMutation = useMutation({
-    mutationFn: (word: string) => vocabularyAPI.saveWord(word),
+    mutationFn: async (_word: string) => {
+      // vocabularyAPI.saveWord(_word) - old API, need to implement for v2
+      return Promise.resolve()
+    },
     onSuccess: () => {
       toast.success('Đã lưu từ vào từ điển của bạn!', {
         duration: 2000,

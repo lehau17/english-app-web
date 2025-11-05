@@ -13,6 +13,8 @@ import { useSavedWords } from '../hooks/useVocabulary'
 import type { WordResult } from '../services/dictionary.api'
 import { dictionaryAPI } from '../services/dictionary.api'
 
+type SavedWord = { word: string; [key: string]: any }
+
 export default function FlashcardReviewPage() {
   const navigate = useNavigate()
   const { data: savedWords = [], isLoading } = useSavedWords()
@@ -24,13 +26,15 @@ export default function FlashcardReviewPage() {
   const [isLoadingWord, setIsLoadingWord] = useState(false)
   const [knownWords, setKnownWords] = useState<Set<string>>(new Set())
   const [unknownWords, setUnknownWords] = useState<Set<string>>(new Set())
-  const [shuffledWords, setShuffledWords] = useState(savedWords)
+  const [shuffledWords, setShuffledWords] = useState(savedWords as SavedWord[])
   const [isPlaying, setIsPlaying] = useState(false)
 
   // Shuffle words on mount
   useEffect(() => {
     if (savedWords.length > 0) {
-      const shuffled = [...savedWords].sort(() => Math.random() - 0.5)
+      const shuffled = [...(savedWords as SavedWord[])].sort(
+        () => Math.random() - 0.5
+      )
       setShuffledWords(shuffled)
     }
   }, [savedWords])

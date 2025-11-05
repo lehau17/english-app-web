@@ -1,14 +1,17 @@
 import {
   Award,
-  Check,
-  ChevronRight,
-  Headphones,
+  BookOpen,
+  Gauge,
+  HelpCircle,
   Home,
   Pause,
   Play,
   RotateCcw,
   Save,
-  Zap,
+  Settings,
+  Target,
+  Volume2,
+  X,
 } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -25,14 +28,14 @@ import {
   useSubmitAnswer,
   useSubmitAttempt,
 } from '../hooks/podcastAttempt.hooks'
-import { PodcastMediaType } from '../types/podcast.type'
 import type { PodcastAttempt } from '../types/podcastAttempt.type'
+import { PodcastMediaType } from '../types/podcast.type'
 
 const PodcastPracticePage: React.FC = () => {
   const { podcastId } = useParams<{ podcastId: string }>()
   const navigate = useNavigate()
 
-  // State
+  // State management
   const [attempt, setAttempt] = useState<PodcastAttempt | null>(null)
   const [currentGapIndex, setCurrentGapIndex] = useState(0)
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({})
@@ -44,14 +47,16 @@ const PodcastPracticePage: React.FC = () => {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
   const [hasStartedAttempt, setHasStartedAttempt] = useState(false)
   const [lastSaveTime, setLastSaveTime] = useState<number>(Date.now())
-  const [audioTimeSpent, setAudioTimeSpent] = useState<number>(0)
+  const [audioTimeSpent, setAudioTimeSpent] = useState<number>(0) // Track actual audio time listened
   const [isTrackingTime, setIsTrackingTime] = useState<boolean>(false)
   const [result, setResult] = useState<any | null>(null)
-
+  const [showInstructions, setShowInstructions] = useState(false)
+  const [showExitModal, setShowExitModal] = useState(false)
   // Refs
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const mediaPlayerRef = useRef<MediaPlayerRef>(null)
-  const lastCurrentTimeRef = useRef<number>(0)
+  const playStartTimeRef = useRef<number>(0) // Thời gian bắt đầu play
+  const lastCurrentTimeRef = useRef<number>(0) // Current time cuối cùng được ghi nhận
 
   // API hooks
   const { data: podcastData, isLoading: isPodcastLoading } = usePodcast(
@@ -62,12 +67,11 @@ const PodcastPracticePage: React.FC = () => {
   const saveDraftMutation = useSaveDraft()
   const submitAttemptMutation = useSubmitAttempt()
 
-  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2]
-
   // Save draft function
   const handleSaveDraft = useCallback(() => {
     if (!attempt || !podcastId) return
 
+    // Nếu đang play, cập nhật time trước khi save
     let currentTimeSpent = audioTimeSpent
 
     if (isTrackingTime && mediaPlayerRef.current) {
@@ -83,15 +87,23 @@ const PodcastPracticePage: React.FC = () => {
       }
     }
 
+    const timeSpent = Math.floor(currentTimeSpent) // Audio time in seconds
+
     saveDraftMutation.mutate(
       {
         podcastId,
         attemptId: attempt.attemptId,
         answers: userAnswers,
-        timeSpent: Math.floor(currentTimeSpent),
+        timeSpent,
       },
       {
-        onSuccess: () => setLastSaveTime(Date.now()),
+        onSuccess: () => {
+          setLastSaveTime(Date.now())
+          console.log('Draft saved successfully with timeSpent:', timeSpent)
+        },
+        onError: (error) => {
+          console.error('Failed to save draft:', error)
+        },
       }
     )
   }, [
@@ -101,9 +113,19 @@ const PodcastPracticePage: React.FC = () => {
     audioTimeSpent,
     isTrackingTime,
     saveDraftMutation,
+    setLastSaveTime,
   ])
 
-  // Initialize attempt
+  // Playback speed options
+  const speedOptions = [
+    { value: 0.5, label: '0.5x' },
+    { value: 0.75, label: '0.75x' },
+    { value: 1, label: '1x' },
+    { value: 1.25, label: '1.25x' },
+    { value: 1.5, label: '1.5x' },
+    { value: 2, label: '2x' },
+  ]
+
   useEffect(() => {
     if (
       podcastId &&
@@ -115,11 +137,14 @@ const PodcastPracticePage: React.FC = () => {
       startPodcastMutation.mutate(podcastId, {
         onSuccess: (response) => {
           setAttempt(response.data)
-          setAudioTimeSpent(response.data.timeSpent || 0)
+          // Load existing time spent from server
+          const existingTimeSpent = response.data.timeSpent || 0
+          setAudioTimeSpent(existingTimeSpent)
           inputRefs.current = new Array(response.data.gaps.length).fill(null)
           setUserAnswers(response.data.answers || {})
         },
-        onError: () => {
+        onError: (error) => {
+          console.error('Failed to start podcast:', error)
           setHasStartedAttempt(false)
           navigate('/listening-practice')
         },
@@ -127,10 +152,10 @@ const PodcastPracticePage: React.FC = () => {
     }
   }, [podcastId, attempt, hasStartedAttempt, startPodcastMutation, navigate])
 
-  // Media player handlers
   const handleAudioPlay = useCallback(() => {
     setIsPlaying(true)
     setIsTrackingTime(true)
+    playStartTimeRef.current = Date.now()
     if (mediaPlayerRef.current) {
       lastCurrentTimeRef.current = mediaPlayerRef.current.getCurrentTime()
     }
@@ -145,7 +170,9 @@ const PodcastPracticePage: React.FC = () => {
         currentAudioTime - lastCurrentTimeRef.current
       )
 
+      // Chỉ cộng thời gian nếu audio thực sự đã chạy forward (không seek)
       if (playedDuration > 0 && playedDuration < 5) {
+        // Max 5 giây để tránh seek
         setAudioTimeSpent((prev) => prev + playedDuration)
       }
     }
@@ -159,11 +186,20 @@ const PodcastPracticePage: React.FC = () => {
     }
   }, [])
 
-  const handleLoadedMetadata = useCallback(() => {
-    if (mediaPlayerRef.current) {
-      setDuration(mediaPlayerRef.current.getDuration())
+  useEffect(() => {
+    return () => {
+      if (isTrackingTime && mediaPlayerRef.current) {
+        const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
+        const playedDuration = Math.abs(
+          currentAudioTime - lastCurrentTimeRef.current
+        )
+
+        if (playedDuration > 0 && playedDuration < 5) {
+          setAudioTimeSpent((prev) => prev + playedDuration)
+        }
+      }
     }
-  }, [])
+  }, [isTrackingTime])
 
   const togglePlay = useCallback(() => {
     if (mediaPlayerRef.current) {
@@ -175,9 +211,43 @@ const PodcastPracticePage: React.FC = () => {
     }
   }, [isPlaying])
 
+  // Update playback rate when changed
+  useEffect(() => {
+    if (mediaPlayerRef.current) {
+      mediaPlayerRef.current.setPlaybackRate(playbackRate)
+    }
+  }, [playbackRate])
+
+  // Auto-save draft every 30 seconds
+  useEffect(() => {
+    if (!attempt || Object.keys(userAnswers).length === 0) return
+
+    const interval = setInterval(() => {
+      handleSaveDraft()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [attempt, userAnswers, handleSaveDraft])
+
+  // Save draft when user answers change (debounced)
+  useEffect(() => {
+    if (!attempt || Object.keys(userAnswers).length === 0) return
+
+    const timeoutId = setTimeout(() => {
+      const timeSinceLastSave = Date.now() - lastSaveTime
+      if (timeSinceLastSave >= 10000) {
+        // Only save if 10 seconds passed since last save
+        handleSaveDraft()
+      }
+    }, 2000) // 2 seconds delay
+
+    return () => clearTimeout(timeoutId)
+  }, [userAnswers, attempt, lastSaveTime, handleSaveDraft])
+
   const handleSeek = useCallback(
     (time: number) => {
       if (mediaPlayerRef.current) {
+        // Nếu đang play, save time trước khi seek
         if (isTrackingTime) {
           const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
           const playedDuration = Math.abs(
@@ -191,14 +261,23 @@ const PodcastPracticePage: React.FC = () => {
 
         mediaPlayerRef.current.seek(time)
         setCurrentTime(time)
+
+        // Update reference sau khi seek
         lastCurrentTimeRef.current = time
       }
     },
     [isTrackingTime]
   )
 
+  const handleLoadedMetadata = useCallback(() => {
+    if (mediaPlayerRef.current) {
+      setDuration(mediaPlayerRef.current.getDuration())
+    }
+  }, [])
+
   const replayAudio = useCallback(() => {
     if (mediaPlayerRef.current) {
+      // Save current progress nếu đang play
       if (isTrackingTime) {
         const currentAudioTime = mediaPlayerRef.current.getCurrentTime()
         const playedDuration = Math.abs(
@@ -216,36 +295,10 @@ const PodcastPracticePage: React.FC = () => {
     }
   }, [isTrackingTime])
 
-  // Playback rate
-  useEffect(() => {
-    if (mediaPlayerRef.current) {
-      mediaPlayerRef.current.setPlaybackRate(playbackRate)
-    }
-  }, [playbackRate])
-
-  // Auto-save
-  useEffect(() => {
-    if (!attempt || Object.keys(userAnswers).length === 0) return
-
-    const interval = setInterval(() => {
-      handleSaveDraft()
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [attempt, userAnswers, handleSaveDraft])
-
-  useEffect(() => {
-    if (!attempt || Object.keys(userAnswers).length === 0) return
-
-    const timeoutId = setTimeout(() => {
-      const timeSinceLastSave = Date.now() - lastSaveTime
-      if (timeSinceLastSave >= 10000) {
-        handleSaveDraft()
-      }
-    }, 2000)
-
-    return () => clearTimeout(timeoutId)
-  }, [userAnswers, attempt, lastSaveTime, handleSaveDraft])
+  const handleSpeedChange = useCallback((speed: number) => {
+    setPlaybackRate(speed)
+    setShowSpeedMenu(false)
+  }, [])
 
   // Answer handling
   const handleAnswerChange = useCallback(
@@ -298,6 +351,8 @@ const PodcastPracticePage: React.FC = () => {
               setTimeout(() => {
                 inputRefs.current[currentGap + 1]?.focus()
               }, 100)
+            } else {
+              handleCompleteAttempt()
             }
           },
         }
@@ -309,6 +364,7 @@ const PodcastPracticePage: React.FC = () => {
   const handleCompleteAttempt = useCallback(() => {
     if (!attempt || !podcastId) return
 
+    // Gọi API submit attempt thay vì complete attempt
     submitAttemptMutation.mutate(
       {
         podcastId,
@@ -317,8 +373,12 @@ const PodcastPracticePage: React.FC = () => {
       },
       {
         onSuccess: (response) => {
+          console.log('Check res:', response)
           setResult(response.data)
           setShowResults(true)
+        },
+        onError: (error) => {
+          console.error('Failed to submit attempt:', error)
         },
       }
     )
@@ -326,8 +386,8 @@ const PodcastPracticePage: React.FC = () => {
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }, [])
 
   const renderTranscriptWithInputs = useCallback(() => {
@@ -342,7 +402,7 @@ const PodcastPracticePage: React.FC = () => {
     gaps.forEach((gap, index) => {
       if (gap.startIndex > lastIndex) {
         result.push(
-          <span key={`text-${index}`} className="text-gray-900">
+          <span key={`text-${index}`} className="text-gray-800">
             {transcript.substring(lastIndex, gap.startIndex)}
           </span>
         )
@@ -373,14 +433,12 @@ const PodcastPracticePage: React.FC = () => {
             }}
             maxLength={gap.length || 50}
             className={`
-              inline-block min-w-[100px] px-3 py-1 border-b-2 bg-white/80 text-center font-medium rounded
-              transition-all duration-200
-              ${isCurrentGap && !hasAnswer ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100' : ''}
+              inline-block min-w-[80px] px-2 py-1 border-b-2 bg-transparent text-center font-medium
+              ${isCurrentGap && !hasAnswer ? 'border-blue-500 bg-blue-50' : ''}
               ${hasAnswer && isCorrect ? 'border-green-500 bg-green-50 text-green-700' : ''}
               ${hasAnswer && !isCorrect ? 'border-red-500 bg-red-50 text-red-700' : ''}
-              ${!hasAnswer && !isCurrentGap ? 'border-gray-200 hover:border-gray-300' : ''}
-              focus:outline-none focus:ring-2 focus:ring-blue-200
-              disabled:opacity-50 disabled:cursor-not-allowed
+              ${!hasAnswer && !isCurrentGap ? 'border-gray-300' : ''}
+              focus:outline-none focus:ring-2 focus:ring-blue-500/20
             `}
             placeholder="___"
             disabled={hasAnswer || showResults}
@@ -394,7 +452,7 @@ const PodcastPracticePage: React.FC = () => {
 
     if (lastIndex < transcript.length) {
       result.push(
-        <span key="text-end" className="text-gray-900">
+        <span key="text-end" className="text-gray-800">
           {transcript.substring(lastIndex)}
         </span>
       )
@@ -434,68 +492,132 @@ const PodcastPracticePage: React.FC = () => {
     setDuration(0)
   }, [])
 
+  const handleExitClick = useCallback(() => {
+    setShowExitModal(true)
+  }, [])
+
+  const handleConfirmExit = useCallback(() => {
+    setShowExitModal(false)
+    navigate('/listening-practice')
+  }, [navigate])
+
+  const handleCancelExit = useCallback(() => {
+    setShowExitModal(false)
+  }, [])
+
   if (!attempt || isPodcastLoading || startPodcastMutation.isPending) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-500"></div>
-          <p className="text-gray-600">Đang tải bài học...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Simple Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left */}
-            <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-32">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100/50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            {/* Left side - Navigation */}
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/listening-practice')}
+                className="hover:bg-gray-100 flex-shrink-0"
               >
-                <Home className="h-5 w-5" />
+                <Home className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-              <div>
-                <h1 className="font-semibold text-gray-900">{attempt.title}</h1>
-                <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                    {attempt.metadata.difficulty}
-                  </span>
-                  <span>•</span>
-                  <span>Lần thử #{attempt.attemptNo}</span>
-                </div>
+
+              <div className="text-xs sm:text-sm text-gray-600 flex items-center gap-1 sm:gap-2 min-w-0">
+                <span className="hidden sm:inline">Podcasts</span>
+                <span className="hidden sm:inline">/</span>
+                <span className="font-medium text-gray-900 truncate">
+                  {attempt.title}
+                </span>
               </div>
             </div>
 
-            {/* Right */}
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-900">
-                  {
-                    Object.keys(userAnswers).filter((id) =>
-                      userAnswers[id]?.trim()
-                    ).length
-                  }
-                </span>
-                /{attempt.gaps.length} đã điền
+            {/* Right side - Stats & Help */}
+            <div className="flex items-center gap-2 sm:gap-6 flex-shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-4 text-xs sm:text-sm">
+                <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-green-50 rounded-lg border border-green-100/50">
+                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-green-700">
+                    {
+                      Object.keys(userAnswers).filter((id) =>
+                        userAnswers[id]?.trim()
+                      ).length
+                    }
+                    /{attempt.gaps.length}
+                  </span>
+                </div>
+
+                <div className="hidden xs:flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-50 rounded-lg border border-purple-100/50">
+                  <Target className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
+                  <span className="text-purple-700">
+                    {Math.round(getProgressPercentage())}%
+                  </span>
+                </div>
               </div>
+
+              <button
+                onClick={() => setShowInstructions(!showInstructions)}
+                className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                title="Hướng dẫn"
+              >
+                <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-32">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left - Transcript */}
-          <div className="lg:col-span-3">
-            <Card className="p-6 bg-white">
-              {/* Video Player (if video) */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-32">
+        {/* Instructions - Collapsible */}
+        {showInstructions && (
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="text-blue-500 text-lg sm:text-xl flex-shrink-0">
+                💡
+              </div>
+              <div className="min-w-0">
+                <p className="text-blue-800 font-medium mb-2 text-sm sm:text-base">
+                  Hướng dẫn:
+                </p>
+                <ul className="text-blue-700 text-xs sm:text-sm space-y-1">
+                  <li>• Nghe audio và điền từ còn thiếu vào chỗ trống</li>
+                  <li>• Nhấn Enter hoặc click ra ngoài để xác nhận đáp án</li>
+                  <li>
+                    • Sử dụng nút tốc độ để điều chỉnh tốc độ phát âm thanh
+                  </li>
+                  <li>• Nhấn "Lưu nháp" để lưu tiến độ</li>
+                  <li>• Nhấn "Nộp bài" khi hoàn thành</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Main Content - Transcript */}
+          <div className="lg:col-span-2">
+            <Card className="p-4 sm:p-6 lg:p-8 shadow-sm border border-gray-100">
+              <div className="mb-4 sm:mb-6">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-2">
+                  {attempt.title}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                    {attempt.metadata.difficulty}
+                  </span>
+                  <span>Lần thử: {attempt.attemptNo}</span>
+                  <span>{attempt.gaps.length} chỗ trống</span>
+                </div>
+              </div>
+
+              {/* Video Player (if video podcast) */}
               {podcastData?.mediaType === PodcastMediaType.VIDEO &&
                 podcastData.videoUrl && (
                   <div className="mb-6">
@@ -514,69 +636,72 @@ const PodcastPracticePage: React.FC = () => {
                   </div>
                 )}
 
-              {/* Transcript */}
-              <div className="prose prose-lg max-w-none">
-                <div className="text-base leading-8">
+              {/* Transcript with inputs */}
+              <div className="prose max-w-none">
+                <div className="text-xs sm:text-sm lg:text-[14px] leading-relaxed">
                   {renderTranscriptWithInputs()}
                 </div>
               </div>
             </Card>
           </div>
 
-          {/* Right - Stats */}
-          <div className="space-y-4">
-            {/* Progress */}
-            <Card className="p-4 bg-white">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Zap className="h-4 w-4 text-blue-500" />
-                Tiến độ
-              </h3>
-              <div className="space-y-3">
+          {/* Sidebar - Progress & Controls */}
+          <div className="space-y-4 sm:space-y-6">
+            {/* Progress Card */}
+            <Card className="p-4 sm:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <Target className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500 flex-shrink-0" />
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                  Tiến độ
+                </h3>
+              </div>
+
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Hoàn thành</span>
-                  <span className="font-semibold text-gray-900">
-                    {Math.round(getProgressPercentage())}%
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    Đã hoàn thành
+                  </span>
+                  <span className="font-semibold text-gray-900 text-sm sm:text-base">
+                    {
+                      attempt.gaps.filter((g: any) => g.answer !== undefined)
+                        .length
+                    }
+                    /{attempt.gaps.length}
                   </span>
                 </div>
 
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 transition-all duration-300"
-                    style={{ width: `${getProgressPercentage()}%` }}
-                  />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs sm:text-sm text-gray-600">Đúng</span>
+                  <span className="font-semibold text-green-600 text-sm sm:text-base">
+                    {getCorrectAnswersCount()}
+                  </span>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Câu đúng</span>
-                    <span className="font-semibold text-green-600">
-                      {getCorrectAnswersCount()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Câu sai</span>
-                    <span className="font-semibold text-red-600">
-                      {
-                        attempt.gaps.filter((g: any) => g.isCorrect === false)
-                          .length
-                      }
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Chưa làm</span>
-                    <span className="font-semibold text-gray-900">
-                      {
-                        attempt.gaps.filter((g: any) => g.answer === undefined)
-                          .length
-                      }
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs sm:text-sm text-gray-600">Sai</span>
+                  <span className="font-semibold text-red-600 text-sm sm:text-base">
+                    {
+                      attempt.gaps.filter((g: any) => g.isCorrect === false)
+                        .length
+                    }
+                  </span>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Thời gian nghe</span>
-                    <span className="font-mono text-gray-900">
+                {/* Attempt number */}
+                <div className="pt-3 sm:pt-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm text-gray-600">
+                      Lần làm
+                    </span>
+                    <span className="font-semibold text-blue-600 text-sm sm:text-base">
+                      #{attempt.attemptNo}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs sm:text-sm text-gray-500">
+                      Thời gian nghe
+                    </span>
+                    <span className="font-mono text-[10px] sm:text-xs text-gray-600">
                       {Math.floor(audioTimeSpent / 60)}:
                       {String(Math.floor(audioTimeSpent % 60)).padStart(2, '0')}
                     </span>
@@ -584,116 +709,93 @@ const PodcastPracticePage: React.FC = () => {
                 </div>
               </div>
             </Card>
-
-            {/* Actions */}
-            <Card className="p-4 bg-white">
-              <div className="space-y-2">
-                <Button
-                  onClick={handleSaveDraft}
-                  variant="outline"
-                  className="w-full"
-                  disabled={saveDraftMutation.isPending}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Lưu nháp
-                </Button>
-
-                <Button
-                  onClick={handleCompleteAttempt}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={submitAttemptMutation.isPending}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Nộp bài
-                </Button>
-              </div>
-            </Card>
           </div>
         </div>
       </div>
 
-      {/* Audio Player - Fixed Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center gap-6">
-            {/* Info */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Headphones className="h-6 w-6 text-white" />
+      {/* Fixed Audio Player at Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/60 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
+          {/* Mobile Layout - Stacked */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {/* Row 1: Info + Main Controls */}
+            <div className="flex items-center justify-between gap-2">
+              {/* Song Info - Compact */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Volume2 className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900 text-xs truncate">
+                    {attempt.title}
+                  </p>
+                  <p className="text-slate-500 text-[10px]">Podcast Audio</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">
-                  {attempt.title}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {attempt.gaps.length} câu hỏi
-                </p>
-              </div>
-            </div>
 
-            {/* Controls */}
-            <div className="flex items-center gap-4 flex-shrink-0">
-              <button
-                onClick={replayAudio}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="Phát lại"
-              >
-                <RotateCcw className="h-5 w-5 text-gray-700" />
-              </button>
-
-              <button
-                onClick={togglePlay}
-                className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all"
-              >
-                {isPlaying ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5 ml-0.5" />
-                )}
-              </button>
-
-              {/* Speed */}
-              <div className="relative">
+              {/* Main Controls */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
-                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                  className="px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  onClick={replayAudio}
+                  className="p-1.5 hover:bg-slate-100 rounded-full transition-colors"
+                  title="Phát lại từ đầu"
                 >
-                  <span className="text-sm font-medium text-gray-700">
-                    {playbackRate}x
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                  <RotateCcw className="h-4 w-4 text-slate-600" />
                 </button>
 
-                {showSpeedMenu && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[100px]">
-                    {speedOptions.map((speed) => (
-                      <button
-                        key={speed}
-                        onClick={() => {
-                          setPlaybackRate(speed)
-                          setShowSpeedMenu(false)
-                        }}
-                        className={`w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors ${
-                          playbackRate === speed
-                            ? 'bg-blue-50 text-blue-600 font-medium'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        {speed}x
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <button
+                  onClick={togglePlay}
+                  className="w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full flex items-center justify-center shadow-lg"
+                >
+                  {isPlaying ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4 ml-0.5" />
+                  )}
+                </button>
+
+                {/* Speed Control */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                    className="flex items-center gap-1 p-1.5 hover:bg-slate-100 rounded-full transition-colors"
+                    title="Tốc độ phát"
+                  >
+                    <Gauge className="h-4 w-4 text-slate-600" />
+                    <span className="text-[10px] font-semibold text-slate-600">
+                      {playbackRate}x
+                    </span>
+                  </button>
+
+                  {/* Speed Menu */}
+                  {showSpeedMenu && (
+                    <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[70px] z-60">
+                      {speedOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handleSpeedChange(option.value)}
+                          className={`w-full px-3 py-2 text-xs hover:bg-gray-100 transition-colors ${
+                            playbackRate === option.value
+                              ? 'bg-blue-50 text-blue-600 font-semibold'
+                              : 'text-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Progress */}
-            <div className="flex items-center gap-3 min-w-[300px] flex-1">
-              <span className="text-xs font-mono text-gray-600 w-12 text-right">
-                {formatTime(currentTime)}
+            {/* Row 2: Progress Bar */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-slate-600 flex-shrink-0">
+                {formatTime(Math.floor(currentTime))}
               </span>
               <div
-                className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
+                className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden cursor-pointer"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect()
                   const clickX = e.clientX - rect.left
@@ -703,20 +805,122 @@ const PodcastPracticePage: React.FC = () => {
                 }}
               >
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
+                  className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-200"
                   style={{
                     width: `${duration ? (currentTime / duration) * 100 : 0}%`,
                   }}
                 />
               </div>
-              <span className="text-xs font-mono text-gray-600 w-12">
-                {formatTime(duration)}
+              <span className="text-[10px] font-mono text-slate-600 flex-shrink-0">
+                {formatTime(Math.floor(duration))}
+              </span>
+            </div>
+          </div>
+
+          {/* Desktop Layout - Single Row */}
+          <div className="hidden sm:flex items-center justify-between gap-4">
+            {/* Left - Song Info */}
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Volume2 className="h-6 w-6 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900 text-sm truncate">
+                  {attempt.title}
+                </p>
+                <p className="text-slate-500 text-xs">Podcast Practice Audio</p>
+              </div>
+            </div>
+
+            {/* Center - Controls */}
+            <div className="flex items-center gap-6 flex-shrink-0">
+              <button
+                onClick={replayAudio}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors duration-200"
+                title="Phát lại từ đầu"
+              >
+                <RotateCcw className="h-5 w-5 text-slate-600" />
+              </button>
+
+              <button
+                onClick={togglePlay}
+                className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                {isPlaying ? (
+                  <Pause className="h-5 w-5" />
+                ) : (
+                  <Play className="h-5 w-5 ml-0.5" />
+                )}
+              </button>
+
+              {/* Speed Control */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  className="flex items-center gap-2 p-2 hover:bg-slate-100 rounded-full transition-colors duration-200"
+                  title="Tốc độ phát"
+                >
+                  <Gauge className="h-5 w-5 text-slate-600" />
+                  <span className="text-xs font-semibold text-slate-600 min-w-[28px]">
+                    {playbackRate}x
+                  </span>
+                </button>
+
+                {/* Speed Menu */}
+                {showSpeedMenu && (
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[80px] z-60">
+                    {speedOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleSpeedChange(option.value)}
+                        className={`w-full px-3 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                          playbackRate === option.value
+                            ? 'bg-blue-50 text-blue-600 font-semibold'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button className="p-2 hover:bg-slate-100 rounded-full transition-colors duration-200">
+                <Settings className="h-5 w-5 text-slate-600" />
+              </button>
+            </div>
+
+            {/* Right - Progress & Time */}
+            <div className="flex items-center gap-4 min-w-[200px] flex-1">
+              <span className="text-xs font-mono text-slate-600 flex-shrink-0">
+                {formatTime(Math.floor(currentTime))}
+              </span>
+              <div
+                className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const clickX = e.clientX - rect.left
+                  const width = rect.width
+                  const newTime = (clickX / width) * duration
+                  handleSeek(newTime)
+                }}
+              >
+                <div
+                  className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-200"
+                  style={{
+                    width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+              <span className="text-xs font-mono text-slate-600 flex-shrink-0">
+                {formatTime(Math.floor(duration))}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Hidden Media Player */}
+        {/* Media Player (Audio or Video) */}
         {podcastData && (
           <MediaPlayer
             ref={mediaPlayerRef}
@@ -735,38 +939,30 @@ const PodcastPracticePage: React.FC = () => {
       </div>
 
       {/* Results Modal */}
-      {showResults && result && (
+      {showResults && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-8 bg-white">
-            <div className="text-center space-y-6">
-              <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                <Award className="h-8 w-8 text-green-600" />
-              </div>
+          <Card className="max-w-md w-full p-6 bg-white">
+            <div className="text-center space-y-4">
+              <div className="text-4xl">🎉</div>
+              <h2 className="text-2xl font-bold text-gray-900">Hoàn thành!</h2>
 
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Hoàn thành!
-                </h2>
-                <p className="text-gray-600">Bạn đã hoàn thành bài kiểm tra</p>
-              </div>
-
-              <div className="space-y-3 py-4 border-t border-b border-gray-100">
+              <div className="space-y-3 py-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Tổng số câu</span>
-                  <span className="font-semibold text-gray-900">
-                    {result.totalQuestions}
+                  <span className="text-gray-600">Tổng số câu:</span>
+                  <span className="font-semibold">
+                    {result?.totalQuestions}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Câu đúng</span>
+                  <span className="text-gray-600">Câu đúng:</span>
                   <span className="font-semibold text-green-600">
-                    {result.correctCount}
+                    {result?.correctCount}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Điểm số</span>
-                  <span className="text-2xl font-bold text-blue-600">
-                    {result.scorePercent}%
+                  <span className="text-gray-600">Điểm:</span>
+                  <span className="font-bold text-xl text-blue-600">
+                    {result?.scorePercent}%
                   </span>
                 </div>
               </div>
@@ -788,10 +984,100 @@ const PodcastPracticePage: React.FC = () => {
         </div>
       )}
 
-      {/* Speed menu backdrop */}
+      {/* Action Buttons - Bottom Right (Bubble Style) */}
+      <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 flex flex-col space-y-2 sm:space-y-3 z-50">
+        <button
+          onClick={handleSaveDraft}
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center group relative"
+          disabled={saveDraftMutation.isPending}
+          title="Lưu nháp"
+        >
+          {saveDraftMutation.isPending ? (
+            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+          )}
+          {/* Tooltip */}
+          <div className="hidden sm:block absolute right-full mr-3 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Lưu nháp
+          </div>
+        </button>
+
+        <button
+          onClick={handleCompleteAttempt}
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center group relative"
+          disabled={submitAttemptMutation.isPending}
+          title="Nộp bài"
+        >
+          {submitAttemptMutation.isPending ? (
+            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Award className="w-4 h-4 sm:w-5 sm:h-5" />
+          )}
+          {/* Tooltip */}
+          <div className="hidden sm:block absolute right-full mr-3 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Nộp bài (
+            {
+              Object.keys(userAnswers).filter((id) => userAnswers[id]?.trim())
+                .length
+            }
+            /{attempt?.gaps.length || 0})
+          </div>
+        </button>
+
+        <button
+          onClick={handleExitClick}
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center group relative"
+          title="Thoát"
+        >
+          <X className="w-4 h-4 sm:w-5 sm:h-5" />
+          {/* Tooltip */}
+          <div className="hidden sm:block absolute right-full mr-3 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Thoát
+          </div>
+        </button>
+      </div>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                <X className="w-5 h-5 text-yellow-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Xác nhận thoát
+              </h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Bạn có chắc chắn muốn thoát? Tiến trình hiện tại sẽ không được lưu
+              và bạn sẽ mất tất cả câu trả lời đã điền.
+            </p>
+
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={handleCancelExit}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmExit}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Thoát
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close speed menu */}
       {showSpeedMenu && (
         <div
-          className="fixed inset-0 z-30"
+          className="fixed inset-0 z-40"
           onClick={() => setShowSpeedMenu(false)}
         />
       )}

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { useSavedWords } from '../hooks/useVocabulary'
 import { dictionaryAPI } from '../services/dictionary.api'
 
+type SavedWord = { word: string; [key: string]: any }
+
 interface QuizQuestion {
   word: string
   correctDefinition: string
@@ -33,7 +35,8 @@ export default function QuizReviewPage() {
 
   // Generate quiz questions
   const generateQuiz = async () => {
-    if (savedWords.length < 4) {
+    const words = savedWords as SavedWord[]
+    if (words.length < 4) {
       alert('Bạn cần ít nhất 4 từ để chơi quiz!')
       return
     }
@@ -43,7 +46,7 @@ export default function QuizReviewPage() {
 
     try {
       // Shuffle words and take max 10 for quiz
-      const shuffled = [...savedWords].sort(() => Math.random() - 0.5)
+      const shuffled = [...words].sort(() => Math.random() - 0.5)
       const quizWords = shuffled.slice(0, Math.min(10, shuffled.length))
 
       // Fetch definitions for all words

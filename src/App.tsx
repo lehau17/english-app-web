@@ -28,6 +28,9 @@ import { ListeningResultPage } from './pages/ListeningResultPage'
 import MyCertificatesPage from './pages/MyCertificatesPage'
 import MyVocabularyPage from './pages/MyVocabularyPage'
 import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
+import VocabularyListDetailPage from './pages/VocabularyListDetailPage'
+import VocabularyListsPage from './pages/VocabularyListsPage'
+import VocabularyReviewPage from './pages/VocabularyReviewPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ParentActivitiesPage from './pages/ParentActivitiesPage'
 import ParentHomePage from './pages/ParentHomePage'
@@ -187,6 +190,46 @@ function App() {
               element={
                 <HomeLayout>
                   <DictionaryPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/vocabulary"
+              element={
+                <HomeLayout>
+                  <VocabularyListsPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/vocabulary/lists/:listId"
+              element={
+                <HomeLayout>
+                  <VocabularyListDetailPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/vocabulary/review/:listId"
+              element={
+                <HomeLayout>
+                  <VocabularyReviewPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/vocabulary/review"
+              element={
+                <HomeLayout>
+                  <VocabularyReviewPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/vocabulary/my-lists"
+              element={
+                <HomeLayout>
+                  <MyVocabularyPage />
                 </HomeLayout>
               }
             />
