@@ -191,6 +191,14 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       Từ điển
                     </NavLink>
                     <NavLink
+                      to="/vocabulary"
+                      className={({ isActive }) =>
+                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+                      }
+                    >
+                      Từ vựng
+                    </NavLink>
+                    <NavLink
                       to="/certificates"
                       className={({ isActive }) =>
                         `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`

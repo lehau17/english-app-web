@@ -159,6 +159,14 @@ export const LessonMapLayout: React.FC<{ children: React.ReactNode }> = ({
               >
                 Từ điển
               </NavLink>
+              <NavLink
+                to="/vocabulary"
+                className={({ isActive }) =>
+                  `text-sm ${isActive ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'}`
+                }
+              >
+                Từ vựng
+              </NavLink>
             </nav>
           </div>
 
