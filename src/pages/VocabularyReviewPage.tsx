@@ -8,7 +8,6 @@ import {
 } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button } from '../components/ui/button'
 import {
   useStartReviewSession,
   useSubmitReview,
@@ -28,6 +27,9 @@ const VocabularyReviewPage: React.FC = () => {
   const [reviews, setReviews] = useState<ReviewSubmission[]>([])
   const [isComplete, setIsComplete] = useState(false)
   const [startTime] = useState(Date.now())
+  const [userInput, setUserInput] = useState('')
+  const [showResult, setShowResult] = useState(false)
+  const [isCorrect, setIsCorrect] = useState(false)
 
   const startMutation = useStartReviewSession()
   const submitMutation = useSubmitReview()
@@ -52,12 +54,58 @@ const VocabularyReviewPage: React.FC = () => {
     }
   }, [listId, unitId])
 
+  // Redirect when review is complete
+  useEffect(() => {
+    if (isComplete) {
+      const timer = setTimeout(() => {
+        navigate(`/vocabulary/lists/${listId}`)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isComplete, listId, navigate])
+
   const currentTerm = terms[currentIndex]
   const progress =
     terms.length > 0 ? ((currentIndex + 1) / terms.length) * 100 : 0
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped)
+  }
+
+  const getMaskedExample = () => {
+    if (!currentTerm?.examples || currentTerm.examples.length === 0) return null
+    const example = currentTerm.examples[0].sentence
+    const word = currentTerm.word.toLowerCase()
+    const wordLength = word.length
+    const masked = '*'.repeat(wordLength)
+
+    // Replace word with asterisks (case-insensitive)
+    const regex = new RegExp(`\\b${word}\\b`, 'gi')
+    return example.replace(regex, masked)
+  }
+
+  const checkAnswer = () => {
+    if (!currentTerm) return
+
+    const normalizedInput = userInput.trim().toLowerCase()
+    const normalizedWord = currentTerm.word.toLowerCase()
+    const correct = normalizedInput === normalizedWord
+
+    setIsCorrect(correct)
+    setShowResult(true)
+
+    if (correct) {
+      // Auto proceed after 1 second if correct
+      setTimeout(() => {
+        handleRate(5) // Easy/Correct
+      }, 1000)
+    }
+  }
+
+  const handleDontKnow = () => {
+    setShowResult(true)
+    setIsCorrect(false)
+    setIsFlipped(true)
   }
 
   const handleRate = (quality: number) => {
@@ -68,6 +116,9 @@ const VocabularyReviewPage: React.FC = () => {
     if (currentIndex < terms.length - 1) {
       setCurrentIndex(currentIndex + 1)
       setIsFlipped(false)
+      setUserInput('')
+      setShowResult(false)
+      setIsCorrect(false)
     } else {
       const duration = Math.floor((Date.now() - startTime) / 1000)
       submitMutation.mutate(
@@ -104,14 +155,17 @@ const VocabularyReviewPage: React.FC = () => {
     )
   }
 
-  if (terms.length === 0) {
+  if (terms.length === 0 && !startMutation.isPending) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">No cards to review</p>
-          <Button onClick={() => navigate(`/vocabulary/lists/${listId}`)}>
+          <button
+            onClick={() => navigate(`/vocabulary/lists/${listId}`)}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-xl transition-colors"
+          >
             Back to List
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -127,24 +181,10 @@ const VocabularyReviewPage: React.FC = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-3">
             Review Complete!
           </h2>
-          <p className="text-gray-600 text-lg mb-8">
+          <p className="text-gray-600 text-lg mb-4">
             You reviewed {terms.length} cards
           </p>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/vocabulary/lists/${listId}`)}
-              className="flex-1 border-2 border-gray-300 rounded-xl py-3"
-            >
-              Back to List
-            </Button>
-            <Button
-              onClick={() => window.location.reload()}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-3 font-semibold"
-            >
-              Review Again
-            </Button>
-          </div>
+          <p className="text-gray-500 text-sm">Redirecting...</p>
         </div>
       </div>
     )
@@ -186,66 +226,87 @@ const VocabularyReviewPage: React.FC = () => {
           onClick={handleFlip}
         >
           {!isFlipped ? (
-            /* Front Side - Word */
-            <div className="text-center w-full">
+            /* Front Side - Fill in the blank */
+            <div className="w-full" onClick={(e) => e.stopPropagation()}>
               {/* Image */}
               {currentTerm?.imageUrl && (
-                <div className="mb-6">
+                <div className="mb-6 text-center">
                   <img
                     src={currentTerm.imageUrl}
-                    alt={currentTerm.word}
+                    alt="vocabulary"
                     className="w-48 h-48 object-cover rounded-2xl mx-auto shadow-lg"
                   />
                 </div>
               )}
 
-              {/* Part of Speech */}
-              {currentTerm?.partOfSpeech && (
-                <span className="inline-block px-4 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold mb-4">
-                  {currentTerm.partOfSpeech}
-                </span>
-              )}
-
-              {/* Word */}
-              <h1 className="text-6xl font-bold text-gray-900 mb-4">
-                {currentTerm?.word}
-              </h1>
-
-              {/* Pronunciation */}
-              {(currentTerm?.ipaUs || currentTerm?.pronunciation) && (
-                <p className="text-xl text-gray-600 mb-6">
-                  US: {currentTerm.ipaUs || currentTerm.pronunciation}
-                  {currentTerm?.ipaUk && (
-                    <span className="ml-4">UK: {currentTerm.ipaUk}</span>
-                  )}
-                </p>
-              )}
-
-              {/* Audio Button */}
-              {currentTerm?.audioUrl && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    playAudio()
-                  }}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 font-semibold transition-colors"
-                >
-                  <Volume2 className="h-5 w-5" />
-                  <span>Play Audio</span>
-                </button>
-              )}
-
-              {/* Translation */}
-              {currentTerm?.translationVi && (
-                <p className="text-2xl text-blue-600 font-semibold mt-8">
-                  {currentTerm.translationVi}
-                </p>
-              )}
-
-              <div className="flex items-center justify-center gap-2 mt-12 text-gray-400">
-                <Eye className="h-5 w-5" />
-                <p className="text-sm font-medium">Click to see definition</p>
+              {/* Part of Speech Badge + Audio */}
+              <div className="flex items-center justify-center gap-3 mb-6">
+                {currentTerm?.partOfSpeech && (
+                  <span className="px-4 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                    {currentTerm.partOfSpeech}
+                  </span>
+                )}
+                {currentTerm?.audioUrl && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      playAudio()
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 font-semibold transition-colors"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
+
+              {/* Translation (Title) */}
+              {currentTerm?.translationVi && (
+                <h2 className="text-3xl font-bold text-blue-600 mb-6 text-center">
+                  {currentTerm.translationVi}
+                </h2>
+              )}
+
+              {/* English Definition */}
+              {currentTerm?.definition && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 font-semibold mb-2">
+                    English Definition:
+                  </p>
+                  <p className="text-base text-gray-900 leading-relaxed">
+                    {currentTerm.definition}
+                  </p>
+                </div>
+              )}
+
+              {/* Vietnamese Definition */}
+              {currentTerm?.translationVi && currentTerm?.definition && (
+                <div className="mb-6">
+                  <p className="text-sm text-blue-600 font-semibold mb-2">
+                    Definition:
+                  </p>
+                  <p className="text-base text-blue-800 leading-relaxed">
+                    {currentTerm.translationVi}.
+                  </p>
+                </div>
+              )}
+
+              {/* Example Section */}
+              {getMaskedExample() && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 font-semibold mb-3">
+                    Example:
+                  </p>
+                  <p className="text-xl font-medium text-gray-900 italic mb-3 leading-relaxed">
+                    {getMaskedExample()}
+                  </p>
+                  {currentTerm?.examples &&
+                    currentTerm.examples[0]?.translation && (
+                      <p className="text-base text-blue-600 leading-relaxed">
+                        → {currentTerm.examples[0].translation}
+                      </p>
+                    )}
+                </div>
+              )}
             </div>
           ) : (
             /* Back Side - Definition */
@@ -379,28 +440,67 @@ const VocabularyReviewPage: React.FC = () => {
           </div>
         )}
 
-        {/* Hint/Input (if not flipped yet) */}
+        {/* Input and Answer Check (if not flipped yet) */}
         {!isFlipped && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-4">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-6 mb-4">
+              <div className="flex items-center gap-2 mb-4">
                 <Lightbulb className="h-5 w-5 text-yellow-500" />
-                <p className="text-sm text-gray-700 font-semibold">
-                  Hint: Try to recall the meaning
-                </p>
+                <p className="text-sm text-gray-700 font-semibold">Hint</p>
               </div>
-              <div className="flex gap-3">
-                <button className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl transition-colors border border-gray-300">
-                  <Eye className="h-5 w-5 inline-block mr-2" />
+
+              {/* Input Box */}
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && userInput.trim()) {
+                    checkAnswer()
+                  }
+                }}
+                placeholder="skdnfjsdnf"
+                disabled={showResult}
+                className="w-full px-4 py-3 mb-4 border-2 border-gray-300 rounded-xl text-center text-lg font-medium focus:outline-none focus:border-blue-500 transition-colors disabled:bg-gray-100"
+              />
+
+              {/* Buttons */}
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={handleDontKnow}
+                  disabled={showResult}
+                  className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition-colors shadow-md flex items-center justify-center gap-2"
+                >
+                  <Eye className="h-5 w-5" />
                   Don't Know
                 </button>
                 <button
-                  onClick={handleFlip}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition-colors shadow-md"
+                  onClick={checkAnswer}
+                  disabled={!userInput.trim() || showResult}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition-colors shadow-md"
                 >
-                  Check Answer
+                  ✓ Check Answer
                 </button>
               </div>
+
+              {/* Result Message */}
+              {showResult && !isCorrect && (
+                <div className="bg-red-100 border-2 border-red-300 rounded-xl py-3 px-4 text-center">
+                  <p className="text-red-600 font-semibold flex items-center justify-center gap-2">
+                    <span className="text-xl">✕</span>
+                    Incorrect
+                  </p>
+                </div>
+              )}
+
+              {showResult && isCorrect && (
+                <div className="bg-green-100 border-2 border-green-300 rounded-xl py-3 px-4 text-center">
+                  <p className="text-green-600 font-semibold flex items-center justify-center gap-2">
+                    <span className="text-xl">✓</span>
+                    Correct! Moving to next card...
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

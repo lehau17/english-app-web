@@ -20,6 +20,16 @@ const VocabularyListsPage: React.FC = () => {
   const { data: myLists } = useMyVocabularyLists()
   const { data: stats } = useReviewStats()
 
+  // DEBUG: Log data
+  console.log('📊 Vocabulary Page Data:', {
+    isLoading,
+    hasData: !!data,
+    lists: data?.data,
+    total: data?.total,
+    myLists,
+    stats,
+  })
+
   const totalCards =
     myLists?.reduce((sum, list) => sum + list.totalTerms, 0) || 0
   const learning = stats?.learningCount || 0
@@ -200,71 +210,83 @@ const VocabularyListsPage: React.FC = () => {
         </div>
 
         {/* Vocabulary Decks Grid - Parroto Style */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data?.data.map((list) => (
-            <div
-              key={list.id}
-              className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group"
-              onClick={() => navigate(`/vocabulary/lists/${list.id}`)}
-            >
-              {/* Custom Thumbnail - Parroto Style (Light BG) */}
-              <div className="h-52 relative overflow-hidden bg-gradient-to-br from-blue-400 via-blue-500 to-purple-500 flex items-center justify-center p-8">
-                {list.thumbnailUrl ? (
-                  <img
-                    src={list.thumbnailUrl}
-                    alt={list.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center transform group-hover:scale-105 transition-transform">
-                    <div className="w-28 h-28 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-3 mx-auto shadow-2xl">
-                      <BookOpen className="w-14 h-14 text-white drop-shadow-lg" />
+        {data?.data && data.data.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.data.map((list) => (
+              <div
+                key={list.id}
+                className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group"
+                onClick={() => navigate(`/vocabulary/lists/${list.id}`)}
+              >
+                {/* Custom Thumbnail - Parroto Style (Light BG) */}
+                <div className="h-52 relative overflow-hidden bg-gradient-to-br from-blue-400 via-blue-500 to-purple-500 flex items-center justify-center p-8">
+                  {list.thumbnailUrl ? (
+                    <img
+                      src={list.thumbnailUrl}
+                      alt={list.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center transform group-hover:scale-105 transition-transform">
+                      <div className="w-28 h-28 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-3 mx-auto shadow-2xl">
+                        <BookOpen className="w-14 h-14 text-white drop-shadow-lg" />
+                      </div>
+                      <div className="bg-white/95 backdrop-blur-sm rounded-xl px-6 py-4 shadow-xl">
+                        <p className="text-3xl font-black text-gray-900">
+                          {list.totalTerms}
+                        </p>
+                        <p className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                          {list.title.includes('1000')
+                            ? 'ENGLISH'
+                            : list.title.includes('TOEIC')
+                              ? 'ESSENTIAL WORDS'
+                              : 'VOCABULARY'}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1 font-medium">
+                          {list.category || 'Essential Words'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-white/95 backdrop-blur-sm rounded-xl px-6 py-4 shadow-xl">
-                      <p className="text-3xl font-black text-gray-900">
-                        {list.totalTerms}
-                      </p>
-                      <p className="text-sm font-bold text-gray-800 uppercase tracking-wide">
-                        {list.title.includes('1000')
-                          ? 'ENGLISH'
-                          : list.title.includes('TOEIC')
-                            ? 'ESSENTIAL WORDS'
-                            : 'VOCABULARY'}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1 font-medium">
-                        {list.category || 'Essential Words'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Content */}
-              <div className="p-5">
-                <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">
-                  {list.title}
-                </h3>
-
-                {/* Stats */}
-                <div className="flex items-center gap-4 text-sm text-blue-600 mb-4 font-medium">
-                  <div className="flex items-center gap-1">
-                    <BookOpen className="h-4 w-4" />
-                    <span>{list.totalTerms} cards</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>{list.userCount} students</span>
-                  </div>
+                  )}
                 </div>
 
-                {/* Start Learning Button - Parroto Style */}
-                <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md hover:shadow-lg">
-                  Start Learning
-                </button>
+                {/* Content */}
+                <div className="p-5">
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">
+                    {list.title}
+                  </h3>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 text-sm text-blue-600 mb-4 font-medium">
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="h-4 w-4" />
+                      <span>{list.totalTerms} cards</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4" />
+                      <span>{list.userCount} students</span>
+                    </div>
+                  </div>
+
+                  {/* Start Learning Button - Parroto Style */}
+                  <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md hover:shadow-lg">
+                    Start Learning
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-24 h-24 bg-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+              <BookOpen className="w-12 h-12 text-gray-400" />
             </div>
-          ))}
-        </div>
+            <p className="text-gray-600 mb-2">No vocabulary lists found</p>
+            <p className="text-sm text-gray-500">
+              Check browser console for debug info
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,0 +1,1 @@
+export { VocabularyWordsModal } from './VocabularyWordsModal'

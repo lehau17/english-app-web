@@ -12,6 +12,7 @@ import {
   getVocabularyUnit,
   getVocabularyUnits,
   removeListFromMyCollection,
+  resetUnitProgress,
   startReviewSession,
   submitReview,
 } from '../services/vocabulary.api'
@@ -55,9 +56,17 @@ export const useAddListToCollection = () => {
 
   return useMutation({
     mutationFn: addListToMyCollection,
-    onSuccess: () => {
+    onSuccess: (_, listId) => {
       queryClient.invalidateQueries({ queryKey: ['vocabulary', 'my-lists'] })
       queryClient.invalidateQueries({ queryKey: ['vocabulary', 'lists'] })
+      // Invalidate the specific list detail
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'list', listId],
+      })
+      // Invalidate units to update userProgress
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'list', listId, 'units'],
+      })
     },
   })
 }
@@ -67,9 +76,17 @@ export const useRemoveListFromCollection = () => {
 
   return useMutation({
     mutationFn: removeListFromMyCollection,
-    onSuccess: () => {
+    onSuccess: (_, listId) => {
       queryClient.invalidateQueries({ queryKey: ['vocabulary', 'my-lists'] })
       queryClient.invalidateQueries({ queryKey: ['vocabulary', 'lists'] })
+      // Invalidate the specific list detail
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'list', listId],
+      })
+      // Invalidate units to update userProgress
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'list', listId, 'units'],
+      })
     },
   })
 }
@@ -131,6 +148,30 @@ export const useSubmitReview = () => {
         })
         queryClient.invalidateQueries({ queryKey: ['vocabulary', 'my-lists'] })
       }
+    },
+  })
+}
+
+export const useResetUnitProgress = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (unitId: string) => resetUnitProgress(unitId),
+    onSuccess: () => {
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'review', 'stats'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'review', 'due'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'list'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['vocabulary', 'unit'],
+      })
+      queryClient.invalidateQueries({ queryKey: ['vocabulary', 'my-lists'] })
     },
   })
 }

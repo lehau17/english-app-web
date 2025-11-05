@@ -14,8 +14,8 @@ import type {
   VocabularyTerm,
   VocabularyUnit,
 } from '../types/vocabulary.type'
-
 // ==================== LISTS ====================
+import type { BaseResponse } from '../types/base-response.type'
 
 export const getVocabularyLists = async (
   filters?: VocabularyListFilters
@@ -27,14 +27,18 @@ export const getVocabularyLists = async (
 }
 
 export const getMyVocabularyLists = async (): Promise<VocabularyList[]> => {
-  const response = await api.get('/private/v1/vocabulary/lists/my')
+  const response = await api.get<BaseResponse<VocabularyList[]>>(
+    '/private/v1/vocabulary/lists/my'
+  )
   return response.data.data
 }
 
 export const getVocabularyList = async (
   id: string
 ): Promise<VocabularyList> => {
-  const response = await api.get(`/private/v1/vocabulary/lists/${id}`)
+  const response = await api.get<BaseResponse<VocabularyList>>(
+    `/private/v1/vocabulary/lists/${id}`
+  )
   return response.data.data
 }
 
@@ -167,4 +171,16 @@ export const importVocabularyTerms = async (
     { terms }
   )
   return response.data
+}
+
+export const resetUnitProgress = async (
+  unitId: string
+): Promise<{ message: string; deletedCount: number }> => {
+  const response = await api.post(
+    '/private/v1/vocabulary/review/reset-progress',
+    {
+      unitId,
+    }
+  )
+  return response.data.data
 }

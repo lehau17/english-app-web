@@ -36,6 +36,10 @@ export interface VocabularyUnit {
   createdAt: string
   updatedAt: string
   terms?: VocabularyTerm[]
+  userProgress?: {
+    completedTerms: number
+    totalTerms: number
+  }
 }
 
 export interface VocabularyTerm {
