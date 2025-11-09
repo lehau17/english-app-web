@@ -130,7 +130,7 @@ const MyVocabularyPage: React.FC = () => {
                 </p>
               </div>
               <Button
-                onClick={() => navigate('/vocabulary/review')}
+                onClick={() => navigate('/vocabulary/quick-review')}
                 className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
               >
                 <TrendingUp className="h-4 w-4 mr-2" />

@@ -32,6 +32,7 @@ import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
 import VocabularyListDetailPage from './pages/VocabularyListDetailPage'
 import VocabularyListsPage from './pages/VocabularyListsPage'
 import VocabularyReviewPage from './pages/VocabularyReviewPage'
+import VocabularyQuickReviewPage from './pages/VocabularyQuickReviewPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ParentActivitiesPage from './pages/ParentActivitiesPage'
 import ParentHomePage from './pages/ParentHomePage'
@@ -223,6 +224,14 @@ function App() {
               element={
                 <HomeLayout>
                   <VocabularyReviewPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/vocabulary/quick-review"
+              element={
+                <HomeLayout>
+                  <VocabularyQuickReviewPage />
                 </HomeLayout>
               }
             />
