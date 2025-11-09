@@ -65,7 +65,10 @@ export const ConversationWidget = () => {
     limit: DEFAULT_LIMIT,
     page: 1,
   })
-  const conversations = conversationsQuery.data?.data ?? []
+  const conversations = useMemo(
+    () => conversationsQuery.data?.data ?? [],
+    [conversationsQuery.data?.data]
+  )
 
   console.log('conversations', conversations)
 
@@ -118,7 +121,8 @@ export const ConversationWidget = () => {
     isOpen,
     selectedClassroomId,
     selectedConversationId,
-    activeConversation?.unreadCount,
+    activeConversation,
+    markReadMutation,
   ])
 
   const handleSendMessage = async (content: string, attachments?: File[]) => {

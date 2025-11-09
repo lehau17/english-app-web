@@ -583,256 +583,6 @@ export const CreatePodcastPageUpdated: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Content Section */}
-            <Card className="shadow-sm border border-gray-200 bg-white">
-              <CardHeader className="border-b border-gray-100 bg-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <BookOpen className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      {audioMode === 'upload'
-                        ? 'Transcript'
-                        : 'Nội dung văn bản'}
-                    </CardTitle>
-                    <CardDescription className="text-sm text-gray-600">
-                      {audioMode === 'upload'
-                        ? 'Nhập transcript của audio file'
-                        : 'Dán văn bản tiếng Anh mà bạn muốn chuyển thành podcast'}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 p-6">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="content"
-                    className="flex items-center gap-2 font-medium"
-                  >
-                    <span>
-                      {audioMode === 'upload' ? 'Transcript' : 'Văn bản'}
-                    </span>
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <Textarea
-                    id="content"
-                    {...register('content', {
-                      required: 'Nội dung là bắt buộc',
-                      minLength: {
-                        value: 10,
-                        message: 'Nội dung phải có ít nhất 10 ký tự',
-                      },
-                    })}
-                    placeholder={
-                      audioMode === 'upload'
-                        ? 'Nhập transcript của audio. Sử dụng [từ] để đánh dấu chỗ trống...'
-                        : 'Dán văn bản tiếng Anh của bạn vào đây. Sử dụng [từ] để đánh dấu chỗ trống...'
-                    }
-                    rows={12}
-                    className="leading-6 transition-all focus:ring-2 focus:ring-green-500/20"
-                  />
-                  {/* Auto Gap Generator */}
-                  <div className="mt-4 rounded-lg border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
-                        <Sparkles className="h-4 w-4 text-white" />
-                      </div>
-                      <h4 className="font-semibold text-emerald-800">
-                        Tự động tạo gaps
-                      </h4>
-                      <div className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
-                        Random selection
-                      </div>
-                    </div>
-
-                    {/* Mode Selection */}
-                    <div className="mb-4">
-                      <div className="inline-flex bg-white rounded-lg p-1 border border-emerald-200">
-                        <button
-                          type="button"
-                          onClick={() => setAutoMode('percent')}
-                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                            autoMode === 'percent'
-                              ? 'bg-emerald-500 text-white shadow-sm'
-                              : 'text-emerald-700 hover:text-emerald-900'
-                          }`}
-                        >
-                          Theo độ khó
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAutoMode('count')}
-                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                            autoMode === 'count'
-                              ? 'bg-emerald-500 text-white shadow-sm'
-                              : 'text-emerald-700 hover:text-emerald-900'
-                          }`}
-                        >
-                          Theo số lượng
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Controls */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-emerald-700">
-                          {autoMode === 'percent' ? 'Độ khó' : 'Số gaps'}
-                        </label>
-                        {autoMode === 'percent' ? (
-                          <select
-                            value={autoDifficulty}
-                            onChange={(e) => setAutoDifficulty(e.target.value)}
-                            className="w-full h-9 rounded-md border border-emerald-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                          >
-                            {difficultyOptions.map((d) => (
-                              <option key={d.value} value={d.value}>
-                                {d.label}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div>
-                            <input
-                              type="number"
-                              min={0}
-                              max={getAvailableCandidates(watchContent) || 999}
-                              value={autoCount === '' ? '' : String(autoCount)}
-                              onChange={(e) => {
-                                const v =
-                                  e.target.value === ''
-                                    ? ''
-                                    : Math.max(0, Number(e.target.value))
-                                setAutoCount(v === '' ? '' : Number(v))
-                              }}
-                              placeholder={`Tối đa ${getAvailableCandidates(watchContent) || 0} gaps`}
-                              className="w-full h-9 rounded-md border border-emerald-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                            />
-                            {autoCount !== '' &&
-                              getAvailableCandidates(watchContent) > 0 &&
-                              autoCount >
-                                getAvailableCandidates(watchContent) && (
-                                <div className="mt-1 text-xs text-amber-600">
-                                  ⚠️ Chỉ có{' '}
-                                  {getAvailableCandidates(watchContent)} từ khả
-                                  dụng
-                                </div>
-                              )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-emerald-700">
-                          {autoMode === 'percent' ? 'Phần trăm' : 'Tối đa'}
-                        </label>
-                        <div className="h-9 rounded-md border border-emerald-200 bg-emerald-50 px-3 flex items-center text-sm text-emerald-700">
-                          {autoMode === 'percent' ? (
-                            <>
-                              {autoDifficulty === 'beginner' && '40%'}
-                              {autoDifficulty === 'elementary' && '50%'}
-                              {autoDifficulty === 'intermediate' && '60%'}
-                              {autoDifficulty === 'upper_intermediate' && '70%'}
-                              {autoDifficulty === 'advanced' && '90%'}
-                              <span className="ml-1">ký tự</span>
-                            </>
-                          ) : (
-                            <span>
-                              {getAvailableCandidates(watchContent) || 0} từ khả
-                              dụng
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        onClick={handleAutoGenerate}
-                        className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                        disabled={autoMode === 'count' && autoCount === ''}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Tạo gaps
-                      </Button>
-                    </div>
-
-                    <div className="mt-3 text-xs text-emerald-600">
-                      💡 Hoặc dùng [từ] để chọn thủ công trong văn bản
-                    </div>
-                  </div>
-                  {errors.content && (
-                    <div className="text-sm text-red-600 mt-1">
-                      {errors.content.message}
-                    </div>
-                  )}
-
-                  {/* Gap Preview */}
-                  {gapPreview && (
-                    <div className="mt-4">
-                      <div className="text-sm text-muted-foreground mb-2">
-                        Preview (selected blanks highlighted)
-                      </div>
-                      <div className="p-3 rounded-md border border-input/30 bg-muted">
-                        <PreviewWithHighlights text={watchContent} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Stats */}
-                <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="text-sm text-blue-800 font-medium">
-                          Số từ
-                        </div>
-                        <div className="text-xl font-bold text-blue-900">
-                          {getWordCount(watchContent)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Clock className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <div className="text-sm text-purple-800 font-medium">
-                          Thời lượng ước tính
-                        </div>
-                        <div className="text-xl font-bold text-purple-900">
-                          ~
-                          {getEstimatedDuration(
-                            watchContent,
-                            (watch('speechSpeed') as number) || 1.0
-                          )}{' '}
-                          phút
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="border-t border-blue-200 pt-4">
-                    <div className="flex items-start gap-2">
-                      <span className="text-2xl">💡</span>
-                      <div>
-                        <div className="font-bold text-blue-900 mb-1">
-                          Tip: Tự chọn từ khuyết
-                        </div>
-                        <div className="text-blue-800">
-                          Đặt từ trong [dấu ngoặc vuông] để chọn từ khuyết. Ví
-                          dụ: "AI is [transforming] the [world]"
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Media Type Selection Card */}
             <Card className="shadow-sm border border-gray-200 bg-white">
               <CardHeader className="border-b border-gray-100 bg-white">
@@ -1192,6 +942,256 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                     )}
                   </>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Content Section */}
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader className="border-b border-gray-100 bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      {audioMode === 'upload'
+                        ? 'Transcript'
+                        : 'Nội dung văn bản'}
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-600">
+                      {audioMode === 'upload'
+                        ? 'Nhập transcript của audio file'
+                        : 'Dán văn bản tiếng Anh mà bạn muốn chuyển thành podcast'}
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="content"
+                    className="flex items-center gap-2 font-medium"
+                  >
+                    <span>
+                      {audioMode === 'upload' ? 'Transcript' : 'Văn bản'}
+                    </span>
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="content"
+                    {...register('content', {
+                      required: 'Nội dung là bắt buộc',
+                      minLength: {
+                        value: 10,
+                        message: 'Nội dung phải có ít nhất 10 ký tự',
+                      },
+                    })}
+                    placeholder={
+                      audioMode === 'upload'
+                        ? 'Nhập transcript của audio. Sử dụng [từ] để đánh dấu chỗ trống...'
+                        : 'Dán văn bản tiếng Anh của bạn vào đây. Sử dụng [từ] để đánh dấu chỗ trống...'
+                    }
+                    rows={12}
+                    className="leading-6 transition-all focus:ring-2 focus:ring-green-500/20"
+                  />
+                  {/* Auto Gap Generator */}
+                  <div className="mt-4 rounded-lg border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <Sparkles className="h-4 w-4 text-white" />
+                      </div>
+                      <h4 className="font-semibold text-emerald-800">
+                        Tự động tạo gaps
+                      </h4>
+                      <div className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
+                        Random selection
+                      </div>
+                    </div>
+
+                    {/* Mode Selection */}
+                    <div className="mb-4">
+                      <div className="inline-flex bg-white rounded-lg p-1 border border-emerald-200">
+                        <button
+                          type="button"
+                          onClick={() => setAutoMode('percent')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                            autoMode === 'percent'
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'text-emerald-700 hover:text-emerald-900'
+                          }`}
+                        >
+                          Theo độ khó
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAutoMode('count')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                            autoMode === 'count'
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'text-emerald-700 hover:text-emerald-900'
+                          }`}
+                        >
+                          Theo số lượng
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-emerald-700">
+                          {autoMode === 'percent' ? 'Độ khó' : 'Số gaps'}
+                        </label>
+                        {autoMode === 'percent' ? (
+                          <select
+                            value={autoDifficulty}
+                            onChange={(e) => setAutoDifficulty(e.target.value)}
+                            className="w-full h-9 rounded-md border border-emerald-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          >
+                            {difficultyOptions.map((d) => (
+                              <option key={d.value} value={d.value}>
+                                {d.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div>
+                            <input
+                              type="number"
+                              min={0}
+                              max={getAvailableCandidates(watchContent) || 999}
+                              value={autoCount === '' ? '' : String(autoCount)}
+                              onChange={(e) => {
+                                const v =
+                                  e.target.value === ''
+                                    ? ''
+                                    : Math.max(0, Number(e.target.value))
+                                setAutoCount(v === '' ? '' : Number(v))
+                              }}
+                              placeholder={`Tối đa ${getAvailableCandidates(watchContent) || 0} gaps`}
+                              className="w-full h-9 rounded-md border border-emerald-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            />
+                            {autoCount !== '' &&
+                              getAvailableCandidates(watchContent) > 0 &&
+                              autoCount >
+                                getAvailableCandidates(watchContent) && (
+                                <div className="mt-1 text-xs text-amber-600">
+                                  ⚠️ Chỉ có{' '}
+                                  {getAvailableCandidates(watchContent)} từ khả
+                                  dụng
+                                </div>
+                              )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-emerald-700">
+                          {autoMode === 'percent' ? 'Phần trăm' : 'Tối đa'}
+                        </label>
+                        <div className="h-9 rounded-md border border-emerald-200 bg-emerald-50 px-3 flex items-center text-sm text-emerald-700">
+                          {autoMode === 'percent' ? (
+                            <>
+                              {autoDifficulty === 'beginner' && '40%'}
+                              {autoDifficulty === 'elementary' && '50%'}
+                              {autoDifficulty === 'intermediate' && '60%'}
+                              {autoDifficulty === 'upper_intermediate' && '70%'}
+                              {autoDifficulty === 'advanced' && '90%'}
+                              <span className="ml-1">ký tự</span>
+                            </>
+                          ) : (
+                            <span>
+                              {getAvailableCandidates(watchContent) || 0} từ khả
+                              dụng
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={handleAutoGenerate}
+                        className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                        disabled={autoMode === 'count' && autoCount === ''}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Tạo gaps
+                      </Button>
+                    </div>
+
+                    <div className="mt-3 text-xs text-emerald-600">
+                      💡 Hoặc dùng [từ] để chọn thủ công trong văn bản
+                    </div>
+                  </div>
+                  {errors.content && (
+                    <div className="text-sm text-red-600 mt-1">
+                      {errors.content.message}
+                    </div>
+                  )}
+
+                  {/* Gap Preview */}
+                  {gapPreview && (
+                    <div className="mt-4">
+                      <div className="text-sm text-muted-foreground mb-2">
+                        Preview (selected blanks highlighted)
+                      </div>
+                      <div className="p-3 rounded-md border border-input/30 bg-muted">
+                        <PreviewWithHighlights text={watchContent} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stats */}
+                <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="text-sm text-blue-800 font-medium">
+                          Số từ
+                        </div>
+                        <div className="text-xl font-bold text-blue-900">
+                          {getWordCount(watchContent)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Clock className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="text-sm text-purple-800 font-medium">
+                          Thời lượng ước tính
+                        </div>
+                        <div className="text-xl font-bold text-purple-900">
+                          ~
+                          {getEstimatedDuration(
+                            watchContent,
+                            (watch('speechSpeed') as number) || 1.0
+                          )}{' '}
+                          phút
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-blue-200 pt-4">
+                    <div className="flex items-start gap-2">
+                      <span className="text-2xl">💡</span>
+                      <div>
+                        <div className="font-bold text-blue-900 mb-1">
+                          Tip: Tự chọn từ khuyết
+                        </div>
+                        <div className="text-blue-800">
+                          Đặt từ trong [dấu ngoặc vuông] để chọn từ khuyết. Ví
+                          dụ: "AI is [transforming] the [world]"
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

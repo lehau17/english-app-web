@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import {
   Crown,
   Filter,
+  History,
   Pause,
   Play,
   Search,
@@ -95,15 +96,26 @@ const ListeningPracticePage: React.FC = () => {
                 Nâng cao kỹ năng nghe tiếng Anh với các bài học chất lượng cao
               </p>
             </div>
-            <motion.button
-              onClick={() => navigate('/listening-practice/create')}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 transition-all shadow-sm w-full sm:w-auto justify-center"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Sparkles size={18} />
-              Tạo Podcast
-            </motion.button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <motion.button
+                onClick={() => navigate('/listening-practice/my-history')}
+                className="flex items-center gap-2 bg-white text-blue-600 border border-blue-600 px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-50 transition-all shadow-sm justify-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <History size={18} />
+                Lịch sử
+              </motion.button>
+              <motion.button
+                onClick={() => navigate('/listening-practice/create')}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium hover:bg-blue-700 transition-all shadow-sm justify-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Sparkles size={18} />
+                Tạo Podcast
+              </motion.button>
+            </div>
           </div>
         </div>
 

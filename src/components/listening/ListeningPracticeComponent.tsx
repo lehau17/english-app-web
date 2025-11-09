@@ -41,25 +41,6 @@ export const ListeningPracticeComponent: React.FC<
   const audioRef = useRef<HTMLAudioElement>(null)
   const timerRef = useRef<number | null>(null)
 
-  // Timer effect
-  useEffect(() => {
-    if (timeLimit && timeRemaining !== undefined && timeRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev && prev <= 1) {
-            handleSubmit()
-            return 0
-          }
-          return prev ? prev - 1 : 0
-        })
-      }, 1000)
-
-      return () => {
-        if (timerRef.current) clearInterval(timerRef.current)
-      }
-    }
-  }, [timeLimit, timeRemaining])
-
   // Audio event handlers
   useEffect(() => {
     const audio = audioRef.current
@@ -120,10 +101,29 @@ export const ListeningPracticeComponent: React.FC<
     }))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = React.useCallback(() => {
     const timeSpent = Math.floor((Date.now() - startTime) / 1000)
     onSubmit(answers, timeSpent)
-  }
+  }, [answers, onSubmit, startTime])
+
+  // Timer effect
+  useEffect(() => {
+    if (timeLimit && timeRemaining !== undefined && timeRemaining > 0) {
+      timerRef.current = window.setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev && prev <= 1) {
+            handleSubmit()
+            return 0
+          }
+          return prev ? prev - 1 : 0
+        })
+      }, 1000)
+
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current)
+      }
+    }
+  }, [timeLimit, timeRemaining, handleSubmit])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)

@@ -83,6 +83,9 @@ const AiSpeakingSessionPage: React.FC = () => {
   const [partialTranscript, setPartialTranscript] = useState('')
   const [finalTranscript, setFinalTranscript] = useState('')
   const [evaluation, setEvaluation] = useState<EvaluationState | null>(null)
+  const [pronunciationFeedback, setPronunciationFeedback] = useState<
+    any | null
+  >(null)
   const [silenceWarnings, setSilenceWarnings] = useState(0)
   const [sessionSummary, setSessionSummary] = useState<string | null>(null)
   const [sessionAnalytics, setSessionAnalytics] = useState<Record<
@@ -571,6 +574,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           setPartialTranscript('')
           setFinalTranscript('')
           setEvaluation(null)
+          setPronunciationFeedback(null)
           toast.success('AI đã gửi câu hỏi tiếp theo')
           setAiStatusMessage('AI đang chuẩn bị câu hỏi mới cho bạn...')
           setAiErrorMessage(null)
@@ -658,6 +662,44 @@ const AiSpeakingSessionPage: React.FC = () => {
             })
           } else {
             toast.success(payload.evaluation.feedback, { duration: 4000 })
+          }
+        }
+      )
+
+      // ✅ Listen for pronunciation feedback
+      socket.on(
+        'ai-speaking:pronunciation-feedback',
+        (payload: { turnId: string; pronunciationFeedback: any }) => {
+          console.log(
+            '🎤 Pronunciation feedback received:',
+            payload.pronunciationFeedback
+          )
+          setPronunciationFeedback(payload.pronunciationFeedback)
+
+          // Show toast with overall score
+          const score = payload.pronunciationFeedback.pronunciationScore
+          if (score >= 80) {
+            toast.success(`Phát âm xuất sắc! ${score}/100`, {
+              icon: '🌟',
+              duration: 3000,
+            })
+          } else if (score >= 60) {
+            toast.success(`Phát âm tốt! ${score}/100`, {
+              icon: '👍',
+              duration: 3000,
+            })
+          } else if (score >= 40) {
+            toast(`Phát âm cần cải thiện: ${score}/100`, {
+              icon: '📚',
+              duration: 4000,
+              style: { background: '#f59e0b', color: 'white' },
+            })
+          } else {
+            toast(`Hãy luyện tập thêm: ${score}/100`, {
+              icon: '💪',
+              duration: 4000,
+              style: { background: '#ef4444', color: 'white' },
+            })
           }
         }
       )
@@ -1172,6 +1214,135 @@ const AiSpeakingSessionPage: React.FC = () => {
                 )}
               </div>
             ) : null}
+
+            {/* ✅ Pronunciation Feedback Section */}
+            {pronunciationFeedback && (
+              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+                    🎤 Đánh giá phát âm
+                  </h3>
+                </div>
+
+                {/* Overall Scores */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-600 mb-1">Tổng điểm</div>
+                    <div
+                      className={`text-2xl font-bold ${
+                        pronunciationFeedback.pronunciationScore >= 80
+                          ? 'text-green-600'
+                          : pronunciationFeedback.pronunciationScore >= 60
+                            ? 'text-blue-600'
+                            : pronunciationFeedback.pronunciationScore >= 40
+                              ? 'text-yellow-600'
+                              : 'text-red-600'
+                      }`}
+                    >
+                      {pronunciationFeedback.pronunciationScore}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-600 mb-1">Chính xác</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {pronunciationFeedback.accuracyScore}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-600 mb-1">Trôi chảy</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {pronunciationFeedback.fluencyScore}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Problematic Phonemes */}
+                {pronunciationFeedback.problematicPhonemes &&
+                  pronunciationFeedback.problematicPhonemes.length > 0 && (
+                    <div className="bg-white rounded-lg p-3 mb-3">
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">
+                        Âm cần luyện tập:
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {pronunciationFeedback.problematicPhonemes.map(
+                          (phoneme: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-md text-sm font-mono"
+                            >
+                              /{phoneme}/
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Words Breakdown */}
+                {pronunciationFeedback.words &&
+                  pronunciationFeedback.words.length > 0 && (
+                    <div className="bg-white rounded-lg p-3 mb-3">
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">
+                        Chi tiết từng từ:
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {pronunciationFeedback.words.map(
+                          (word: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className={`px-2 py-1 rounded-md text-sm ${
+                                word.accuracyScore >= 80
+                                  ? 'bg-green-100 text-green-800'
+                                  : word.accuracyScore >= 60
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : word.accuracyScore >= 40
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-red-100 text-red-800'
+                              }`}
+                              title={`Accuracy: ${word.accuracyScore}`}
+                            >
+                              {word.word}
+                              {word.errorType && word.errorType !== 'None' && (
+                                <span className="ml-1 text-xs">⚠️</span>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Recommendations */}
+                {pronunciationFeedback.recommendations &&
+                  pronunciationFeedback.recommendations.length > 0 && (
+                    <div className="bg-white rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">
+                        💡 Gợi ý luyện tập:
+                      </h4>
+                      <ul className="space-y-1 text-xs text-gray-700">
+                        {pronunciationFeedback.recommendations.map(
+                          (rec: string, idx: number) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">•</span>
+                              <span>{rec}</span>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                {/* Speaking Stats */}
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                  <div className="bg-white rounded-lg p-2">
+                    Thời lượng: {pronunciationFeedback.durationSec?.toFixed(1)}s
+                  </div>
+                  <div className="bg-white rounded-lg p-2">
+                    Tốc độ: {pronunciationFeedback.wordsPerMinute} từ/phút
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {sessionSummary && (

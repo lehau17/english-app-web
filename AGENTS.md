@@ -1,5 +1,7 @@
 # AGENTS – englishWeb (Vite + React)
 
+> Last updated: 2025-11-05 — Tóm tắt: Hướng dẫn vận hành và checklist cho frontend student-facing (englishWeb).
+
 Ứng dụng web phía người dùng (student-facing). Dựng bằng Vite + React, Tailwind v4, TanStack Query, i18n.
 
 ## Cấu Trúc Chính

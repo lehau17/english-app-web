@@ -75,3 +75,15 @@ export const usePodcastAttempts = (podcastId: string) => {
     enabled: !!podcastId,
   })
 }
+
+// Get all attempts for current user
+export const useAllUserAttempts = (params?: {
+  page?: number
+  limit?: number
+  status?: 'in_progress' | 'completed' | 'abandoned'
+}) => {
+  return useQuery({
+    queryKey: ['all-user-attempts', params],
+    queryFn: () => podcastAttemptApi.getAllUserAttempts(params),
+  })
+}

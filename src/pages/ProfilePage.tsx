@@ -9,6 +9,7 @@ import {
   User,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import PlaylistGrid from '../components/playlist/PlaylistGrid'
 import AvatarUpload from '../components/profile/AvatarUpload'
@@ -50,7 +51,7 @@ const fallbackProfile: UserProfile = {
   id: 'user',
   name: 'Người dùng',
   email: '',
-  avatar: '/api/placeholder/120/120',
+  avatar: '',
   joinDate: '',
   bio: '',
   location: '',
@@ -58,6 +59,7 @@ const fallbackProfile: UserProfile = {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] =
@@ -197,64 +199,21 @@ export default function ProfilePage() {
     }
   }, [user])
 
-  // Mock learning stats - in real app, fetch from API
+  // Learning stats - TODO: Fetch from API when available
   const learningStats = useMemo(
     () => ({
-      completedLessons: 47,
-      totalLessons: 60,
-      studyStreak: 12,
-      hoursThisWeek: 8.5,
-      averageScore: 87,
-      certificatesEarned: 3,
+      completedLessons: 0,
+      totalLessons: 0,
+      studyStreak: 0,
+      hoursThisWeek: 0,
+      averageScore: 0,
+      certificatesEarned: 0,
     }),
     []
   )
 
-  // Mock recent activities - in real app, fetch from API
-  const recentActivities = useMemo(
-    () => [
-      {
-        id: '1',
-        type: 'lesson' as const,
-        title: 'Completed: Present Perfect Tense',
-        description: 'You scored 94% on the grammar exercises',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        metadata: { score: 94, duration: 25, course: 'English Grammar' },
-      },
-      {
-        id: '2',
-        type: 'assignment' as const,
-        title: 'Essay: My Future Goals',
-        description: 'Submitted writing assignment on time',
-        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-        metadata: { course: 'Advanced Writing' },
-      },
-      {
-        id: '3',
-        type: 'podcast' as const,
-        title: 'Daily English Podcast #45',
-        description: 'Listened to "Travel Vocabulary" episode',
-        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-        metadata: { duration: 15, course: 'Listening Skills' },
-      },
-      {
-        id: '4',
-        type: 'achievement' as const,
-        title: 'Study Streak Milestone!',
-        description: 'You reached a 10-day study streak',
-        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-      },
-      {
-        id: '5',
-        type: 'discussion' as const,
-        title: 'Joined: Weekend Plans Discussion',
-        description: 'Participated in speaking practice group',
-        timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
-        metadata: { course: 'Speaking Practice' },
-      },
-    ],
-    []
-  )
+  // Recent activities - TODO: Fetch from API when available
+  const recentActivities = useMemo(() => [], [])
 
   // Show loading skeleton while user data is loading
   if (!user) {
@@ -270,7 +229,7 @@ export default function ProfilePage() {
 
         <div className="relative flex flex-col items-center gap-6 md:flex-row">
           <AvatarUpload
-            avatar={profile.avatar || '/api/placeholder/120/120'}
+            avatar={profile.avatar || ''}
             name={profile.name}
             onUpload={handleAvatarUpload}
             loading={isAvatarUploading}
@@ -388,7 +347,18 @@ export default function ProfilePage() {
               </div>
 
               {/* Recent Activity */}
-              <RecentActivityCard activities={recentActivities} />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Hoạt động gần đây</h3>
+                  <button
+                    onClick={() => navigate('/listening-practice/my-history')}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Xem lịch sử học tập
+                  </button>
+                </div>
+                <RecentActivityCard activities={recentActivities} />
+              </div>
             </div>
           </div>
         )}

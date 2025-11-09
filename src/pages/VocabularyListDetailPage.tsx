@@ -109,32 +109,32 @@ const VocabularyListDetailPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header - Light Mode */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <button
             onClick={() => navigate('/vocabulary')}
             className="flex items-center gap-2 text-gray-700 hover:text-gray-900 font-medium"
           >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back</span>
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-sm sm:text-base">Back</span>
           </button>
-          <div className="flex items-center gap-3">
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <BookOpen className="h-5 w-5 text-gray-700" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <Settings className="h-5 w-5 text-gray-700" />
+            <button className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-65px)]">
         {/* Left Sidebar - Units List */}
-        <div className="w-72 bg-gray-50 border-r border-gray-200 overflow-y-auto">
-          <div className="p-4">
+        <div className="w-full lg:w-72 bg-gray-50 border-b lg:border-b-0 lg:border-r border-gray-200 overflow-y-auto max-h-96 lg:max-h-none">
+          <div className="p-3 sm:p-4">
             {/* Deck Title */}
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 line-clamp-2">
               {list.title}
             </h2>
 
@@ -142,18 +142,18 @@ const VocabularyListDetailPage: React.FC = () => {
             {!isInMyCollection ? (
               <Button
                 onClick={handleToggleCollection}
-                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl mb-4"
+                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-2 sm:py-2.5 rounded-xl mb-3 sm:mb-4 text-sm sm:text-base"
                 disabled={addMutation.isPending}
               >
                 {addMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding...
+                    <span>Adding...</span>
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add to My Collection
+                    <span>Add to My Collection</span>
                   </>
                 )}
               </Button>
@@ -161,25 +161,25 @@ const VocabularyListDetailPage: React.FC = () => {
               <Button
                 onClick={handleToggleCollection}
                 variant="outline"
-                className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed font-semibold py-2.5 rounded-xl mb-4"
+                className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed font-semibold py-2 sm:py-2.5 rounded-xl mb-3 sm:mb-4 text-sm sm:text-base"
                 disabled={removeMutation.isPending}
               >
                 {removeMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Removing...
+                    <span>Removing...</span>
                   </>
                 ) : (
                   <>
                     <Star className="h-4 w-4 mr-2 fill-current" />
-                    In My Collection
+                    <span>In My Collection</span>
                   </>
                 )}
               </Button>
             )}
 
             {/* Units List Heading */}
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-700 uppercase tracking-wide mb-2 sm:mb-3">
               Units List
             </h3>
 
@@ -189,16 +189,16 @@ const VocabularyListDetailPage: React.FC = () => {
                 <div
                   key={unit.id}
                   onClick={() => setSelectedUnitId(unit.id)}
-                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+                  className={`flex items-center justify-between p-2 sm:p-3 rounded-xl cursor-pointer transition-all ${
                     selectedUnit?.id === unit.id
                       ? 'bg-blue-500 text-white shadow-md'
                       : 'bg-white hover:bg-gray-100 text-gray-900 border border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                     {/* Unit Icon/Emoji */}
                     <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
+                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-lg sm:text-xl flex-shrink-0 ${
                         selectedUnit?.id === unit.id
                           ? 'bg-white/20'
                           : 'bg-blue-100'
@@ -206,8 +206,10 @@ const VocabularyListDetailPage: React.FC = () => {
                     >
                       📚
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">{unit.title}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-xs sm:text-sm truncate">
+                        {unit.title}
+                      </p>
                       <p
                         className={`text-xs ${
                           selectedUnit?.id === unit.id
@@ -221,7 +223,7 @@ const VocabularyListDetailPage: React.FC = () => {
                     </div>
                   </div>
                   {selectedUnit?.id !== unit.id && (
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
                   )}
                 </div>
               ))}
@@ -231,7 +233,7 @@ const VocabularyListDetailPage: React.FC = () => {
 
         {/* Main Content - Preview/Start */}
         <div className="flex-1 bg-white overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-8">
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
             {selectedUnit ? (
               (() => {
                 const totalCards = selectedUnit.termCount || 0

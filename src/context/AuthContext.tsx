@@ -2,6 +2,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -111,36 +112,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Login mutation (TanStack)
   const loginMutation = useLoginMutation()
-  const login = async (email: string, password: string) => {
-    const data = await loginMutation.mutateAsync({ email, password })
-    setAccessToken(data.accessToken)
-    setRefreshToken(data.refreshToken ?? null)
-    queryClient.setQueryData(['me'], data.user)
-  }
-
-  // Parent login mutation (TanStack)
-  const parentLoginMutation = useParentLoginMutation()
-  const parentLogin = async (email: string, password: string) => {
-    try {
-      console.log('Starting parent login...')
-      const data = await parentLoginMutation.mutateAsync({ email, password })
-      console.log('Parent login successful, user data:', data.user)
-
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const data = await loginMutation.mutateAsync({ email, password })
       setAccessToken(data.accessToken)
       setRefreshToken(data.refreshToken ?? null)
       queryClient.setQueryData(['me'], data.user)
+    },
+    [loginMutation, queryClient]
+  )
 
-      console.log('User data set to query cache, navigating to /parent-home')
+  // Parent login mutation (TanStack)
+  const parentLoginMutation = useParentLoginMutation()
+  const parentLogin = useCallback(
+    async (email: string, password: string) => {
+      try {
+        console.log('Starting parent login...')
+        const data = await parentLoginMutation.mutateAsync({ email, password })
+        console.log('Parent login successful, user data:', data.user)
 
-      // Redirect parent to parent home page
-      navigate('/parent-home')
-    } catch (error) {
-      console.error('Parent login failed:', error)
-      throw error
-    }
-  }
+        setAccessToken(data.accessToken)
+        setRefreshToken(data.refreshToken ?? null)
+        queryClient.setQueryData(['me'], data.user)
 
-  const logout = () => {
+        console.log('User data set to query cache, navigating to /parent-home')
+
+        // Redirect parent to parent home page
+        navigate('/parent-home')
+      } catch (error) {
+        console.error('Parent login failed:', error)
+        throw error
+      }
+    },
+    [navigate, parentLoginMutation, queryClient]
+  )
+
+  const logout = useCallback(() => {
     setAccessToken(null)
     setRefreshToken(null)
     queryClient.removeQueries({ queryKey: ['me'] })
@@ -156,10 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         currentPath !== '/' ? `?next=${encodeURIComponent(currentPath)}` : ''
       navigate(`/login${next}`)
     }
-  }
+  }, [navigate, queryClient])
 
   // Refresh token flow (dùng fn từ hooks)
-  const refreshAccessToken = async (): Promise<string> => {
+  const refreshAccessToken = useCallback(async (): Promise<string> => {
     if (!refreshToken) throw new Error('No refresh token')
     if (refreshPromiseRef.current) return refreshPromiseRef.current
     const p = refreshAccessTokenFn(refreshToken).then((newToken) => {
@@ -172,7 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       refreshPromiseRef.current = null
     }
-  }
+  }, [refreshToken])
 
   // Axios interceptors
   useEffect(() => {
@@ -207,25 +214,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       api.interceptors.request.eject(reqId)
       api.interceptors.response.eject(resId)
     }
-  }, [accessToken, refreshToken]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessToken, logout, refreshAccessToken, refreshToken])
 
   const user = meQuery.data ?? null
   const isAuthenticated = !!accessToken && !!user
   const loading = !rehydrated || (meEnabled && meQuery.isFetching)
 
   // setUser thao tác trên query cache
-  const setUser: React.Dispatch<React.SetStateAction<User | null>> = (
-    updater
-  ) => {
-    const current =
-      (queryClient.getQueryData(['me']) as User | undefined) ?? null
-    const next =
-      typeof updater === 'function'
-        ? (updater as (prev: User | null) => User | null)(current)
-        : updater
-    if (next) queryClient.setQueryData(['me'], next)
-    else queryClient.removeQueries({ queryKey: ['me'] })
-  }
+  const setUser = useCallback<
+    React.Dispatch<React.SetStateAction<User | null>>
+  >(
+    (updater) => {
+      const current =
+        (queryClient.getQueryData(['me']) as User | undefined) ?? null
+      const next =
+        typeof updater === 'function'
+          ? (updater as (prev: User | null) => User | null)(current)
+          : updater
+      if (next) queryClient.setQueryData(['me'], next)
+      else queryClient.removeQueries({ queryKey: ['me'] })
+    },
+    [queryClient]
+  )
 
   const value = useMemo<AuthCtx>(
     () => ({
@@ -239,7 +249,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       logout,
       setUser,
     }),
-    [user, accessToken, refreshToken, isAuthenticated, loading, parentLogin]
+    [
+      user,
+      accessToken,
+      refreshToken,
+      isAuthenticated,
+      loading,
+      login,
+      parentLogin,
+      logout,
+      setUser,
+    ]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

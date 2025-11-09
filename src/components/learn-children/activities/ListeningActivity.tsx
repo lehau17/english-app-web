@@ -75,6 +75,12 @@ export function ListeningActivity({
     0
   )
 
+  const handleAudioEnd = useCallback(() => {
+    setIsPlaying(false)
+    setGameState('quiz')
+    onPlaySound('click')
+  }, [onPlaySound])
+
   // Mock audio simulation (replace with real audio)
   useEffect(() => {
     if (isPlaying) {
@@ -99,13 +105,7 @@ export function ListeningActivity({
         clearInterval(progressInterval.current)
       }
     }
-  }, [isPlaying, currentChapter.duration])
-
-  const handleAudioEnd = useCallback(() => {
-    setIsPlaying(false)
-    setGameState('quiz')
-    onPlaySound('click')
-  }, [onPlaySound])
+  }, [isPlaying, currentChapter.duration, handleAudioEnd])
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying)

@@ -89,7 +89,8 @@ export const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         <video
           ref={videoRef}
           src={videoUrl}
-          className={`w-full rounded-lg bg-black ${className}`}
+          className={`w-full h-full bg-black ${className}`}
+          style={{ objectFit: 'contain' }}
           onPlay={onPlay}
           onPause={onPause}
           onTimeUpdate={onTimeUpdate}

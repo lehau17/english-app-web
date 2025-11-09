@@ -12,7 +12,8 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CommentSection } from '../components/podcast-comment/CommentSection'
 import { MediaPlayer } from '../components/podcast/MediaPlayer'
-import { PodcastMediaType } from '../types/podcast.type'
+import type { PodcastAttemptItemData } from '../components/podcast/attempt-history'
+import { PodcastAttemptsHistory } from '../components/podcast/attempt-history'
 import { useAuth } from '../context/AuthContext'
 import {
   useAggregateRating,
@@ -23,6 +24,7 @@ import {
 } from '../hooks/podcast-rating.hooks'
 import { usePodcast } from '../hooks/podcast.hooks'
 import { usePodcastAttempts } from '../hooks/podcastAttempt.hooks'
+import { PodcastMediaType } from '../types/podcast.type'
 import {
   getButtonColorClass,
   getButtonText,
@@ -535,17 +537,6 @@ const PodcastDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Disclaimer */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm">
-              <div className="font-medium text-gray-900 mb-2">Disclaimer</div>
-              <div className="text-gray-600 leading-relaxed">
-                WELE does not own the rights to this content. All rights belong
-                to the owner. WELE only use this content to help users learn
-                English. Contact to request removal of content:
-              </div>
-              <div className="mt-2 text-blue-600">welevietnam@gmail.com</div>
-            </div>
           </div>
         </div>
 
@@ -642,6 +633,34 @@ const PodcastDetailPage: React.FC = () => {
               )}
           </div>
         </div>
+
+        {/* Attempts History Section */}
+        {attempts.length > 0 && (
+          <div className="mt-12">
+            <PodcastAttemptsHistory
+              attempts={
+                attempts.map((a: any) => ({
+                  attemptId: a.attemptId,
+                  attemptNo: a.attemptNo,
+                  status: a.status,
+                  scorePercent: a.scorePercent,
+                  correctCount: a.correctCount,
+                  totalQuestions: a.totalQuestions,
+                  timeSpent: a.timeSpent,
+                  createdAt: a.createdAt,
+                  answers: a.answers,
+                })) as PodcastAttemptItemData[]
+              }
+              gaps={
+                (podcastData as any).gaps?.map((g: any) => ({
+                  id: g.id,
+                  orderNo: g.orderNo,
+                  answer: g.answer,
+                })) || []
+              }
+            />
+          </div>
+        )}
 
         {/* Comment Section */}
         <div className="mt-12">

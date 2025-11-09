@@ -79,6 +79,39 @@ export function QuizActivity({
   const timerRef = useRef<number | null>(null)
   const currentQuestion = questions[currentQuestionIndex]
 
+  const nextQuestion = useCallback(() => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex((i) => i + 1)
+      setSelectedAnswer(null)
+      setIsAnswered(false)
+      setActivePowerUp(null)
+      setEliminatedOptions([])
+      setIsTimeFreezed(false)
+    } else {
+      setGameState('complete')
+      const accuracy = (correctCount / questions.length) * 100
+      onComplete(score, accuracy)
+      onPlaySound('celebration')
+    }
+  }, [
+    correctCount,
+    currentQuestionIndex,
+    onComplete,
+    onPlaySound,
+    questions.length,
+    score,
+  ])
+
+  const handleTimeUp = useCallback(() => {
+    onPlaySound('wrong')
+    setCombo(0)
+    setShowExplosion(true)
+    setTimeout(() => {
+      setShowExplosion(false)
+      nextQuestion()
+    }, 1500)
+  }, [nextQuestion, onPlaySound])
+
   // Timer
   useEffect(() => {
     if (
@@ -106,19 +139,14 @@ export function QuizActivity({
         clearInterval(timerRef.current)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQuestionIndex, gameState, isAnswered, isTimeFreezed])
-
-  const handleTimeUp = useCallback(() => {
-    onPlaySound('wrong')
-    setCombo(0)
-    setShowExplosion(true)
-    setTimeout(() => {
-      setShowExplosion(false)
-      nextQuestion()
-    }, 1500)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPlaySound])
+  }, [
+    currentQuestion,
+    currentQuestionIndex,
+    gameState,
+    isAnswered,
+    isTimeFreezed,
+    handleTimeUp,
+  ])
 
   const activatePowerUp = useCallback(
     (powerUpId: string, type: PowerUp['type']) => {
@@ -158,7 +186,7 @@ export function QuizActivity({
           break
       }
     },
-    [isAnswered, currentQuestion, powerUps, onPlaySound]
+    [isAnswered, currentQuestion, powerUps, onPlaySound, nextQuestion]
   )
 
   const handleAnswerSelect = (answerIndex: number) => {
@@ -211,22 +239,6 @@ export function QuizActivity({
     }))
     setParticles(newParticles)
     setTimeout(() => setParticles([]), 1000)
-  }
-
-  const nextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((i) => i + 1)
-      setSelectedAnswer(null)
-      setIsAnswered(false)
-      setActivePowerUp(null)
-      setEliminatedOptions([])
-      setIsTimeFreezed(false)
-    } else {
-      setGameState('complete')
-      const accuracy = (correctCount / questions.length) * 100
-      onComplete(score, accuracy)
-      onPlaySound('celebration')
-    }
   }
 
   const startGame = () => {

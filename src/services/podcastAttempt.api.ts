@@ -79,4 +79,16 @@ export const podcastAttemptApi = {
     const response = await api.get(`/private/v1/podcasts/${podcastId}/attempts`)
     return response.data
   },
+
+  // Get all attempts for current user (all podcasts)
+  getAllUserAttempts: async (params?: {
+    page?: number
+    limit?: number
+    status?: 'in_progress' | 'completed' | 'abandoned'
+  }): Promise<any> => {
+    const response = await api.get(`/private/v1/podcast-attempts/my-history`, {
+      params,
+    })
+    return response.data
+  },
 }

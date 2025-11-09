@@ -400,10 +400,12 @@ const PodcastPracticePage: React.FC = () => {
     let lastIndex = 0
 
     gaps.forEach((gap, index) => {
+      // Add text before gap
       if (gap.startIndex > lastIndex) {
+        const text = transcript.substring(lastIndex, gap.startIndex)
         result.push(
           <span key={`text-${index}`} className="text-gray-800">
-            {transcript.substring(lastIndex, gap.startIndex)}
+            {text}
           </span>
         )
       }
@@ -412,8 +414,15 @@ const PodcastPracticePage: React.FC = () => {
       const hasAnswer = gap.answer !== undefined
       const isCorrect = gap.isCorrect
 
+      // Calculate dynamic width
+      const answerLength = gap.answer?.length || gap.length || 10
+      const inputWidth = Math.max(80, Math.min(answerLength * 12, 240))
+
       result.push(
-        <span key={`gap-${gap.id}`} className="inline-block mx-1">
+        <span
+          key={`gap-${gap.id}`}
+          className="inline-flex items-baseline mx-1 my-1 relative group"
+        >
           <input
             ref={(el) => {
               inputRefs.current[index] = el
@@ -432,28 +441,55 @@ const PodcastPracticePage: React.FC = () => {
               }
             }}
             maxLength={gap.length || 50}
+            style={{ width: `${inputWidth}px` }}
             className={`
-              inline-block min-w-[80px] px-2 py-1 border-b-2 bg-transparent text-center font-medium
-              ${isCurrentGap && !hasAnswer ? 'border-blue-500 bg-blue-50' : ''}
-              ${hasAnswer && isCorrect ? 'border-green-500 bg-green-50 text-green-700' : ''}
-              ${hasAnswer && !isCorrect ? 'border-red-500 bg-red-50 text-red-700' : ''}
-              ${!hasAnswer && !isCurrentGap ? 'border-gray-300' : ''}
-              focus:outline-none focus:ring-2 focus:ring-blue-500/20
+              px-3 py-1.5 text-center font-medium transition-all duration-200 text-base
+              ${
+                isCurrentGap && !hasAnswer
+                  ? 'bg-blue-50 border-b-3 border-blue-500 text-blue-900 shadow-sm'
+                  : ''
+              }
+              ${
+                hasAnswer && isCorrect
+                  ? 'bg-green-50 border-b-3 border-green-600 text-green-900'
+                  : ''
+              }
+              ${
+                hasAnswer && !isCorrect
+                  ? 'bg-red-50 border-b-3 border-red-600 text-red-900'
+                  : ''
+              }
+              ${
+                !hasAnswer && !isCurrentGap
+                  ? 'border-b-2 border-dashed border-gray-400 text-gray-700'
+                  : ''
+              }
+              focus:outline-none focus:border-b-3 focus:border-blue-600 focus:bg-blue-50
+              disabled:opacity-70 disabled:cursor-not-allowed
             `}
-            placeholder="___"
+            placeholder="____"
             disabled={hasAnswer || showResults}
             autoFocus={isCurrentGap && !hasAnswer}
           />
+
+          {/* Tooltip with gap number */}
+          {isCurrentGap && !hasAnswer && (
+            <span className="absolute -top-7 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-blue-500 px-2 py-1 rounded shadow-lg whitespace-nowrap animate-bounce">
+              Gap #{index + 1} ↓
+            </span>
+          )}
         </span>
       )
 
       lastIndex = gap.endIndex
     })
 
+    // Add remaining text
     if (lastIndex < transcript.length) {
+      const text = transcript.substring(lastIndex)
       result.push(
         <span key="text-end" className="text-gray-800">
-          {transcript.substring(lastIndex)}
+          {text}
         </span>
       )
     }
@@ -620,8 +656,15 @@ const PodcastPracticePage: React.FC = () => {
               {/* Video Player (if video podcast) */}
               {podcastData?.mediaType === PodcastMediaType.VIDEO &&
                 podcastData.videoUrl && (
-                  <div className="mb-6">
-                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  <div className="mb-6 w-full">
+                    <div
+                      className="relative w-full bg-black rounded-lg overflow-hidden mx-auto"
+                      style={{
+                        maxWidth: '800px',
+                        aspectRatio: '16/9',
+                        maxHeight: '450px',
+                      }}
+                    >
                       <MediaPlayer
                         ref={mediaPlayerRef}
                         mediaType={PodcastMediaType.VIDEO}
@@ -636,10 +679,53 @@ const PodcastPracticePage: React.FC = () => {
                   </div>
                 )}
 
-              {/* Transcript with inputs */}
-              <div className="prose max-w-none">
-                <div className="text-xs sm:text-sm lg:text-[14px] leading-relaxed">
-                  {renderTranscriptWithInputs()}
+              {/* Transcript with inputs - Clean minimalist design */}
+              <div className="mt-6">
+                {/* Simple header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-6 bg-blue-500 rounded-full"></div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Listening Practice
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                      {
+                        Object.keys(userAnswers).filter((id) =>
+                          userAnswers[id]?.trim()
+                        ).length
+                      }
+                      /{attempt.gaps.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Transcript area - Clean white bg */}
+                <div className="bg-white p-8 rounded-2xl shadow-sm border-2 border-gray-100">
+                  <div className="text-lg sm:text-xl leading-loose text-gray-900 font-normal">
+                    {renderTranscriptWithInputs()}
+                  </div>
+                </div>
+
+                {/* Legend - Compact */}
+                <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 px-2">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-6 h-0.5 bg-blue-500"></span>
+                    Active
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-6 h-0.5 bg-green-600"></span>
+                    Correct
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-6 h-0.5 bg-red-600"></span>
+                    Wrong
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-6 h-0.5 border-b-2 border-dashed border-gray-400"></span>
+                    Empty
+                  </span>
                 </div>
               </div>
             </Card>
@@ -920,20 +1006,17 @@ const PodcastPracticePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Media Player (Audio or Video) */}
-        {podcastData && (
+        {/* Hidden Audio Player (only for AUDIO podcasts) */}
+        {podcastData && podcastData.mediaType === PodcastMediaType.AUDIO && (
           <MediaPlayer
             ref={mediaPlayerRef}
-            mediaType={podcastData.mediaType || PodcastMediaType.AUDIO}
+            mediaType={PodcastMediaType.AUDIO}
             audioUrl={podcastData.audioUrl}
-            videoUrl={podcastData.videoUrl}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onPlay={handleAudioPlay}
             onPause={handleAudioPause}
-            className={
-              podcastData.mediaType === PodcastMediaType.VIDEO ? '' : 'hidden'
-            }
+            className="hidden"
           />
         )}
       </div>

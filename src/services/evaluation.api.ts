@@ -16,7 +16,7 @@ export interface EvaluationResult {
 }
 
 type PronunciationPayload = {
-  activityId: string
+  activityId?: string // Optional - only needed if saving to Activity attempts
   audioBase64: string
   mimeType?: string
   phrase: string

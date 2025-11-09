@@ -6,13 +6,12 @@ import {
   useTransform,
 } from 'framer-motion'
 import {
+  AlertTriangle,
   ArrowLeft,
   BookOpen,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  Flag,
   Headphones,
   HelpCircle,
   Home,
@@ -41,6 +40,7 @@ import {
 import toast from 'react-hot-toast'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
+import { VocabularyPronunciationPractice } from '../components/learn/VocabularyPronunciationPractice'
 import { useAuth } from '../context/AuthContext'
 import {
   useCanStartActivity,
@@ -1265,15 +1265,23 @@ function QuizActivity({
 function VocabActivity({
   data,
   onPass,
+  activityId,
 }: {
   data: VocabContent
   onPass: (payload?: ActivityCompletePayload) => void
+  activityId?: string
 }): JSX.Element {
   const items = data.items ?? []
   const [idx, setIdx] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [completed, setCompleted] = useState(false)
+  const [showPronunciation, setShowPronunciation] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Debug: Log activityId to check if it's being passed
+  useEffect(() => {
+    console.log('VocabActivity activityId:', activityId)
+  }, [activityId])
 
   useEffect(() => {
     setRevealed(false)
@@ -1375,15 +1383,23 @@ function VocabActivity({
             </div>
           </div>
 
-          {/* Card phải: nghĩa + ví dụ */}
+          {/* Card phải: nghĩa + ví dụ + phát âm */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setRevealed((v) => !v)}
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
               >
                 <BookOpen className="h-4 w-4" />{' '}
                 {revealed ? 'Ẩn nghĩa' : 'Lật nghĩa'}
+              </button>
+              <button
+                onClick={() => setShowPronunciation((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                title={activityId ? 'Luyện phát âm' : 'Activity ID không có'}
+              >
+                <Mic className="h-4 w-4" />{' '}
+                {showPronunciation ? 'Ẩn phát âm' : 'Luyện phát âm'}
               </button>
               <div className="text-xs text-gray-500">
                 Mẹo: nhấn{' '}
@@ -1403,6 +1419,32 @@ function VocabActivity({
                     <span className="font-medium">Nghĩa: </span>
                     {it.definition}
                   </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Pronunciation Practice Section */}
+            <AnimatePresence>
+              {showPronunciation && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {activityId ? (
+                    <VocabularyPronunciationPractice
+                      word={it.word}
+                      activityId={activityId}
+                    />
+                  ) : (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-center gap-2">
+                      <AlertTriangle size={16} className="text-yellow-600" />
+                      <span>
+                        Activity ID không có. Không thể đánh giá phát âm.
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -3409,23 +3451,10 @@ function BottomNav({
         <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         <span>Trước</span>
       </button>
-      <div className="hidden lg:flex items-center gap-3 xl:gap-4 text-xs xl:text-sm text-gray-600">
-        <span className="inline-flex items-center gap-1">
-          <Clock className="h-3.5 w-3.5 xl:h-4 xl:w-4 flex-shrink-0" />
-          <span className="hidden xl:inline">Thời gian học chất lượng</span>
-          <span className="xl:hidden">Thời gian</span>
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <Trophy className="h-3.5 w-3.5 xl:h-4 xl:w-4 flex-shrink-0" />
-          <span className="hidden xl:inline">Thu thập XP</span>
-          <span className="xl:hidden">XP</span>
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <Flag className="h-3.5 w-3.5 xl:h-4 xl:w-4 flex-shrink-0" />
-          <span className="hidden xl:inline">Lưu tiến độ</span>
-          <span className="xl:hidden">Lưu</span>
-        </span>
-      </div>
+
+      {/* Removed: Thời gian học chất lượng / Thu thập XP / Lưu tiến độ */}
+      <div className="flex-1"></div>
+
       {allCompleted && nextLesson ? (
         <button
           onClick={onGoToNextLesson}
@@ -3487,6 +3516,8 @@ export default function LearnPlayerPage(): JSX.Element {
   const [errorDetails, setErrorDetails] = useState<any>(null)
   const [nextLesson, setNextLesson] = useState<any>(null)
   const [showCelebration, setShowCelebration] = useState(false)
+  const startingActivityRef = useRef<string | null>(null)
+  const blockedActivitiesRef = useRef<Set<string>>(new Set())
 
   // Get activityId from query params
   const [searchParams] = useSearchParams()
@@ -3585,6 +3616,11 @@ export default function LearnPlayerPage(): JSX.Element {
 
   const handleStartActivity = useCallback(
     async (activityId: string) => {
+      if (startingActivityRef.current === activityId) {
+        return
+      }
+
+      startingActivityRef.current = activityId
       if (!user?.id) return
 
       try {
@@ -3622,6 +3658,7 @@ export default function LearnPlayerPage(): JSX.Element {
         const canStart = canStartResponse.data
 
         if (!canStart.allowed) {
+          blockedActivitiesRef.current.add(activityId)
           // Hiển thị lý do không thể start
           let errorMessage = 'Không thể bắt đầu hoạt động này'
 
@@ -3649,6 +3686,7 @@ export default function LearnPlayerPage(): JSX.Element {
         }
 
         // Nếu được phép, tiến hành start activity
+        blockedActivitiesRef.current.delete(activityId)
         await startActivityMutation.mutateAsync({
           activityId,
           userId: user.id,
@@ -3690,6 +3728,10 @@ export default function LearnPlayerPage(): JSX.Element {
         setErrorMessage(
           'Có lỗi xảy ra khi bắt đầu hoạt động. Vui lòng thử lại.'
         )
+      } finally {
+        if (startingActivityRef.current === activityId) {
+          startingActivityRef.current = null
+        }
       }
     },
     [
@@ -3699,6 +3741,14 @@ export default function LearnPlayerPage(): JSX.Element {
       canStartActivityMutation,
       startActivityMutation,
     ]
+  )
+
+  const retryStartActivity = useCallback(
+    (activityId: string) => {
+      blockedActivitiesRef.current.delete(activityId)
+      handleStartActivity(activityId)
+    },
+    [handleStartActivity]
   )
 
   // Handle error from query
@@ -3712,7 +3762,13 @@ export default function LearnPlayerPage(): JSX.Element {
 
   // Start activity when activeId changes (for initial load or programmatic changes)
   useEffect(() => {
-    if (activeId && user?.id && activities && activities.length > 0) {
+    if (
+      activeId &&
+      user?.id &&
+      activities &&
+      activities.length > 0 &&
+      !blockedActivitiesRef.current.has(activeId)
+    ) {
       const currentActivity = activities.find((a) => a.id === activeId)
       if (currentActivity && currentActivity.state === 'not_started') {
         setErrorMessage(null) // Clear error when starting new activity
@@ -3829,9 +3885,11 @@ export default function LearnPlayerPage(): JSX.Element {
       user?.id,
       activities,
       lessonId,
+      classroomId,
       isPreviewMode,
       completeActivityMutation,
       unlockNextLessonMutation,
+      queryClient,
     ]
   )
 
@@ -3859,7 +3917,6 @@ export default function LearnPlayerPage(): JSX.Element {
     setActiveId(id)
     setErrorMessage(null) // Clear error when jumping to new activity
     setErrorDetails(null)
-    handleStartActivity(id)
   }
   const gotoPrev = () => {
     if (activeIndex > 0 && activities) {
@@ -3867,7 +3924,6 @@ export default function LearnPlayerPage(): JSX.Element {
       setActiveId(prevId)
       setErrorMessage(null) // Clear error when navigating
       setErrorDetails(null)
-      handleStartActivity(prevId)
     }
   }
 
@@ -3893,7 +3949,6 @@ export default function LearnPlayerPage(): JSX.Element {
       setActiveId(nextId)
       setErrorMessage(null) // Clear error when navigating
       setErrorDetails(null)
-      handleStartActivity(nextId)
     }
   }
 
@@ -3974,7 +4029,7 @@ export default function LearnPlayerPage(): JSX.Element {
                     setErrorMessage(null)
                     setErrorDetails(null)
                     if (activeId) {
-                      handleStartActivity(activeId)
+                      retryStartActivity(activeId)
                     }
                   }}
                   className="rounded-lg bg-red-600 px-3 py-1.5 text-xs text-white hover:bg-red-700 transition-colors"
@@ -4042,6 +4097,7 @@ export default function LearnPlayerPage(): JSX.Element {
                     <VocabActivity
                       data={active.content.data}
                       onPass={handlePass}
+                      activityId={active.id}
                     />
                   )}
                   {active.content.kind === 'listening' && (

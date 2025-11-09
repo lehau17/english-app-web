@@ -17,7 +17,7 @@ import RegisterPage from './pages/auth/RegisterPage'
 import CertificateDetailPage from './pages/CertificateDetailPage'
 import ClassroomDetail from './pages/ClassroomDetail'
 import ClassroomPage from './pages/ClassroomPage'
-import CreatePodcastPageUpdated from './pages/CreatePodcastPageBeautiful'
+import CreatePodcastPageWizard from './pages/CreatePodcastPageWizard'
 import DictionaryPage from './pages/DictionaryPage'
 import FlashcardReviewPage from './pages/FlashcardReviewPage'
 import HomePage from './pages/HomePage' // Import HomePage
@@ -26,6 +26,7 @@ import LearnPlayerPage from './pages/LearnPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
 import { ListeningResultPage } from './pages/ListeningResultPage'
 import MyCertificatesPage from './pages/MyCertificatesPage'
+import MyLearningHistoryPage from './pages/MyLearningHistoryPage'
 import MyVocabularyPage from './pages/MyVocabularyPage'
 import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
 import VocabularyListDetailPage from './pages/VocabularyListDetailPage'
@@ -322,6 +323,14 @@ function App() {
               }
             />
             <Route
+              path="/listening-practice/my-history"
+              element={
+                <HomeLayout>
+                  <MyLearningHistoryPage />
+                </HomeLayout>
+              }
+            />
+            <Route
               path="/ai-speaking"
               element={
                 <HomeLayout>
@@ -349,7 +358,7 @@ function App() {
               path="/listening-practice/create"
               element={
                 <HomeLayout>
-                  <CreatePodcastPageUpdated />
+                  <CreatePodcastPageWizard />
                 </HomeLayout>
               }
             />

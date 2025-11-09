@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentConversation, AgentMessage } from '../../services/agent.api'
 import {
   deleteConversation,
@@ -88,35 +88,7 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
   const [isLoadingConversations, setIsLoadingConversations] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (streamingTimerRef.current) {
-        clearInterval(streamingTimerRef.current)
-      }
-    }
-  }, [])
-
-  // Load conversations
-  useEffect(() => {
-    loadConversations()
-  }, [])
-
-  // Load messages when conversation changes
-  useEffect(() => {
-    if (activeConversationId) {
-      loadConversation(activeConversationId)
-    } else {
-      setMessages([])
-    }
-  }, [activeConversationId])
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     setIsLoadingConversations(true)
     try {
       const data = await getConversations(50, 0)
@@ -126,9 +98,9 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
     } finally {
       setIsLoadingConversations(false)
     }
-  }
+  }, [])
 
-  const loadConversation = async (conversationId: string) => {
+  const loadConversation = useCallback(async (conversationId: string) => {
     try {
       const conversation = await getConversation(conversationId)
       setMessages(conversation.messages || [])
@@ -139,7 +111,26 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
         handleNewChat()
       }
     }
-  }
+  }, [])
+
+  // Load conversations
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (activeConversationId) {
+      loadConversation(activeConversationId)
+    } else {
+      setMessages([])
+    }
+  }, [activeConversationId, loadConversation])
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamingContent])
 
   const handleNewChat = () => {
     setActiveConversationId(null)
