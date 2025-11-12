@@ -1,6 +1,8 @@
 import { Award, Calendar, Download, Eye, Star } from 'lucide-react'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import certificateApi from '../../apis/certificate.api'
 import { type IssuedCertificate } from '../../types/certificate.type'
 
 interface CertificateCardProps {
@@ -111,9 +113,26 @@ const CertificateCard: React.FC<CertificateCardProps> = ({ certificate }) => {
             <span>Xem chi tiết</span>
           </button>
           <button
-            onClick={() => {
-              // TODO: Implement download when PDF generation is ready
-              console.log('Download certificate:', certificate.id)
+            onClick={async () => {
+              try {
+                const blob = await certificateApi.downloadCertificate(
+                  certificate.id
+                )
+                const url = window.URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = `certificate-${certificate.certificateNumber}.pdf`
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                window.URL.revokeObjectURL(url)
+                toast.success('Đã tải xuống chứng chỉ!')
+              } catch (error: any) {
+                console.error('Failed to download certificate:', error)
+                toast.error(
+                  'Không thể tải xuống chứng chỉ. Vui lòng thử lại sau!'
+                )
+              }
             }}
             className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg transition-colors"
             title="Tải xuống"

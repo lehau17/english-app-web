@@ -16,12 +16,11 @@ import AvatarUpload from '../components/profile/AvatarUpload'
 import ChangePasswordModal from '../components/profile/ChangePasswordModal'
 import EditProfileModal from '../components/profile/EditProfileModal'
 import LanguageSettingsModal from '../components/profile/LanguageSettingsModal'
-import LearningStatsCard from '../components/profile/LearningStatsCard'
 import NotificationSettingsModal from '../components/profile/NotificationSettingsModal'
 import PrivacySettingsModal from '../components/profile/PrivacySettingsModal'
 import ProfilePageSkeleton from '../components/profile/ProfilePageSkeleton'
-import RecentActivityCard from '../components/profile/RecentActivityCard'
 import TransactionHistoryCard from '../components/profile/TransactionHistoryCard'
+import LearningAnalyticsDashboard from '../components/profile/LearningAnalyticsDashboard'
 import { useAuth } from '../context/AuthContext'
 import { useUserPlaylists } from '../hooks/playlist.hooks'
 import { changePasswordApi, updateProfileApi } from '../services/auth.api'
@@ -199,22 +198,6 @@ export default function ProfilePage() {
     }
   }, [user])
 
-  // Learning stats - TODO: Fetch from API when available
-  const learningStats = useMemo(
-    () => ({
-      completedLessons: 0,
-      totalLessons: 0,
-      studyStreak: 0,
-      hoursThisWeek: 0,
-      averageScore: 0,
-      certificatesEarned: 0,
-    }),
-    []
-  )
-
-  // Recent activities - TODO: Fetch from API when available
-  const recentActivities = useMemo(() => [], [])
-
   // Show loading skeleton while user data is loading
   if (!user) {
     return <ProfilePageSkeleton />
@@ -296,68 +279,73 @@ export default function ProfilePage() {
       <div className="space-y-6">
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Learning Stats */}
-            <LearningStatsCard stats={learningStats} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {/* Personal Information */}
-              <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
-                <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <h3 className="text-base sm:text-lg font-semibold">
-                    Thông tin cá nhân
-                  </h3>
-                  <button
-                    onClick={handleEditClick}
-                    className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span>Chỉnh sửa</span>
-                  </button>
+            {/* Personal Information */}
+            <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h3 className="text-base sm:text-lg font-semibold">
+                  Thông tin cá nhân
+                </h3>
+                <button
+                  onClick={handleEditClick}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Chỉnh sửa</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500">Họ và tên</p>
+                  <p className="font-medium text-gray-900">{profile.name}</p>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Họ và tên</p>
-                    <p className="font-medium text-gray-900">{profile.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Email</p>
-                    <p className="font-medium text-gray-900">
-                      {profile.email || '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Quốc gia</p>
-                    <p className="font-medium text-gray-900">
-                      {profile.location || '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Múi giờ</p>
-                    <p className="font-medium text-gray-900">
-                      {profile.timezone || '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Giới thiệu</p>
-                    <p className="font-medium text-gray-900">
-                      {profile.bio || '—'}
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="font-medium text-gray-900">
+                    {profile.email || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Quốc gia</p>
+                  <p className="font-medium text-gray-900">
+                    {profile.location || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Múi giờ</p>
+                  <p className="font-medium text-gray-900">
+                    {profile.timezone || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Giới thiệu</p>
+                  <p className="font-medium text-gray-900">
+                    {profile.bio || '—'}
+                  </p>
                 </div>
               </div>
+            </div>
 
-              {/* Recent Activity */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Hoạt động gần đây</h3>
-                  <button
-                    onClick={() => navigate('/listening-practice/my-history')}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Xem lịch sử học tập
-                  </button>
+            {/* Learning Analytics Dashboard */}
+            <LearningAnalyticsDashboard timeRange="month" />
+
+            {/* Learning History Link */}
+            <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Lịch sử học tập
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Xem chi tiết các hoạt động học tập của bạn
+                  </p>
                 </div>
-                <RecentActivityCard activities={recentActivities} />
+                <button
+                  onClick={() => navigate('/my-learning-history')}
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  <span>Xem lịch sử</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>

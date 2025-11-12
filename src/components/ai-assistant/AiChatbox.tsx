@@ -147,7 +147,8 @@ export const AiChatbox: React.FC<AiChatboxProps> = ({
     try {
       const stream = streamAgentChatFetch(
         userMessage,
-        activeConversationId || undefined
+        activeConversationId || undefined,
+        userRole
       )
       let fullResponse = ''
       let newConversationId: string | null = null

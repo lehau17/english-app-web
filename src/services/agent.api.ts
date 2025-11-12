@@ -92,17 +92,25 @@ export const streamAgentChat = (
 
 /**
  * Alternative: Stream using fetch (better for auth headers)
+ * Automatically uses student endpoint if user is a student
  */
 export async function* streamAgentChatFetch(
   message: string,
-  conversationId?: string
+  conversationId?: string,
+  userRole?: string
 ): AsyncGenerator<any, void, unknown> {
   const params = new URLSearchParams({ message })
   if (conversationId) {
     params.append('conversationId', conversationId)
   }
 
-  const url = `${api.defaults.baseURL}/private/v1/agent/chat/stream?${params.toString()}`
+  // Use student-specific endpoint if user is a student
+  const endpoint =
+    userRole === 'student'
+      ? '/private/v1/agent/student/chat/stream'
+      : '/private/v1/agent/chat/stream'
+
+  const url = `${api.defaults.baseURL}${endpoint}?${params.toString()}`
   const token = localStorage.getItem('access_token')
 
   if (!token) {

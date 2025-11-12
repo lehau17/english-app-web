@@ -186,7 +186,8 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
     try {
       const stream = streamAgentChatFetch(
         userMessage,
-        activeConversationId || undefined
+        activeConversationId || undefined,
+        userRole
       )
       let newConversationId: string | null = null
 

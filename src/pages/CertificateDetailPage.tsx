@@ -36,10 +36,23 @@ const CertificateDetailPage: React.FC = () => {
     })
   }
 
-  const handleDownload = () => {
-    // TODO: Implement PDF download when ready
-    console.log('Download certificate:', id)
-    alert('Tính năng tải xuống PDF đang được phát triển!')
+  const handleDownload = async () => {
+    if (!id) return
+
+    try {
+      const blob = await certificateApi.downloadCertificate(id)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `certificate-${certificate?.certificateNumber || id}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error: any) {
+      console.error('Failed to download certificate:', error)
+      alert('Không thể tải xuống chứng chỉ. Vui lòng thử lại sau!')
+    }
   }
 
   const handleShare = async () => {
