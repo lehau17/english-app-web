@@ -45,11 +45,23 @@ export interface VocabContent {
   items: VocabItem[]
 }
 
-export interface QuizContent {
+// Quiz question item (used in multiple format)
+export interface QuizQuestion {
   question: string
   options: string[]
   correctIndex: number
   explanation?: string
+}
+
+// Quiz content: supports both single question and multiple questions
+export interface QuizContent {
+  // Single format
+  question?: string
+  options?: string[]
+  correctIndex?: number
+  explanation?: string
+  // Multiple format
+  questions?: QuizQuestion[]
 }
 export interface ListeningQuestion {
   question: string
@@ -77,22 +89,46 @@ export interface MiniGameContent {
   pool: string[]
   rounds: number
 }
-export interface ReadingContent {
-  passage: string
+// Reading question item (used in multiple format)
+export interface ReadingQuestion {
   question: string
   options: string[]
   correctIndex: number
+  explanation?: string
+}
+
+// Reading content: supports both single question and multiple questions
+export interface ReadingContent {
+  passage: string
+  // Single format
+  question?: string
+  options?: string[]
+  correctIndex?: number
+  // Multiple format
+  questions?: ReadingQuestion[]
 }
 export interface WritingContent {
   prompt: string
   minWords: number
   rubric?: string[]
 }
-export interface GrammarContent {
-  rule: string
+// Grammar exercise item (used in multiple format)
+export interface GrammarExercise {
   question: string
   options: string[]
-  correctIndex: number
+  correctAnswer: string
+  explanation?: string
+}
+
+// Grammar content: supports both single exercise and multiple exercises
+export interface GrammarContent {
+  rule: string
+  // Single format
+  question?: string
+  options?: string[]
+  correctIndex?: number
+  // Multiple format
+  exercises?: GrammarExercise[]
 }
 export interface FlashcardItem {
   front: string

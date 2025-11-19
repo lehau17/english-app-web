@@ -63,13 +63,16 @@ import type {
   ConversationMessage,
   FlashcardContent,
   GrammarContent,
+  GrammarExercise,
   LessonMeta,
   ListeningContent,
   MiniGameContent,
   ProgressState,
   PronunciationContent,
   QuizContent,
+  QuizQuestion,
   ReadingContent,
+  ReadingQuestion,
   SpeakingContent,
   VocabContent,
   WritingContent,
@@ -366,8 +369,9 @@ function FillBlankActivity({
   data: import('../types/learn.type').FillBlankContent
   onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
-  const placeholderReGlobal = /(\[_{2,}\]|_{3,})/g
-  const placeholderTokenRe = /^(\[_{2,}\]|_{3,})$/
+  // Move regex outside useMemo to avoid dependency changes
+  const placeholderReGlobal = useMemo(() => /(\[_{2,}\]|_{3,})/g, [])
+  const placeholderTokenRe = useMemo(() => /^(\[_{2,}\]|_{3,})$/, [])
   const tokens = useMemo(
     () => (data.passage || '').split(placeholderReGlobal),
     [data.passage, placeholderReGlobal]
@@ -1162,103 +1166,373 @@ function QuizActivity({
   data: QuizContent
   onResult: (correct: boolean) => void
 }): JSX.Element {
+  // Detect format: single question or multiple questions
+  const isMultipleFormat =
+    Array.isArray(data.questions) && data.questions.length > 0
+
+  // Single question state
   const [selected, setSelected] = useState<number | null>(null)
   const [checked, setChecked] = useState(false)
   const [showRetry, setShowRetry] = useState(false)
-  const correct = selected === data.correctIndex
 
-  const handleCheck = () => {
-    if (selected === null) return
-    setChecked(true)
-    if (correct) {
-      onResult(true)
-    } else {
-      setShowRetry(true)
+  // Multiple questions state
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [answers, setAnswers] = useState<Array<number | null>>(
+    isMultipleFormat && data.questions
+      ? Array(data.questions.length).fill(null)
+      : []
+  )
+  const [checkedQuestions, setCheckedQuestions] = useState<boolean[]>(
+    isMultipleFormat && data.questions
+      ? Array(data.questions.length).fill(false)
+      : []
+  )
+  const [allCompleted, setAllCompleted] = useState(false)
+
+  // Single question format
+  if (!isMultipleFormat) {
+    if (!data.question || !data.options || data.correctIndex === undefined) {
+      return <div className="text-red-600">Invalid quiz data</div>
+    }
+
+    const correct = selected === data.correctIndex
+
+    const handleCheck = () => {
+      if (selected === null) return
+      setChecked(true)
+      if (correct) {
+        onResult(true)
+      } else {
+        setShowRetry(true)
+      }
+    }
+
+    const handleRetry = () => {
+      setSelected(null)
+      setChecked(false)
+      setShowRetry(false)
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h3 className="text-lg font-semibold mb-2">{data.question}</h3>
+          <div className="grid gap-2">
+            {data.options.map((opt: string, idx: number) => {
+              const isSel = selected === idx
+              const showCorrect = checked && idx === data.correctIndex
+              const showWrong = checked && isSel && !showCorrect
+              return (
+                <button
+                  key={idx}
+                  onClick={() => !checked && setSelected(idx)}
+                  className={classNames(
+                    'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                    isSel && !checked && 'border-blue-500 bg-blue-50',
+                    showCorrect && 'border-green-500 bg-green-50',
+                    showWrong && 'border-red-500 bg-red-50',
+                    !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
+                    checked && 'cursor-not-allowed'
+                  )}
+                  disabled={checked}
+                >
+                  <span className="text-sm">{opt}</span>
+                  {showCorrect && (
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  )}
+                  {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Hiển thị đáp án đúng khi sai */}
+        {checked && !correct && (
+          <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-800">Đáp án đúng:</span>
+            </div>
+            <p className="text-green-700">{data.options[data.correctIndex]}</p>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          {!checked ? (
+            <button
+              disabled={selected === null}
+              onClick={handleCheck}
+              className={classNames(
+                'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition',
+                selected === null && 'opacity-60 cursor-not-allowed'
+              )}
+            >
+              <ShieldCheck className="h-4 w-4" /> Kiểm tra
+            </button>
+          ) : showRetry ? (
+            <button
+              onClick={handleRetry}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+            >
+              <RotateCcw className="h-4 w-4" /> Trả lời lại
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+              <CheckCircle2 className="h-4 w-4" /> Chính xác!
+            </div>
+          )}
+
+          {checked && data.explanation && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Giải thích:</span>{' '}
+              {data.explanation}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Multiple questions format
+  if (!isMultipleFormat || !data.questions || data.questions.length === 0) {
+    return <div>Invalid format</div>
+  }
+
+  const currentQ = data.questions[currentQuestion]
+  if (!currentQ) {
+    return <div>Invalid question</div>
+  }
+
+  const isAnswered = answers[currentQuestion] !== null
+  const isChecked = checkedQuestions[currentQuestion]
+  const isCorrect = answers[currentQuestion] === currentQ.correctIndex
+
+  const totalQuestions = data.questions.length
+  const answeredCount = answers.filter((a) => a !== null).length
+  const correctCount = data.questions.filter(
+    (q: QuizQuestion, idx: number) =>
+      answers[idx] === q.correctIndex && checkedQuestions[idx]
+  ).length
+
+  const canNext = currentQuestion < totalQuestions - 1
+  const canPrev = currentQuestion > 0
+
+  const handleCheckMultiple = () => {
+    if (!isAnswered) return
+
+    const newChecked = [...checkedQuestions]
+    newChecked[currentQuestion] = true
+    setCheckedQuestions(newChecked)
+
+    // Check if all questions are answered and checked
+    const allAnswered = answers.every((a) => a !== null)
+    const allCheckedNow = newChecked.every((c) => c)
+
+    if (allAnswered && allCheckedNow && !allCompleted) {
+      setAllCompleted(true)
+      // Recalculate correct count with latest check
+      const finalCorrectCount =
+        data.questions?.filter(
+          (q: QuizQuestion, idx: number) =>
+            answers[idx] === q.correctIndex && newChecked[idx]
+        ).length ?? 0
+      const allCorrect = finalCorrectCount === totalQuestions
+      onResult(allCorrect)
     }
   }
 
-  const handleRetry = () => {
-    setSelected(null)
-    setChecked(false)
-    setShowRetry(false)
+  const handleAnswerSelect = (optionIndex: number) => {
+    if (isChecked) return
+    const newAnswers = [...answers]
+    newAnswers[currentQuestion] = optionIndex
+    setAnswers(newAnswers)
+  }
+
+  const goToQuestion = (questionIndex: number) => {
+    if (questionIndex >= 0 && questionIndex < totalQuestions) {
+      setCurrentQuestion(questionIndex)
+    }
   }
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <h3 className="text-lg font-semibold mb-2">{data.question}</h3>
-        <div className="grid gap-2">
-          {data.options.map((opt, idx) => {
-            const isSel = selected === idx
-            const showCorrect = checked && idx === data.correctIndex
-            const showWrong = checked && isSel && !showCorrect
-            return (
-              <button
-                key={idx}
-                onClick={() => !checked && setSelected(idx)}
-                className={classNames(
-                  'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
-                  isSel && !checked && 'border-blue-500 bg-blue-50',
-                  showCorrect && 'border-green-500 bg-green-50',
-                  showWrong && 'border-red-500 bg-red-50',
-                  !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
-                  checked && 'cursor-not-allowed'
-                )}
-                disabled={checked}
-              >
-                <span className="text-sm">{opt}</span>
-                {showCorrect && (
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                )}
-                {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
-              </button>
-            )
-          })}
+      {/* Progress indicator */}
+      <div className="rounded-xl border border-gray-200 bg-white p-3">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span>
+            Câu hỏi {currentQuestion + 1}/{totalQuestions}
+          </span>
+          <span>
+            Đã trả lời: {answeredCount}/{totalQuestions}
+          </span>
+        </div>
+        <div className="flex gap-1">
+          {data.questions.map((_: QuizQuestion, idx: number) => (
+            <button
+              key={idx}
+              onClick={() => goToQuestion(idx)}
+              className={classNames(
+                'flex-1 h-3 rounded transition-colors',
+                idx === currentQuestion
+                  ? 'bg-blue-500'
+                  : answers[idx] !== null
+                    ? checkedQuestions[idx]
+                      ? answers[idx] === data.questions?.[idx].correctIndex
+                        ? 'bg-green-400'
+                        : 'bg-red-400'
+                      : 'bg-yellow-400'
+                    : 'bg-gray-200'
+              )}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Hiển thị đáp án đúng khi sai */}
-      {checked && !correct && (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            <span className="font-medium text-green-800">Đáp án đúng:</span>
+      {/* Current question */}
+      {currentQ && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h4 className="font-semibold mb-3">{currentQ.question}</h4>
+          <div className="grid gap-2">
+            {currentQ.options.map((opt: string, idx: number) => {
+              const isSel = answers[currentQuestion] === idx
+              const showCorrect = isChecked && idx === currentQ.correctIndex
+              const showWrong = isChecked && isSel && !showCorrect
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleAnswerSelect(idx)}
+                  disabled={isChecked}
+                  className={classNames(
+                    'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                    isSel && !isChecked && 'border-blue-500 bg-blue-50',
+                    showCorrect && 'border-green-500 bg-green-50',
+                    showWrong && 'border-red-500 bg-red-50',
+                    !isSel && !isChecked && 'border-gray-200 hover:bg-gray-50',
+                    isChecked && 'cursor-not-allowed'
+                  )}
+                >
+                  <span className="text-sm">{opt}</span>
+                  {showCorrect && (
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  )}
+                  {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+                </button>
+              )
+            })}
           </div>
-          <p className="text-green-700">{data.options[data.correctIndex]}</p>
+
+          {/* Hiển thị đáp án đúng khi sai */}
+          {isChecked && !isCorrect && (
+            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-green-800">Đáp án đúng:</span>
+              </div>
+              <p className="text-green-700">
+                {currentQ.options[currentQ.correctIndex]}
+              </p>
+            </div>
+          )}
+
+          {/* Explanation */}
+          {isChecked && currentQ.explanation && (
+            <div className="mt-3 text-sm text-gray-600">
+              <span className="font-medium">Giải thích:</span>{' '}
+              {currentQ.explanation}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                disabled={!canPrev}
+                onClick={() => goToQuestion(currentQuestion - 1)}
+                className={classNames(
+                  'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                  canPrev
+                    ? 'border-gray-300 hover:bg-gray-50'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                )}
+              >
+                <ChevronLeft className="h-4 w-4" /> Câu trước
+              </button>
+
+              {!isChecked ? (
+                <button
+                  disabled={!isAnswered}
+                  onClick={handleCheckMultiple}
+                  className={classNames(
+                    'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                    !isAnswered && 'opacity-60 cursor-not-allowed'
+                  )}
+                >
+                  <ShieldCheck className="h-4 w-4" /> Kiểm tra
+                </button>
+              ) : (
+                <div
+                  className={classNames(
+                    'inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg',
+                    isCorrect
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
+                  )}
+                >
+                  {isCorrect ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Chính xác!
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4" /> Chưa đúng
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              disabled={!canNext || !isChecked}
+              onClick={() => goToQuestion(currentQuestion + 1)}
+              className={classNames(
+                'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                canNext && isChecked
+                  ? 'border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+              )}
+            >
+              Câu tiếp <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        {!checked ? (
-          <button
-            disabled={selected === null}
-            onClick={handleCheck}
-            className={classNames(
-              'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition',
-              selected === null && 'opacity-60 cursor-not-allowed'
-            )}
-          >
-            <ShieldCheck className="h-4 w-4" /> Kiểm tra
-          </button>
-        ) : showRetry ? (
-          <button
-            onClick={handleRetry}
-            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
-          >
-            <RotateCcw className="h-4 w-4" /> Trả lời lại
-          </button>
-        ) : (
-          <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
-            <CheckCircle2 className="h-4 w-4" /> Chính xác!
+      {/* Final results */}
+      {allCompleted && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-green-200 bg-green-50 p-5"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Trophy className="h-5 w-5 text-green-600" />
+            <span className="font-semibold text-green-800">
+              Hoàn thành Quiz!
+            </span>
           </div>
-        )}
-
-        {checked && data.explanation && (
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">Giải thích:</span> {data.explanation}
-          </div>
-        )}
-      </div>
+          <p className="text-green-700">
+            Bạn đã trả lời đúng{' '}
+            <strong>
+              {correctCount}/{totalQuestions}
+            </strong>{' '}
+            câu hỏi. Điểm số:{' '}
+            <strong>
+              {Math.round((correctCount / totalQuestions) * 100)}/100
+            </strong>
+          </p>
+        </motion.div>
+      )}
     </div>
   )
 }
@@ -1648,7 +1922,7 @@ function ListeningActivity({
                   ? 'bg-blue-500'
                   : answers[idx] !== null
                     ? checkedQuestions[idx]
-                      ? answers[idx] === data.questions[idx].correctIndex
+                      ? answers[idx] === data.questions?.[idx].correctIndex
                         ? 'bg-green-400'
                         : 'bg-red-400'
                       : 'bg-yellow-400'
@@ -2376,94 +2650,432 @@ function ReadingActivity({
   data: ReadingContent
   onPass: () => void
 }): JSX.Element {
+  // Detect format: single question or multiple questions
+  const isMultipleFormat =
+    Array.isArray(data.questions) && data.questions.length > 0
+
+  // Single question state
   const [selected, setSelected] = useState<number | null>(null)
   const [checked, setChecked] = useState(false)
-  const correct = selected === data.correctIndex
 
+  // Multiple questions state
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [answers, setAnswers] = useState<Array<number | null>>(
+    isMultipleFormat && data.questions
+      ? Array(data.questions.length).fill(null)
+      : []
+  )
+  const [checkedQuestions, setCheckedQuestions] = useState<boolean[]>(
+    isMultipleFormat && data.questions
+      ? Array(data.questions.length).fill(false)
+      : []
+  )
+  const [showPassage, setShowPassage] = useState(true)
+  const [allCompleted, setAllCompleted] = useState(false)
+
+  // Calculate correct answer for single format
+  const correct =
+    !isMultipleFormat && data.correctIndex !== undefined
+      ? selected === data.correctIndex
+      : false
+
+  // useEffect must be called at top level, not conditionally
   useEffect(() => {
-    if (checked && correct) onPass()
+    if (!isMultipleFormat && checked && correct) {
+      onPass()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checked, correct])
+  }, [checked, correct, isMultipleFormat])
 
-  const handleRetry = () => {
-    setSelected(null)
-    setChecked(false)
-  }
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <h3 className="text-lg font-semibold mb-2">Đoạn văn</h3>
-        <TextInteractionWrapper>
-          <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
-        </TextInteractionWrapper>
-      </div>
-      <div className="Learrounded-xl border border-gray-200 bg-white p-5">
-        <h4 className="font-medium mb-2">{data.question}</h4>
-        <div className="grid gap-2">
-          {data.options.map((o, i) => {
-            const isSel = selected === i
-            const showCorrect = checked && i === data.correctIndex
-            const showWrong = checked && isSel && !showCorrect
-            return (
-              <button
-                key={i}
-                onClick={() => !checked && setSelected(i)}
-                className={classNames(
-                  'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
-                  isSel && !checked && 'border-blue-500 bg-blue-50',
-                  showCorrect && 'border-green-500 bg-green-50',
-                  showWrong && 'border-red-500 bg-red-50',
-                  !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
-                  checked && 'cursor-not-allowed'
-                )}
-                disabled={checked}
-              >
-                <span className="text-sm">{o}</span>
-                {showCorrect && (
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                )}
-                {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
-              </button>
-            )
-          })}
+  // Single question format
+  if (!isMultipleFormat) {
+    if (!data.question || !data.options || data.correctIndex === undefined) {
+      return <div className="text-red-600">Invalid reading data</div>
+    }
+
+    const handleRetry = () => {
+      setSelected(null)
+      setChecked(false)
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h3 className="text-lg font-semibold mb-2">Đoạn văn</h3>
+          <TextInteractionWrapper>
+            <p className="text-sm leading-6 text-gray-800">{data.passage}</p>
+          </TextInteractionWrapper>
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          {!checked ? (
-            <button
-              disabled={selected === null}
-              onClick={() => setChecked(true)}
-              className={classNames(
-                'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
-                selected === null && 'opacity-60 cursor-not-allowed'
-              )}
-            >
-              <ShieldCheck className="h-4 w-4" /> Kiểm tra
-            </button>
-          ) : correct ? (
-            <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
-              <CheckCircle2 className="h-4 w-4" /> Chính xác!
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h4 className="font-medium mb-2">{data.question}</h4>
+          <div className="grid gap-2">
+            {data.options.map((o: string, i: number) => {
+              const isSel = selected === i
+              const showCorrect = checked && i === data.correctIndex
+              const showWrong = checked && isSel && !showCorrect
+              return (
+                <button
+                  key={i}
+                  onClick={() => !checked && setSelected(i)}
+                  className={classNames(
+                    'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                    isSel && !checked && 'border-blue-500 bg-blue-50',
+                    showCorrect && 'border-green-500 bg-green-50',
+                    showWrong && 'border-red-500 bg-red-50',
+                    !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
+                    checked && 'cursor-not-allowed'
+                  )}
+                  disabled={checked}
+                >
+                  <span className="text-sm">{o}</span>
+                  {showCorrect && (
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  )}
+                  {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            {!checked ? (
+              <button
+                disabled={selected === null}
+                onClick={() => setChecked(true)}
+                className={classNames(
+                  'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                  selected === null && 'opacity-60 cursor-not-allowed'
+                )}
+              >
+                <ShieldCheck className="h-4 w-4" /> Kiểm tra
+              </button>
+            ) : correct ? (
+              <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+                <CheckCircle2 className="h-4 w-4" /> Chính xác!
+              </div>
+            ) : (
+              <button
+                onClick={handleRetry}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+              >
+                <RotateCcw className="h-4 w-4" /> Làm lại
+              </button>
+            )}
+          </div>
+
+          {/* Hiển thị đáp án đúng khi sai */}
+          {checked && !correct && (
+            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-green-800">Đáp án đúng:</span>
+              </div>
+              <p className="text-green-700">
+                {data.options[data.correctIndex]}
+              </p>
             </div>
-          ) : (
-            <button
-              onClick={handleRetry}
-              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
-            >
-              <RotateCcw className="h-4 w-4" /> Làm lại
-            </button>
           )}
         </div>
-
-        {/* Hiển thị đáp án đúng khi sai */}
-        {checked && !correct && (
-          <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-800">Đáp án đúng:</span>
-            </div>
-            <p className="text-green-700">{data.options[data.correctIndex]}</p>
-          </div>
-        )}
       </div>
+    )
+  }
+
+  // Multiple questions format
+  if (!data.questions || data.questions.length === 0) {
+    return <div>Invalid format</div>
+  }
+
+  const currentQ = data.questions[currentQuestion]
+  if (!currentQ) {
+    return <div>Invalid question</div>
+  }
+
+  const isAnswered = answers[currentQuestion] !== null
+  const isChecked = checkedQuestions[currentQuestion]
+  const isCorrect = answers[currentQuestion] === currentQ.correctIndex
+
+  const totalQuestions = data.questions.length
+  const answeredCount = answers.filter((a) => a !== null).length
+  const correctCount = data.questions.filter(
+    (q: ReadingQuestion, idx: number) =>
+      answers[idx] === q.correctIndex && checkedQuestions[idx]
+  ).length
+
+  const canNext = currentQuestion < totalQuestions - 1
+  const canPrev = currentQuestion > 0
+
+  const handleCheckMultiple = () => {
+    if (!isAnswered) return
+
+    const newChecked = [...checkedQuestions]
+    newChecked[currentQuestion] = true
+    setCheckedQuestions(newChecked)
+
+    // Check if all questions are answered and checked
+    const allAnsweredNow = answers.every((a) => a !== null)
+    const allCheckedNow = newChecked.every((c) => c)
+
+    if (allAnsweredNow && allCheckedNow && !allCompleted) {
+      setAllCompleted(true)
+      onPass()
+    }
+  }
+
+  const handleAnswerSelect = (optionIndex: number) => {
+    if (isChecked) return
+    const newAnswers = [...answers]
+    newAnswers[currentQuestion] = optionIndex
+    setAnswers(newAnswers)
+  }
+
+  const goToQuestion = (questionIndex: number) => {
+    if (questionIndex >= 0 && questionIndex < totalQuestions) {
+      setCurrentQuestion(questionIndex)
+    }
+  }
+
+  const passage = data.passage || ''
+
+  return (
+    <div className="space-y-4">
+      {/* Toggle Button */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowPassage(true)}
+          className={classNames(
+            'flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition',
+            showPassage
+              ? 'border-blue-500 bg-blue-600 text-white'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+          )}
+        >
+          <BookOpen className="h-4 w-4" />
+          Đoạn văn
+        </button>
+        <button
+          onClick={() => setShowPassage(false)}
+          className={classNames(
+            'flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm transition',
+            !showPassage
+              ? 'border-blue-500 bg-blue-600 text-white'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+          )}
+        >
+          <HelpCircle className="h-4 w-4" />
+          Câu hỏi ({currentQuestion + 1}/{totalQuestions})
+        </button>
+      </div>
+
+      {showPassage ? (
+        /* Passage View */
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h3 className="text-lg font-semibold mb-2">Đọc đoạn văn sau</h3>
+          <TextInteractionWrapper>
+            <p className="text-sm leading-6 text-gray-800">{passage}</p>
+          </TextInteractionWrapper>
+          <button
+            onClick={() => setShowPassage(false)}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            Tiếp tục làm câu hỏi
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        /* Questions View */
+        <>
+          {/* Progress indicator */}
+          <div className="rounded-xl border border-gray-200 bg-white p-3">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span>
+                Câu hỏi {currentQuestion + 1}/{totalQuestions}
+              </span>
+              <span>
+                Đã trả lời: {answeredCount}/{totalQuestions}
+              </span>
+            </div>
+            <div className="flex gap-1">
+              {data.questions.map((_: ReadingQuestion, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => goToQuestion(idx)}
+                  className={classNames(
+                    'flex-1 h-3 rounded transition-colors',
+                    idx === currentQuestion
+                      ? 'bg-blue-500'
+                      : answers[idx] !== null
+                        ? checkedQuestions[idx]
+                          ? answers[idx] === data.questions?.[idx].correctIndex
+                            ? 'bg-green-400'
+                            : 'bg-red-400'
+                          : 'bg-yellow-400'
+                        : 'bg-gray-200'
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Current question */}
+          {currentQ && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h4 className="font-semibold mb-3">{currentQ.question}</h4>
+              <div className="grid gap-2">
+                {currentQ.options.map((opt: string, idx: number) => {
+                  const isSel = answers[currentQuestion] === idx
+                  const showCorrect = isChecked && idx === currentQ.correctIndex
+                  const showWrong = isChecked && isSel && !showCorrect
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAnswerSelect(idx)}
+                      disabled={isChecked}
+                      className={classNames(
+                        'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                        isSel && !isChecked && 'border-blue-500 bg-blue-50',
+                        showCorrect && 'border-green-500 bg-green-50',
+                        showWrong && 'border-red-500 bg-red-50',
+                        !isSel &&
+                          !isChecked &&
+                          'border-gray-200 hover:bg-gray-50',
+                        isChecked && 'cursor-not-allowed'
+                      )}
+                    >
+                      <span className="text-sm">{opt}</span>
+                      {showCorrect && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      )}
+                      {showWrong && (
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Hiển thị đáp án đúng khi sai */}
+              {isChecked && !isCorrect && (
+                <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-green-800">
+                      Đáp án đúng:
+                    </span>
+                  </div>
+                  <p className="text-green-700">
+                    {currentQ.options[currentQ.correctIndex]}
+                  </p>
+                </div>
+              )}
+
+              {/* Explanation */}
+              {isChecked && currentQ.explanation && (
+                <div className="mt-3 text-sm text-gray-600">
+                  <span className="font-medium">Giải thích:</span>{' '}
+                  {currentQ.explanation}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={!canPrev}
+                    onClick={() => goToQuestion(currentQuestion - 1)}
+                    className={classNames(
+                      'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                      canPrev
+                        ? 'border-gray-300 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    )}
+                  >
+                    <ChevronLeft className="h-4 w-4" /> Trước
+                  </button>
+
+                  {!isChecked ? (
+                    <button
+                      disabled={!isAnswered}
+                      onClick={handleCheckMultiple}
+                      className={classNames(
+                        'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                        !isAnswered && 'opacity-60 cursor-not-allowed'
+                      )}
+                    >
+                      <ShieldCheck className="h-4 w-4" /> Kiểm tra
+                    </button>
+                  ) : (
+                    <div
+                      className={classNames(
+                        'inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg',
+                        isCorrect
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      )}
+                    >
+                      {isCorrect ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" /> Chính xác!
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-4 w-4" /> Chưa đúng
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  disabled={!canNext || !isChecked}
+                  onClick={() => goToQuestion(currentQuestion + 1)}
+                  className={classNames(
+                    'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                    canNext && isChecked
+                      ? 'border-gray-300 hover:bg-gray-50'
+                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  )}
+                >
+                  Tiếp <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Back to Passage */}
+              <button
+                onClick={() => setShowPassage(true)}
+                className="mt-3 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Xem lại đoạn văn
+              </button>
+            </div>
+          )}
+
+          {/* Final results */}
+          {allCompleted && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-green-200 bg-green-50 p-5"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Trophy className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-green-800">
+                  Hoàn thành bài đọc!
+                </span>
+              </div>
+              <p className="text-green-700">
+                Bạn đã trả lời đúng{' '}
+                <strong>
+                  {correctCount}/{totalQuestions}
+                </strong>{' '}
+                câu hỏi. Điểm số:{' '}
+                <strong>
+                  {Math.round((correctCount / totalQuestions) * 100)}/100
+                </strong>
+              </p>
+            </motion.div>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -2660,87 +3272,362 @@ function GrammarActivity({
   data: GrammarContent
   onPass: () => void
 }): JSX.Element {
+  // Detect format: single exercise or multiple exercises
+  const isMultipleFormat =
+    Array.isArray(data.exercises) && data.exercises.length > 0
+
+  // Single exercise state
   const [selected, setSelected] = useState<number | null>(null)
   const [checked, setChecked] = useState(false)
-  const correct = selected === data.correctIndex
 
+  // Multiple exercises state
+  const [currentExercise, setCurrentExercise] = useState(0)
+  const [answers, setAnswers] = useState<Array<string | null>>(
+    isMultipleFormat && data.exercises
+      ? Array(data.exercises.length).fill(null)
+      : []
+  )
+  const [checkedExercises, setCheckedExercises] = useState<boolean[]>(
+    isMultipleFormat && data.exercises
+      ? Array(data.exercises.length).fill(false)
+      : []
+  )
+  const [allCompleted, setAllCompleted] = useState(false)
+
+  // Calculate correct answer for single format
+  const correct =
+    !isMultipleFormat && data.correctIndex !== undefined
+      ? selected === data.correctIndex
+      : false
+
+  // useEffect must be called at top level, not conditionally
   useEffect(() => {
-    if (checked && correct) onPass()
+    if (!isMultipleFormat && checked && correct) {
+      onPass()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checked, correct])
+  }, [checked, correct, isMultipleFormat])
 
-  const handleRetry = () => {
-    setSelected(null)
-    setChecked(false)
-  }
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <div className="mb-3 rounded-lg bg-indigo-50 p-3 text-indigo-900 text-sm">
-        Quy tắc: {data.rule}
-      </div>
-      <h4 className="font-medium mb-2">{data.question}</h4>
-      <div className="grid gap-2">
-        {data.options.map((o, i) => {
-          const isSel = selected === i
-          const showCorrect = checked && i === data.correctIndex
-          const showWrong = checked && isSel && !showCorrect
-          return (
+  // Single exercise format
+  if (!isMultipleFormat) {
+    if (!data.question || !data.options || data.correctIndex === undefined) {
+      return <div className="text-red-600">Invalid grammar data</div>
+    }
+
+    const handleRetry = () => {
+      setSelected(null)
+      setChecked(false)
+    }
+
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="mb-3 rounded-lg bg-indigo-50 p-3 text-indigo-900 text-sm">
+          Quy tắc: {data.rule}
+        </div>
+        <h4 className="font-medium mb-2">{data.question}</h4>
+        <div className="grid gap-2">
+          {data.options.map((o: string, i: number) => {
+            const isSel = selected === i
+            const showCorrect = checked && i === data.correctIndex
+            const showWrong = checked && isSel && !showCorrect
+            return (
+              <button
+                key={i}
+                onClick={() => !checked && setSelected(i)}
+                className={classNames(
+                  'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                  isSel && !checked && 'border-blue-500 bg-blue-50',
+                  showCorrect && 'border-green-500 bg-green-50',
+                  showWrong && 'border-red-500 bg-red-50',
+                  !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
+                  checked && 'cursor-not-allowed'
+                )}
+                disabled={checked}
+              >
+                <span className="text-sm">{o}</span>
+                {showCorrect && (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                )}
+                {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+              </button>
+            )
+          })}
+        </div>
+
+        {checked && selected !== data.correctIndex && (
+          <div className="mt-4 rounded-lg border-l-4 border-green-500 bg-green-50 px-4 py-3">
+            <p className="text-sm text-green-800">
+              <strong>Đáp án đúng:</strong> {data.options[data.correctIndex]}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-3 flex items-center gap-2">
+          {!checked ? (
             <button
-              key={i}
-              onClick={() => !checked && setSelected(i)}
+              disabled={selected === null}
+              onClick={() => setChecked(true)}
               className={classNames(
-                'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
-                isSel && !checked && 'border-blue-500 bg-blue-50',
-                showCorrect && 'border-green-500 bg-green-50',
-                showWrong && 'border-red-500 bg-red-50',
-                !isSel && !checked && 'border-gray-200 hover:bg-gray-50',
-                checked && 'cursor-not-allowed'
+                'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                selected === null && 'opacity-60 cursor-not-allowed'
               )}
-              disabled={checked}
             >
-              <span className="text-sm">{o}</span>
-              {showCorrect && (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              )}
-              {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+              <ShieldCheck className="h-4 w-4" /> Kiểm tra
             </button>
-          )
-        })}
+          ) : correct ? (
+            <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
+              <CheckCircle2 className="h-4 w-4" /> Chính xác!
+            </div>
+          ) : (
+            <button
+              onClick={handleRetry}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+            >
+              <RotateCcw className="h-4 w-4" /> Làm lại
+            </button>
+          )}
+        </div>
       </div>
+    )
+  }
 
-      {checked && selected !== data.correctIndex && (
-        <div className="mt-4 rounded-lg border-l-4 border-green-500 bg-green-50 px-4 py-3">
-          <p className="text-sm text-green-800">
-            <strong>Đáp án đúng:</strong> {data.options[data.correctIndex]}
-          </p>
+  // Multiple exercises format
+  if (!data.exercises || data.exercises.length === 0) {
+    return <div>Invalid format</div>
+  }
+
+  const currentEx = data.exercises[currentExercise]
+  if (!currentEx) {
+    return <div>Invalid exercise</div>
+  }
+
+  const isAnswered = answers[currentExercise] !== null
+  const isChecked = checkedExercises[currentExercise]
+  const isCorrect = answers[currentExercise] === currentEx.correctAnswer
+
+  const totalExercises = data.exercises.length
+  const answeredCount = answers.filter((a) => a !== null).length
+  const correctCount = data.exercises.filter(
+    (ex: GrammarExercise, idx: number) =>
+      answers[idx] === ex.correctAnswer && checkedExercises[idx]
+  ).length
+
+  const canNext = currentExercise < totalExercises - 1
+  const canPrev = currentExercise > 0
+
+  const handleCheckMultiple = () => {
+    if (!isAnswered) return
+
+    const newChecked = [...checkedExercises]
+    newChecked[currentExercise] = true
+    setCheckedExercises(newChecked)
+
+    // Check if all exercises are answered and checked
+    const allAnsweredNow = answers.every((a) => a !== null)
+    const allCheckedNow = newChecked.every((c) => c)
+
+    if (allAnsweredNow && allCheckedNow && !allCompleted) {
+      setAllCompleted(true)
+      onPass()
+    }
+  }
+
+  const handleAnswerSelect = (answer: string) => {
+    if (isChecked) return
+    const newAnswers = [...answers]
+    newAnswers[currentExercise] = answer
+    setAnswers(newAnswers)
+  }
+
+  const goToExercise = (exerciseIndex: number) => {
+    if (exerciseIndex >= 0 && exerciseIndex < totalExercises) {
+      setCurrentExercise(exerciseIndex)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Rule/Explanation */}
+      {data?.rule && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <div className="mb-3 rounded-lg bg-indigo-50 p-3 text-indigo-900 text-sm">
+            Quy tắc: {data.rule}
+          </div>
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2">
-        {!checked ? (
-          <button
-            disabled={selected === null}
-            onClick={() => setChecked(true)}
-            className={classNames(
-              'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
-              selected === null && 'opacity-60 cursor-not-allowed'
-            )}
-          >
-            <ShieldCheck className="h-4 w-4" /> Kiểm tra
-          </button>
-        ) : correct ? (
-          <div className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">
-            <CheckCircle2 className="h-4 w-4" /> Chính xác!
-          </div>
-        ) : (
-          <button
-            onClick={handleRetry}
-            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
-          >
-            <RotateCcw className="h-4 w-4" /> Làm lại
-          </button>
-        )}
+      {/* Progress indicator */}
+      <div className="rounded-xl border border-gray-200 bg-white p-3">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span>
+            Câu {currentExercise + 1}/{totalExercises}
+          </span>
+          <span>
+            Đã trả lời: {answeredCount}/{totalExercises}
+          </span>
+        </div>
+        <div className="flex gap-1">
+          {data.exercises.map((_: GrammarExercise, idx: number) => (
+            <button
+              key={idx}
+              onClick={() => goToExercise(idx)}
+              className={classNames(
+                'flex-1 h-3 rounded transition-colors',
+                idx === currentExercise
+                  ? 'bg-blue-500'
+                  : answers[idx] !== null
+                    ? checkedExercises[idx]
+                      ? answers[idx] === data.exercises?.[idx].correctAnswer
+                        ? 'bg-green-400'
+                        : 'bg-red-400'
+                      : 'bg-yellow-400'
+                    : 'bg-gray-200'
+              )}
+            />
+          ))}
+        </div>
       </div>
+
+      {/* Current exercise */}
+      {currentEx && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h4 className="font-medium mb-2">{currentEx.question}</h4>
+          <div className="grid gap-2">
+            {currentEx.options.map((opt: string, idx: number) => {
+              const isSel = answers[currentExercise] === opt
+              const showCorrect = isChecked && opt === currentEx.correctAnswer
+              const showWrong = isChecked && isSel && !showCorrect
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleAnswerSelect(opt)}
+                  disabled={isChecked}
+                  className={classNames(
+                    'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                    isSel && !isChecked && 'border-blue-500 bg-blue-50',
+                    showCorrect && 'border-green-500 bg-green-50',
+                    showWrong && 'border-red-500 bg-red-50',
+                    !isSel && !isChecked && 'border-gray-200 hover:bg-gray-50',
+                    isChecked && 'cursor-not-allowed'
+                  )}
+                >
+                  <span className="text-sm">{opt}</span>
+                  {showCorrect && (
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  )}
+                  {showWrong && <XCircle className="h-5 w-5 text-red-600" />}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Hiển thị đáp án đúng khi sai */}
+          {isChecked && !isCorrect && (
+            <div className="mt-4 rounded-lg border-l-4 border-green-500 bg-green-50 px-4 py-3">
+              <p className="text-sm text-green-800">
+                <strong>Đáp án đúng:</strong> {currentEx.correctAnswer}
+              </p>
+            </div>
+          )}
+
+          {/* Explanation */}
+          {isChecked && currentEx.explanation && (
+            <div className="mt-3 text-sm text-gray-600">
+              <span className="font-medium">Giải thích:</span>{' '}
+              {currentEx.explanation}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                disabled={!canPrev}
+                onClick={() => goToExercise(currentExercise - 1)}
+                className={classNames(
+                  'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                  canPrev
+                    ? 'border-gray-300 hover:bg-gray-50'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                )}
+              >
+                <ChevronLeft className="h-4 w-4" /> Trước
+              </button>
+
+              {!isChecked ? (
+                <button
+                  disabled={!isAnswered}
+                  onClick={handleCheckMultiple}
+                  className={classNames(
+                    'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white',
+                    !isAnswered && 'opacity-60 cursor-not-allowed'
+                  )}
+                >
+                  <ShieldCheck className="h-4 w-4" /> Kiểm tra
+                </button>
+              ) : (
+                <div
+                  className={classNames(
+                    'inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg',
+                    isCorrect
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
+                  )}
+                >
+                  {isCorrect ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Chính xác!
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4" /> Chưa đúng
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              disabled={!canNext || !isChecked}
+              onClick={() => goToExercise(currentExercise + 1)}
+              className={classNames(
+                'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
+                canNext && isChecked
+                  ? 'border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+              )}
+            >
+              Tiếp <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Final results */}
+      {allCompleted && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-green-200 bg-green-50 p-5"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Trophy className="h-5 w-5 text-green-600" />
+            <span className="font-semibold text-green-800">
+              Hoàn thành bài tập ngữ pháp!
+            </span>
+          </div>
+          <p className="text-green-700">
+            Bạn đã làm đúng{' '}
+            <strong>
+              {correctCount}/{totalExercises}
+            </strong>{' '}
+            câu. Điểm số:{' '}
+            <strong>
+              {Math.round((correctCount / totalExercises) * 100)}/100
+            </strong>
+          </p>
+        </motion.div>
+      )}
     </div>
   )
 }
