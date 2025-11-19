@@ -4,6 +4,7 @@ import {
   Download,
   FileUp,
   Plus,
+  Sparkles,
   Trash2,
   Trophy,
   Upload,
@@ -12,6 +13,7 @@ import {
 import React, { useEffect, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import type { GeneratedActivity } from '../../services/activity-ai.api'
 import {
   createAssignment,
   downloadAssignmentTemplate,
@@ -21,6 +23,7 @@ import type { AssignmentCreateRequest } from '../../types/assignment.type'
 import { AssignmentType } from '../../types/assignment.type'
 import type { ActivityType } from '../../types/learn.type'
 import { AudioGenerationOptions } from '../ui/AudioGenerationOptions'
+import { AIActivityGeneratorModal } from './AIActivityGeneratorModal'
 
 type Props = {
   isOpen: boolean
@@ -125,6 +128,7 @@ export default function CreateAssignmentModal({
 }) {
   const mode = rest.mode ?? 'create'
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showAIModal, setShowAIModal] = useState(false)
   const [importPreview, setImportPreview] =
     useState<ImportPreviewResult | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -168,6 +172,23 @@ export default function CreateAssignmentModal({
     replace: replaceActivities,
   } = useFieldArray({ control, name: 'activities' })
 
+  // Handler for AI-generated activities
+  const handleActivitiesGenerated = (activities: GeneratedActivity[]) => {
+    activities.forEach((activity) => {
+      addAct({
+        type: activity.type as any,
+        title: activity.title,
+        content: activity.content,
+        points: activity.points || 10,
+        difficulty: activity.difficulty,
+        instructions: activity.instructions,
+        passingScore: activity.passingScore,
+        hints: [],
+      })
+    })
+    toast.success(`Đã thêm ${activities.length} hoạt động từ AI`)
+  }
+
   // Reset form when initialValues change (for edit mode)
   useEffect(() => {
     if (rest.initialValues && mode === 'edit') {
@@ -199,7 +220,7 @@ export default function CreateAssignmentModal({
   // Debug log current field array state
   useEffect(() => {
     console.log('📊 Current actFields length:', actFields.length)
-    actFields.forEach((field, index) => {
+    actFields.forEach((field: any, index: number) => {
       console.log(`📋 Field ${index}:`, field)
     })
   }, [actFields])
@@ -319,14 +340,30 @@ export default function CreateAssignmentModal({
       points: 10,
       content: {},
     }
-    // seed minimal content per type
+    // seed minimal content per type (matching AI generated structure)
     switch (type) {
       case 'quiz':
+        ;(base as any).content = {
+          questions: [
+            {
+              question: '',
+              options: ['', ''],
+              correctIndex: 0,
+              explanation: '',
+            },
+          ],
+        }
+        break
       case 'grammar':
         ;(base as any).content = {
-          question: '',
-          options: ['', ''],
-          correctIndex: 0,
+          rule: '',
+          exercises: [
+            {
+              question: '',
+              options: ['', ''],
+              correctIndex: 0,
+            },
+          ],
         }
         break
       case 'reading':
@@ -354,11 +391,29 @@ export default function CreateAssignmentModal({
         }
         break
       case 'vocab':
-        ;(base as any).content = { items: [{ word: '', definition: '' }] }
+        ;(base as any).content = {
+          items: [
+            {
+              word: '',
+              definition: '',
+              translationVi: '',
+              pronunciation: '',
+              partOfSpeech: '',
+              examples: [''],
+              synonyms: [],
+              antonyms: [],
+              audioUrl: '',
+              imageUrl: '',
+            },
+          ],
+        }
         break
       case 'pronunciation':
         ;(base as any).content = {
-          phrases: [{ text: '', sampleUrl: '' }],
+          phrase: '',
+          tips: [''],
+          phonetics: '',
+          sampleUrl: '',
         }
         break
       case 'speaking':
@@ -371,7 +426,9 @@ export default function CreateAssignmentModal({
         ;(base as any).content = { prompt: '', minWords: 50, rubric: [] }
         break
       case 'flashcard':
-        ;(base as any).content = { cards: [{ front: '', back: '' }] }
+        ;(base as any).content = {
+          cards: [{ front: '', back: '', imageUrl: '' }],
+        }
         break
       case 'conversation':
         ;(base as any).content = {
@@ -391,7 +448,10 @@ export default function CreateAssignmentModal({
         }
         break
       case 'matching':
-        ;(base as any).content = { pairs: [{ left: '', right: '' }] }
+        ;(base as any).content = {
+          leftItems: [''],
+          rightItems: [''],
+        }
         break
     }
     addAct(base as any)
@@ -531,7 +591,19 @@ export default function CreateAssignmentModal({
           </Section>
 
           <Section title="Hoạt động trong bài tập">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              {/* AI Generate Button */}
+              <button
+                type="button"
+                onClick={() => setShowAIModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-medium text-white hover:from-blue-700 hover:to-purple-700 shadow-sm"
+              >
+                <Sparkles className="h-4 w-4" />
+                AI Generate Activities
+              </button>
+
+              <div className="h-4 border-l border-gray-300 mx-2"></div>
+
               {ACTIVITY_TYPES.map((t) => (
                 <button
                   key={t}
@@ -551,7 +623,7 @@ export default function CreateAssignmentModal({
             )}
 
             <div className="space-y-4">
-              {actFields.map((f, idx) => {
+              {actFields.map((f: any, idx: number) => {
                 const type = watch(
                   `activities.${idx}.type`
                 ) as ExtendedActivityType
@@ -803,6 +875,17 @@ export default function CreateAssignmentModal({
           </div>
         </div>
       )}
+
+      {/* AI Activity Generator Modal */}
+      <AIActivityGeneratorModal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        courseTitle={watch('title') || 'Assignment'}
+        courseDescription={watch('description') || undefined}
+        lessonTitle={watch('title') || 'Assignment Activities'}
+        lessonDescription={watch('instructions') || undefined}
+        onActivitiesGenerated={handleActivitiesGenerated}
+      />
     </div>
   )
 }
