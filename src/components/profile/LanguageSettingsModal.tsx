@@ -1,7 +1,7 @@
 import { Check, Globe, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '../../../node_modules/react-i18next'
 
 interface Language {
   code: string

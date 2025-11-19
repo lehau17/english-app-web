@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '../../../node_modules/react-i18next'
 import AuthLayout from '../../layouts/AuthLayout'
 
 interface RegisterFormData {
