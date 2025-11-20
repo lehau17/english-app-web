@@ -3,6 +3,7 @@ import {
   canStartActivity,
   completeActivity,
   fetchLessonAndActivities,
+  getActivityAttemptHistory,
   getClassroomDetail,
   getNextLesson,
   startActivity,
@@ -121,5 +122,21 @@ export const useClassroomDetail = (classroomId: string) => {
     enabled: !!classroomId?.trim(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+// Hook để lấy lịch sử attempts của một activity
+export const useActivityAttemptHistory = (
+  activityId: string,
+  userId: string,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ['activityAttemptHistory', activityId, userId],
+    queryFn: () => getActivityAttemptHistory(activityId, userId),
+    enabled:
+      options?.enabled !== false && !!activityId?.trim() && !!userId?.trim(),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
   })
 }

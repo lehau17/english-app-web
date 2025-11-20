@@ -21,6 +21,22 @@ export type ProgressState =
   | 'review_needed'
   | 'mastered'
 
+export interface Attempt {
+  id: string
+  activityId: string
+  userId: string
+  score: number | null
+  maxScore: number | null
+  timeSpent: number | null
+  detail: Record<string, any> | null
+  feedback: string | null
+  correctAnswers: number | null
+  totalQuestions: number | null
+  averageTime: number | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ActivityBase {
   id: string
   lessonId: string

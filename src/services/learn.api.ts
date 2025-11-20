@@ -1,6 +1,8 @@
 import api from '../lib/api'
 import type { BaseResponse } from '../types/base-response.type'
+import type { PageResponse } from '../types/page-response.type'
 import type {
+  Attempt,
   CanStartActivityRequest,
   CanStartActivityResponse,
   CompleteActivityRequest,
@@ -127,4 +129,16 @@ export async function fetchLessonAndActivities(
     activities: lesson.activities,
     currentActivityId,
   }
+}
+
+export async function getActivityAttemptHistory(
+  activityId: string,
+  userId: string,
+  page = 1,
+  limit = 20
+) {
+  const response = await api.get<BaseResponse<PageResponse<Attempt>>>(
+    `/private/v1/attempts?activityId=${activityId}&userId=${userId}&page=${page}&limit=${limit}&sortBy=createdAt&sortOrder=desc`
+  )
+  return response.data
 }

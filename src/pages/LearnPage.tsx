@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Headphones,
   HelpCircle,
+  History,
   Home,
   Loader2,
   MessageSquare,
@@ -40,6 +41,7 @@ import {
 import toast from 'react-hot-toast'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
+import { ActivityAttemptHistory } from '../components/learn/ActivityAttemptHistory'
 import { VocabularyPronunciationPractice } from '../components/learn/VocabularyPronunciationPractice'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -243,11 +245,13 @@ function TopBar({
   activity,
   onBack,
   onExit,
+  onShowHistory,
 }: {
   lesson?: LessonMeta
   activity?: Activity
   onBack: () => void
   onExit: () => void
+  onShowHistory: () => void
 }): JSX.Element {
   return (
     <div className="flex items-center justify-between gap-2">
@@ -289,6 +293,14 @@ function TopBar({
           aria-label="Trợ giúp"
         >
           <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+        </button>
+        <button
+          onClick={onShowHistory}
+          className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 transition-colors"
+          aria-label="Lịch sử học tập"
+          title="Xem lịch sử học tập"
+        >
+          <History className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <button
           className="rounded-lg p-1.5 sm:p-2 hover:bg-gray-100 hidden xs:block"
@@ -4403,6 +4415,7 @@ export default function LearnPlayerPage(): JSX.Element {
   const [errorDetails, setErrorDetails] = useState<any>(null)
   const [nextLesson, setNextLesson] = useState<any>(null)
   const [showCelebration, setShowCelebration] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const startingActivityRef = useRef<string | null>(null)
   const blockedActivitiesRef = useRef<Set<string>>(new Set())
 
@@ -4857,6 +4870,7 @@ export default function LearnPlayerPage(): JSX.Element {
           activity={active}
           onBack={() => navigate(-1)}
           onExit={() => (window.location.href = '/classroom')}
+          onShowHistory={() => setShowHistory(true)}
         />
 
         {/* Preview Mode Banner */}
@@ -5130,6 +5144,15 @@ export default function LearnPlayerPage(): JSX.Element {
             />
           )}
         </AnimatePresence>
+
+        {/* Activity Attempt History Modal */}
+        {active && (
+          <ActivityAttemptHistory
+            activityId={active.id}
+            isOpen={showHistory}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
       </div>
     </div>
   )
