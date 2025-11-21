@@ -90,4 +90,12 @@ export const podcastApi = {
     const response = await api.get(`/private/v1/podcasts/${id}`)
     return response.data.data
   },
+
+  // AI-powered recommendations
+  getAIRecommendations: async (limit?: number) => {
+    const response = await api.get('/private/v1/podcasts/ai-recommendations', {
+      params: { limit },
+    })
+    return response.data.data
+  },
 }

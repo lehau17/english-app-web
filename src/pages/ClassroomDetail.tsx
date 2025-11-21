@@ -336,6 +336,13 @@ function StudentAssignmentCard({
               })}
             </div>
           )}
+
+          {isOverdue && !hasSubmitted && (
+            <div className="text-xs text-red-600 bg-red-50 p-2 rounded ml-9 flex items-center gap-1">
+              <XCircle className="h-3 w-3" />
+              <strong>Đã quá hạn nộp bài:</strong> Không thể bắt đầu làm bài nữa
+            </div>
+          )}
         </div>
       </div>
 
@@ -381,17 +388,19 @@ function StudentAssignmentCard({
             ) : (
               <button
                 onClick={() => onStartAssignment?.(assignment.id)}
-                disabled={
-                  isNotStarted || (isOverdue && !assignment.isPublished)
-                }
+                disabled={isNotStarted || isOverdue}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
-                  isNotStarted || (isOverdue && !assignment.isPublished)
+                  isNotStarted || isOverdue
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
                 <Play className="h-4 w-4" />
-                {isNotStarted ? 'Chưa đến giờ' : 'Bắt đầu làm'}
+                {isNotStarted
+                  ? 'Chưa đến giờ'
+                  : isOverdue
+                    ? 'Đã quá hạn'
+                    : 'Bắt đầu làm'}
               </button>
             )}
           </div>
