@@ -2908,7 +2908,7 @@ function ReadingActivity({
     }
 
     const goToQuestion = (questionIndex: number) => {
-      if (questionIndex >= 0 && questionIndex < data.questions.length) {
+      if (questionIndex >= 0 && questionIndex < data.questions!.length) {
         setCurrentQuestion(questionIndex)
       }
     }
@@ -3623,7 +3623,7 @@ function GrammarActivity({
     }
 
     const goToExercise = (exerciseIndex: number) => {
-      if (exerciseIndex >= 0 && exerciseIndex < data.exercises.length) {
+      if (exerciseIndex >= 0 && exerciseIndex < data.exercises!.length) {
         setCurrentExercise(exerciseIndex)
       }
     }
