@@ -532,6 +532,26 @@ function FillBlankActivity({
     }
   }
 
+  // Hotkeys for FillBlank: Space = check, Ctrl+Z = retry
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (
+        e.key === ' ' &&
+        !checked &&
+        droppedAnswers.every((a) => a !== null)
+      ) {
+        e.preventDefault()
+        handleCheck()
+      } else if (e.ctrlKey && e.key === 'z' && checked) {
+        e.preventDefault()
+        handleRetry()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, droppedAnswers])
+
   let blankIdx = 0
   return (
     <div className="space-y-6">
@@ -716,6 +736,22 @@ function DictationActivity({
     setChecked(false)
   }
 
+  // Hotkeys for Dictation: Space = check (when text not empty), Ctrl+R = retry
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ' && e.ctrlKey && !checked && text.trim()) {
+        e.preventDefault()
+        handleCheck()
+      } else if (e.ctrlKey && e.key === 'r' && checked) {
+        e.preventDefault()
+        handleRetry()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, text])
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-gray-200 bg-white p-5 flex items-center justify-between">
@@ -869,6 +905,22 @@ function MatchingActivity({
     setSelectedLeft(null)
     setChecked(false)
   }
+
+  // Hotkeys for Matching: Space = check, Escape = clear selection
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ' && !checked && connections.length === pairs.length) {
+        e.preventDefault()
+        handleCheck()
+      } else if (e.key === 'Escape' && selectedLeft !== null) {
+        e.preventDefault()
+        setSelectedLeft(null)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, connections, pairs, selectedLeft])
 
   const getConnectionResult = (leftIndex: number) => {
     if (!checked) return null
@@ -1200,6 +1252,81 @@ function QuizActivity({
       : []
   )
   const [allCompleted, setAllCompleted] = useState(false)
+
+  // Hotkeys for multiple format - MUST be before early returns
+  useEffect(() => {
+    if (isMultipleFormat && data.questions && data.questions.length > 0) {
+      const currentQ = data.questions[currentQuestion]
+      if (!currentQ) return
+
+      const isAnswered = answers[currentQuestion] !== null
+      const isChecked = checkedQuestions[currentQuestion]
+      const canNext = currentQuestion < data.questions.length - 1
+
+      const handleAnswerSelect = (optionIndex: number) => {
+        if (isChecked) return
+        const newAnswers = [...answers]
+        newAnswers[currentQuestion] = optionIndex
+        setAnswers(newAnswers)
+      }
+
+      const handleCheckMultiple = () => {
+        if (!isAnswered) return
+        const newChecked = [...checkedQuestions]
+        newChecked[currentQuestion] = true
+        setCheckedQuestions(newChecked)
+
+        const allAnswered = answers.every((a) => a !== null)
+        const allCheckedNow = newChecked.every((c) => c)
+
+        if (allAnswered && allCheckedNow && !allCompleted) {
+          setAllCompleted(true)
+          const finalCorrectCount =
+            data.questions?.filter(
+              (q: QuizQuestion, idx: number) =>
+                answers[idx] === q.correctIndex && newChecked[idx]
+            ).length ?? 0
+          const totalQuestions = data.questions?.length || 0
+          const allCorrect = finalCorrectCount === totalQuestions
+          onResult(allCorrect)
+        }
+      }
+
+      const goToQuestion = (questionIndex: number) => {
+        if (
+          questionIndex >= 0 &&
+          questionIndex < (data?.questions?.length || 0)
+        ) {
+          setCurrentQuestion(questionIndex)
+        }
+      }
+
+      const handler = (e: KeyboardEvent) => {
+        if (e.key === ' ' && isAnswered && !isChecked) {
+          e.preventDefault()
+          handleCheckMultiple()
+        } else if (e.key === 'Enter' && isChecked && canNext) {
+          e.preventDefault()
+          goToQuestion(currentQuestion + 1)
+        } else if (['1', '2', '3', '4'].includes(e.key) && !isChecked) {
+          const idx = parseInt(e.key) - 1
+          if (currentQ?.options && idx < currentQ.options.length) {
+            handleAnswerSelect(idx)
+          }
+        }
+      }
+      window.addEventListener('keydown', handler)
+      return () => window.removeEventListener('keydown', handler)
+    }
+  }, [
+    isMultipleFormat,
+    data.questions,
+    currentQuestion,
+    answers,
+    checkedQuestions,
+    allCompleted,
+    onResult,
+  ])
 
   // Single question format
   if (!isMultipleFormat) {
@@ -1890,6 +2017,26 @@ function ListeningActivity({
     }
   }
 
+  // Hotkeys for Listening: 1-4 = select option, Space = check, Enter = next question
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ' && isAnswered && !isChecked) {
+        e.preventDefault()
+        handleCheck()
+      } else if (e.key === 'Enter' && isChecked && canNext) {
+        e.preventDefault()
+        goToQuestion(currentQuestion + 1)
+      } else if (['1', '2', '3', '4'].includes(e.key) && !isChecked) {
+        const idx = parseInt(e.key) - 1
+        if (currentQ?.options && idx < currentQ.options.length) {
+          handleAnswerSelect(idx)
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isAnswered, isChecked, canNext, currentQuestion, currentQ])
+
   useEffect(() => {
     // Auto-advance to next question after checking (if not last question)
     if (isChecked && canNext && !allCompleted) {
@@ -2197,6 +2344,22 @@ function PronunciationActivity({
     }
   }, [])
 
+  // Hotkeys for Pronunciation: Space = start/stop recording
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        e.preventDefault()
+        if (!recording && !result) {
+          startRec()
+        } else if (recording) {
+          stopRec()
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [recording, result])
+
   const mispronounced =
     result?.detail && Array.isArray((result.detail as any).mispronounced)
       ? ((result.detail as any).mispronounced as string[])
@@ -2479,6 +2642,22 @@ function SpeakingActivity({
     }
   }, [])
 
+  // Hotkeys for Speaking: Space = start/stop recording
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        e.preventDefault()
+        if (!recording && !recordedBlob) {
+          start()
+        } else if (recording) {
+          stop()
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [recording, recordedBlob])
+
   const canSubmit = Boolean(recordedBlob) && seconds >= minSeconds && !loading
   const suggestedPhrases =
     result?.detail && Array.isArray((result.detail as any).suggestedPhrases)
@@ -2690,6 +2869,80 @@ function ReadingActivity({
     !isMultipleFormat && data.correctIndex !== undefined
       ? selected === data.correctIndex
       : false
+
+  // Multiple questions format keyboard shortcuts - must be before early returns
+  useEffect(() => {
+    if (!isMultipleFormat || !data.questions || data.questions.length === 0) {
+      return
+    }
+
+    const currentQ = data.questions[currentQuestion]
+    if (!currentQ) return
+
+    const isAnswered = answers[currentQuestion] !== null
+    const isChecked = checkedQuestions[currentQuestion]
+    const canNext = currentQuestion < data.questions.length - 1
+
+    const handleCheckMultiple = () => {
+      if (!isAnswered) return
+
+      const newChecked = [...checkedQuestions]
+      newChecked[currentQuestion] = true
+      setCheckedQuestions(newChecked)
+
+      // Check if all questions are answered and checked
+      const allAnsweredNow = answers.every((a) => a !== null)
+      const allCheckedNow = newChecked.every((c) => c)
+
+      if (allAnsweredNow && allCheckedNow && !allCompleted) {
+        setAllCompleted(true)
+        onPass()
+      }
+    }
+
+    const handleAnswerSelect = (optionIndex: number) => {
+      if (isChecked) return
+      const newAnswers = [...answers]
+      newAnswers[currentQuestion] = optionIndex
+      setAnswers(newAnswers)
+    }
+
+    const goToQuestion = (questionIndex: number) => {
+      if (questionIndex >= 0 && questionIndex < data.questions.length) {
+        setCurrentQuestion(questionIndex)
+      }
+    }
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ' && isAnswered && !isChecked) {
+        e.preventDefault()
+        handleCheckMultiple()
+      } else if (e.key === 'Enter' && isChecked && canNext) {
+        e.preventDefault()
+        goToQuestion(currentQuestion + 1)
+      } else if (e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        setShowPassage((prev) => !prev)
+      } else if (['1', '2', '3', '4'].includes(e.key) && !isChecked) {
+        const idx = parseInt(e.key) - 1
+        if (currentQ?.options && idx < currentQ.options.length) {
+          handleAnswerSelect(idx)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [
+    isMultipleFormat,
+    data.questions,
+    currentQuestion,
+    answers,
+    checkedQuestions,
+    allCompleted,
+    onPass,
+    showPassage,
+  ])
 
   // useEffect must be called at top level, not conditionally
   useEffect(() => {
@@ -3158,6 +3411,18 @@ function WritingActivity({
       ? ((result.detail as any).wordCount as number)
       : undefined
 
+  // Hotkeys for Writing: Ctrl+Enter = submit
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'Enter' && canSubmit) {
+        e.preventDefault()
+        handleSubmit()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [canSubmit])
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
       <h3 className="text-lg font-semibold">Viết</h3>
@@ -3319,6 +3584,76 @@ function GrammarActivity({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked, correct, isMultipleFormat])
+
+  // Multiple exercises format keyboard shortcuts - must be before early returns
+  useEffect(() => {
+    if (!isMultipleFormat || !data.exercises || data.exercises.length === 0) {
+      return
+    }
+
+    const currentEx = data.exercises[currentExercise]
+    if (!currentEx) return
+
+    const isAnswered = answers[currentExercise] !== null
+    const isChecked = checkedExercises[currentExercise]
+    const canNext = currentExercise < data.exercises.length - 1
+
+    const handleCheckMultiple = () => {
+      if (!isAnswered) return
+
+      const newChecked = [...checkedExercises]
+      newChecked[currentExercise] = true
+      setCheckedExercises(newChecked)
+
+      // Check if all exercises are answered and checked
+      const allAnsweredNow = answers.every((a) => a !== null)
+      const allCheckedNow = newChecked.every((c) => c)
+
+      if (allAnsweredNow && allCheckedNow && !allCompleted) {
+        setAllCompleted(true)
+        onPass()
+      }
+    }
+
+    const handleAnswerSelect = (answer: string) => {
+      if (isChecked) return
+      const newAnswers = [...answers]
+      newAnswers[currentExercise] = answer
+      setAnswers(newAnswers)
+    }
+
+    const goToExercise = (exerciseIndex: number) => {
+      if (exerciseIndex >= 0 && exerciseIndex < data.exercises.length) {
+        setCurrentExercise(exerciseIndex)
+      }
+    }
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ' && isAnswered && !isChecked) {
+        e.preventDefault()
+        handleCheckMultiple()
+      } else if (e.key === 'Enter' && isChecked && canNext) {
+        e.preventDefault()
+        goToExercise(currentExercise + 1)
+      } else if (['1', '2', '3', '4'].includes(e.key) && !isChecked) {
+        const idx = parseInt(e.key) - 1
+        if (currentEx?.options && idx < currentEx.options.length) {
+          handleAnswerSelect(currentEx.options[idx])
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [
+    isMultipleFormat,
+    data.exercises,
+    currentExercise,
+    answers,
+    checkedExercises,
+    allCompleted,
+    onPass,
+  ])
 
   // Single exercise format
   if (!isMultipleFormat) {
@@ -3929,6 +4264,19 @@ function ConversationActivity({
     setTurns((t) => t + 1)
     if (turns + 1 >= 3) onPass()
   }
+
+  // Hotkeys for Conversation: Enter = send message
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey && text.trim()) {
+        e.preventDefault()
+        send()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [text, turns])
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
       <div className="rounded-lg bg-blue-50 p-3 text-blue-900 text-sm">
