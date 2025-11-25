@@ -24,7 +24,12 @@ export function ActivityAttemptHistory({
   if (!isOpen) return null
 
   // PageResponse structure: data.data.data contains the array
-  const attempts = data?.data?.data?.data || []
+  // data = BaseResponse<PageResponse<Attempt>>
+  // data.data = PageResponse<Attempt> = { data: Attempt[], page, limit, ... }
+  // data.data.data = Attempt[]
+  const attempts: Attempt[] = Array.isArray(data?.data?.data)
+    ? data.data.data
+    : []
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

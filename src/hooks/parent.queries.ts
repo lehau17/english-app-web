@@ -10,6 +10,7 @@ import {
   getParentRewardsApi,
   updateChildNotificationSettingsApi,
 } from '../services/parent.api'
+import type { ParentActivitiesQuery } from '../services/parent.api'
 import type { ParentDashboardData } from '../types/parent.type'
 
 export const useParentDashboardQuery = (enabled: boolean = true) =>
@@ -102,16 +103,20 @@ export const useUpdateChildNotificationSettingsMutation = () => {
   })
 }
 
-export const useParentActivitiesQuery = (enabled: boolean = true) =>
+export const useParentActivitiesQuery = (
+  params: ParentActivitiesQuery,
+  enabled: boolean = true
+) =>
   useQuery({
-    queryKey: ['parent-activities'],
+    queryKey: ['parent-activities', params],
     queryFn: async () => {
-      const response = await getParentActivitiesApi()
+      const response = await getParentActivitiesApi(params)
       return response.data
     },
     enabled,
     retry: 1,
-    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    staleTime: 30 * 1000,
   })
 
 export const useParentChildProgressQuery = (

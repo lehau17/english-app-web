@@ -10,7 +10,6 @@ import {
   Loader2,
   Target,
   TrendingUp,
-  Users,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
@@ -35,6 +34,30 @@ const ACTIVITY_LABELS: Record<string, string> = {
   writing: 'Viết',
   podcast: 'Podcast',
   game: 'Trò chơi',
+}
+
+const COMPLETED_STATES = new Set(['done', 'completed', 'mastered'])
+
+const isCompletedState = (state?: string) =>
+  state ? COMPLETED_STATES.has(state) : false
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  done: { label: 'Hoàn thành', color: 'text-green-600' },
+  completed: { label: 'Hoàn thành', color: 'text-green-600' },
+  mastered: { label: 'Hoàn thành', color: 'text-green-600' },
+  in_progress: { label: 'Đang học', color: 'text-blue-600' },
+  inprogress: { label: 'Đang học', color: 'text-blue-600' },
+  failed: { label: 'Chưa đạt', color: 'text-red-600' },
+  not_started: { label: 'Chưa bắt đầu', color: 'text-gray-500' },
+  review_needed: { label: 'Cần ôn luyện', color: 'text-orange-600' },
+}
+
+function getStatusInfo(state?: string) {
+  if (!state) return { label: 'Không rõ', color: 'text-gray-500' }
+  const normalized = state.toLowerCase()
+  return (
+    STATUS_LABELS[normalized] ?? { label: normalized, color: 'text-gray-500' }
+  )
 }
 
 const PERIOD_DAY_MAP = {
@@ -110,7 +133,7 @@ function buildDailySummary(
     }
 
     bucket.studySeconds += record.timeSpent ?? 0
-    if (record.state === 'done') {
+    if (isCompletedState(record.state)) {
       bucket.completed += 1
     }
     if (typeof record.score === 'number') {
@@ -179,63 +202,6 @@ function getProgressTrend(child: ChildProgress): 'up' | 'down' | 'stable' {
   return 'stable'
 }
 
-function ProgressChart({
-  data,
-  title,
-}: {
-  data: ProgressData[]
-  title: string
-}) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="space-y-2">
-        <h4 className="font-medium text-gray-900">{title}</h4>
-        <div className="text-sm text-gray-500">
-          Chưa có dữ liệu trong giai đoạn này
-        </div>
-      </div>
-    )
-  }
-
-  const maxValue = Math.max(...data.map((d) => d.studyMinutes), 0)
-
-  if (maxValue <= 0) {
-    return (
-      <div className="space-y-2">
-        <h4 className="font-medium text-gray-900">{title}</h4>
-        <div className="text-sm text-gray-500">
-          Chưa có thời gian học được ghi nhận
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      <h4 className="font-medium text-gray-900">{title}</h4>
-      <div className="flex items-end justify-between h-32 gap-1">
-        {data.map((item) => (
-          <div key={item.date} className="flex flex-col items-center gap-1">
-            <div
-              className="w-6 bg-blue-500 rounded-t"
-              style={{
-                height: `${Math.max((item.studyMinutes / maxValue) * 100, 4)}%`,
-              }}
-              title={`${item.studyMinutes} phút`}
-            />
-            <span className="text-xs text-gray-500">
-              {new Date(item.date).getDate()}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="text-xs text-gray-600 text-center">
-        Tổng thời gian học (phút)
-      </div>
-    </div>
-  )
-}
-
 function ChildAvatar({ child }: { child: ChildProgress }) {
   if (child.avatar && child.avatar.startsWith('http')) {
     return (
@@ -299,16 +265,16 @@ function ChildReportCard({
     [progressItems, periodDays, queryWindow.end]
   )
 
-  const totalStudyMinutes = useMemo(
+  const daysWithData = useMemo(
     () =>
-      Math.round(
-        progressItems.reduce((sum, item) => sum + (item.timeSpent ?? 0), 0) / 60
+      weeklyData.filter(
+        (day) =>
+          day.studyMinutes > 0 ||
+          day.activitiesCompleted > 0 ||
+          (day.accuracy ?? 0) > 0
       ),
-    [progressItems]
+    [weeklyData]
   )
-
-  const averageDailyMinutes =
-    periodDays > 0 ? Math.round(totalStudyMinutes / periodDays) : 0
 
   const completionRate =
     child.totalActivities > 0
@@ -319,7 +285,7 @@ function ChildReportCard({
     () =>
       deriveTopLabels(
         progressItems,
-        (item) => item.state === 'done' && (item.score ?? 0) >= 75
+        (item) => isCompletedState(item.state) && (item.score ?? 0) >= 75
       ),
     [progressItems]
   )
@@ -409,39 +375,6 @@ function ChildReportCard({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-gray-500">
-                    Tổng thời gian ({periodDays} ngày)
-                  </p>
-                  <p className="text-lg font-semibold text-blue-700">
-                    {formatMinutes(totalStudyMinutes)}
-                  </p>
-                </div>
-                <div className="p-4 bg-emerald-50 rounded-lg">
-                  <p className="text-xs text-gray-500">
-                    Thời gian trung bình / ngày
-                  </p>
-                  <p className="text-lg font-semibold text-emerald-700">
-                    {formatMinutes(averageDailyMinutes)}
-                  </p>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Tổng bài hoàn thành</p>
-                  <p className="text-lg font-semibold text-orange-700">
-                    {
-                      progressItems.filter((item) => item.state === 'done')
-                        .length
-                    }
-                  </p>
-                </div>
-              </div>
-
-              <ProgressChart
-                data={weeklyData}
-                title={`Thời gian học ${periodDays} ngày gần nhất`}
-              />
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h5 className="font-medium text-green-700 mb-2 flex items-center gap-1">
@@ -483,13 +416,13 @@ function ChildReportCard({
                 <h5 className="font-medium text-gray-900 mb-2">
                   Chi tiết theo ngày
                 </h5>
-                {weeklyData.length === 0 ? (
+                {daysWithData.length === 0 ? (
                   <div className="text-sm text-gray-500">
                     Chưa có dữ liệu cho giai đoạn đã chọn
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {weeklyData.map((day) => (
+                    {daysWithData.map((day) => (
                       <div
                         key={day.date}
                         className="flex items-center justify-between p-2 bg-gray-50 rounded"
@@ -512,6 +445,67 @@ function ChildReportCard({
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h5 className="font-medium text-gray-900 mb-2">
+                  Hoạt động ghi nhận
+                </h5>
+                {progressItems.length === 0 ? (
+                  <div className="text-sm text-gray-500">
+                    Chưa có dữ liệu từ API trong giai đoạn này
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {progressItems.slice(0, 12).map((item) => {
+                      const statusInfo = getStatusInfo(item.state)
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-gray-100 rounded-lg shadow-sm"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.activityTitle}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Badge variant="outline">
+                                {getActivityLabel(item.activityType)}
+                              </Badge>
+                              <span className={statusInfo.color}>
+                                {statusInfo.label}
+                              </span>
+                              <span>
+                                {new Date(item.createdAt).toLocaleDateString(
+                                  'vi-VN',
+                                  {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                  }
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right text-sm text-gray-600">
+                            <p>
+                              Điểm:{' '}
+                              {item.score !== null && item.score !== undefined
+                                ? `${item.score}%`
+                                : '—'}
+                            </p>
+                            <p>
+                              Thời gian:{' '}
+                              {item.timeSpent
+                                ? formatMinutes(Math.round(item.timeSpent / 60))
+                                : '—'}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -550,26 +544,6 @@ export default function ParentReportsPage() {
     selectedChild === 'all'
       ? children
       : children.filter((child) => child.id === selectedChild)
-
-  const totalStudyTime =
-    dashboardData?.totalStudyTime ??
-    children.reduce((sum, child) => sum + (child.todayStudyTime ?? 0), 0)
-  const totalCompletedActivities = children.reduce(
-    (sum, child) => sum + (child.completedActivities ?? 0),
-    0
-  )
-  const averageCompletionRate =
-    children.length > 0
-      ? Math.round(
-          children.reduce((sum, child) => {
-            const rate =
-              child.totalActivities > 0
-                ? (child.completedActivities / child.totalActivities) * 100
-                : 0
-            return sum + rate
-          }, 0) / children.length
-        )
-      : 0
 
   const handleExportReport = () => {
     const target = filteredChildren.length > 0 ? filteredChildren : children
@@ -685,62 +659,6 @@ export default function ParentReportsPage() {
               ))}
             </select>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Users className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Số con</p>
-                <p className="text-xl font-semibold">{children.length}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Clock className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Tổng thời gian học</p>
-                <p className="text-xl font-semibold">
-                  {formatMinutes(totalStudyTime)}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <BookOpen className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Bài hoàn thành</p>
-                <p className="text-xl font-semibold">
-                  {totalCompletedActivities}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Tỷ lệ hoàn thành TB</p>
-                <p className="text-xl font-semibold">
-                  {averageCompletionRate}%
-                </p>
-              </div>
-            </div>
-          </Card>
         </div>
 
         <div className="space-y-6">

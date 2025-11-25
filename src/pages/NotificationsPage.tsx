@@ -143,7 +143,21 @@ const NotificationsPage: React.FC = () => {
   // Map API notification to UI
   function mapApi(n: ApiNotification): Notification {
     const created = new Date(n.createdAt)
-    const type = (n.type as Notification['type']) || 'system'
+    const rawType = (n.type as Notification['type']) || 'system'
+    // Ensure type is valid, fallback to 'system' if not in valid types
+    const validTypes: Notification['type'][] = [
+      'achievement',
+      'lesson',
+      'reminder',
+      'assignment',
+      'system',
+      'social',
+      'event',
+    ]
+    const type: Notification['type'] = validTypes.includes(rawType)
+      ? rawType
+      : 'system'
+
     const iconMap: Record<
       Notification['type'],
       React.ComponentType<{ size?: number; className?: string }>
@@ -165,16 +179,20 @@ const NotificationsPage: React.FC = () => {
       social: '#ec4899',
       event: '#22c55e',
     }
+    // Ensure icon and color are always defined
+    const icon = iconMap[type] || SettingsIcon
+    const color = colorMap[type] || '#6b7280'
+
     return {
       id: n.id,
       type,
-      title: n.title,
+      title: n.title || '',
       content: n.body || '',
       time: created.toLocaleString('vi-VN'),
       timestamp: created,
       isRead: !!n.readAt,
-      icon: iconMap[type],
-      color: colorMap[type],
+      icon,
+      color,
     }
   }
 

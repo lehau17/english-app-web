@@ -59,6 +59,7 @@ import {
   evaluateWriting,
   type EvaluationResult,
 } from '../services/evaluation.api'
+import { updateProgressTimeSpent } from '../services/learn.api'
 import type {
   Activity,
   ConversationContent,
@@ -4766,6 +4767,9 @@ export default function LearnPlayerPage(): JSX.Element {
   const [showHistory, setShowHistory] = useState(false)
   const startingActivityRef = useRef<string | null>(null)
   const blockedActivitiesRef = useRef<Set<string>>(new Set())
+  // Track activity start time for timeSpent calculation
+  const activityStartTimeRef = useRef<number | null>(null)
+  const currentActivityIdRef = useRef<string | null>(null)
 
   // Get activityId from query params
   const [searchParams] = useSearchParams()
@@ -5009,6 +5013,73 @@ export default function LearnPlayerPage(): JSX.Element {
   }, [error])
 
   // Start activity when activeId changes (for initial load or programmatic changes)
+  // Helper function to save time spent for current activity
+  const saveTimeSpent = useCallback(
+    async (activityId: string, startTime: number) => {
+      if (!user?.id || isPreviewMode) return
+
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
+      if (elapsedSeconds <= 0) return
+
+      try {
+        await updateProgressTimeSpent({
+          userId: user.id,
+          activityId,
+          timeSpentSec: elapsedSeconds,
+        })
+      } catch (error) {
+        console.error('Failed to save time spent:', error)
+        // Don't throw - this is a background operation
+      }
+    },
+    [user?.id, isPreviewMode]
+  )
+
+  // Track activity start time when activeId changes
+  useEffect(() => {
+    if (!activeId || !user?.id || isPreviewMode) return
+
+    // Save time for previous activity if exists
+    if (
+      currentActivityIdRef.current &&
+      activityStartTimeRef.current &&
+      currentActivityIdRef.current !== activeId
+    ) {
+      saveTimeSpent(
+        currentActivityIdRef.current,
+        activityStartTimeRef.current
+      ).catch(console.error)
+    }
+
+    // Start tracking new activity
+    currentActivityIdRef.current = activeId
+    activityStartTimeRef.current = Date.now()
+  }, [activeId, user?.id, isPreviewMode, saveTimeSpent])
+
+  // Save time when component unmounts or user navigates away
+  useEffect(() => {
+    return () => {
+      if (
+        currentActivityIdRef.current &&
+        activityStartTimeRef.current &&
+        user?.id &&
+        !isPreviewMode
+      ) {
+        // Use synchronous-like approach for cleanup
+        const elapsedSeconds = Math.floor(
+          (Date.now() - activityStartTimeRef.current) / 1000
+        )
+        if (elapsedSeconds > 0) {
+          updateProgressTimeSpent({
+            userId: user.id,
+            activityId: currentActivityIdRef.current,
+            timeSpentSec: elapsedSeconds,
+          }).catch(console.error)
+        }
+      }
+    }
+  }, [user?.id, isPreviewMode])
+
   useEffect(() => {
     if (
       activeId &&
@@ -5042,6 +5113,17 @@ export default function LearnPlayerPage(): JSX.Element {
         const newState: ProgressState =
           score >= 85 ? 'mastered' : score >= 70 ? 'review_needed' : 'done'
 
+        // Calculate time spent
+        let timeSpentSec = 0
+        if (
+          currentActivityIdRef.current === activeId &&
+          activityStartTimeRef.current
+        ) {
+          timeSpentSec = Math.floor(
+            (Date.now() - activityStartTimeRef.current) / 1000
+          )
+        }
+
         // Mark activity as completed in local state
         setActivities((prev) =>
           prev.map((a) =>
@@ -5056,12 +5138,19 @@ export default function LearnPlayerPage(): JSX.Element {
           )
         )
 
-        // Call API to complete activity using mutation
+        // Call API to complete activity using mutation (includes timeSpentSec)
         await completeActivityMutation.mutateAsync({
           activityId: activeId,
           userId: user.id,
           score,
+          timeSpentSec: timeSpentSec > 0 ? timeSpentSec : undefined,
         })
+
+        // Reset tracking for completed activity
+        if (currentActivityIdRef.current === activeId) {
+          currentActivityIdRef.current = null
+          activityStartTimeRef.current = null
+        }
 
         // Invalidate classroom detail cache to refresh progress when user goes back
         if (classroomId) {

@@ -265,6 +265,7 @@ export interface CompleteActivityRequest {
   userId: string
   activityId: string
   score: number
+  timeSpentSec?: number
 }
 
 export interface CompleteActivityResponse {

@@ -118,9 +118,22 @@ export const getChildNotificationSettingsApi = async (
   return data
 }
 
-export const getParentActivitiesApi = async (): Promise<BaseResponse<any>> => {
-  const { data } = await api.get<BaseResponse<any>>(
-    '/private/v1/parent/activities'
+export type ParentActivitiesQuery = {
+  page?: number
+  limit?: number
+  childId?: string
+  type?: string
+  status?: string
+  from?: string
+  to?: string
+}
+
+export const getParentActivitiesApi = async (
+  params?: ParentActivitiesQuery
+): Promise<BaseResponse<PageResponse<any>>> => {
+  const { data } = await api.get<BaseResponse<PageResponse<any>>>(
+    '/private/v1/parent/activities',
+    { params }
   )
   return data
 }

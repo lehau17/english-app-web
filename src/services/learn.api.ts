@@ -142,3 +142,19 @@ export async function getActivityAttemptHistory(
   )
   return response.data
 }
+
+export interface UpdateProgressTimeSpentRequest {
+  userId: string
+  activityId: string
+  timeSpentSec: number
+}
+
+export async function updateProgressTimeSpent(
+  dto: UpdateProgressTimeSpentRequest
+) {
+  const response = await api.put<BaseResponse<any>>(
+    '/private/v1/progresses/time-spent',
+    dto
+  )
+  return response.data
+}

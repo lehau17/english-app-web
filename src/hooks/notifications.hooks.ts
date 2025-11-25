@@ -37,10 +37,24 @@ export function useNotificationsPagination(opts: {
           read: readParam,
         })
         if (cancelled || rid !== requestIdRef.current) return
-        setHasNext(!!data?.hasNextPage)
-        setItems((prev) => (page === 1 ? data.data : [...prev, ...data.data]))
+
+        // Ensure data is valid and data.data is an array
+        if (data && typeof data === 'object') {
+          const itemsArray = Array.isArray(data.data) ? data.data : []
+          setHasNext(!!data.hasNextPage)
+          setItems((prev) =>
+            page === 1 ? itemsArray : [...prev, ...itemsArray]
+          )
+        } else {
+          setHasNext(false)
+          setItems((prev) => (page === 1 ? [] : prev))
+        }
       } catch (e) {
         // Swallow here; page-level can toast if needed
+        if (!cancelled && rid === requestIdRef.current) {
+          setHasNext(false)
+          setItems((prev) => (page === 1 ? [] : prev))
+        }
       } finally {
         if (!cancelled && rid === requestIdRef.current) setLoading(false)
       }
@@ -61,9 +75,14 @@ export function useNotificationsPagination(opts: {
   const refreshUnread = async () => {
     try {
       const unread = await listNotifications({ read: false, page: 1, limit: 1 })
-      emitUnreadCount(unread.totalItems || 0)
+      if (unread && typeof unread === 'object') {
+        emitUnreadCount(unread.totalItems || 0)
+      } else {
+        emitUnreadCount(0)
+      }
     } catch {
       console.log('Failed to fetch unread count')
+      emitUnreadCount(0)
     }
   }
 
