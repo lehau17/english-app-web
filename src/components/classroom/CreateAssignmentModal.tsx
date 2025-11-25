@@ -319,7 +319,11 @@ export default function CreateAssignmentModal({
           })()
         : createAssignment(classroomId, payload),
     onSuccess: () => {
-      toast.success('Tạo bài tập thành công')
+      toast.success(
+        mode === 'edit'
+          ? 'Cập nhật bài tập thành công'
+          : 'Tạo bài tập thành công'
+      )
       queryClient.invalidateQueries({
         queryKey: ['classroom-detail', classroomId],
       })
@@ -327,7 +331,44 @@ export default function CreateAssignmentModal({
       rest.onSubmitted?.()
     },
     onError: (e: any) => {
-      toast.error(e?.response?.data?.message || 'Tạo bài tập thất bại')
+      // Handle validation errors from backend
+      if (
+        e?.response?.data?.message &&
+        Array.isArray(e.response.data.message)
+      ) {
+        const validationErrors = e.response.data.message
+
+        // Format error messages for better readability
+        const formattedErrors = validationErrors
+          .filter((err: any) => err.errors && err.errors.length > 0)
+          .map((err: any) => {
+            const fieldName =
+              err.field.charAt(0).toUpperCase() +
+              err.field.slice(1).replace(/([A-Z])/g, ' $1')
+            return `• ${fieldName}: ${err.errors.join(', ')}`
+          })
+
+        if (formattedErrors.length > 0) {
+          toast.error(
+            <div style={{ textAlign: 'left' }}>
+              <strong>Lỗi xác thực:</strong>
+              <br />
+              {formattedErrors.map((msg: string, idx: number) => (
+                <div key={idx}>{msg}</div>
+              ))}
+            </div>,
+            { duration: 6000 }
+          )
+        } else {
+          toast.error('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.')
+        }
+      } else if (e?.response?.data?.message) {
+        toast.error(e.response.data.message)
+      } else {
+        toast.error(
+          mode === 'edit' ? 'Cập nhật bài tập thất bại' : 'Tạo bài tập thất bại'
+        )
+      }
     },
   })
 
@@ -458,11 +499,35 @@ export default function CreateAssignmentModal({
   }
 
   const onSubmit = (values: AssignmentCreateRequest) => {
-    // ensure dueDate ISO if provided (from datetime-local)
+    // Frontend validation
+    if (!values.title?.trim()) {
+      toast.error('Tiêu đề bài tập là bắt buộc')
+      return
+    }
+
+    if (!values.activities || values.activities.length === 0) {
+      toast.error('Cần có ít nhất một hoạt động')
+      return
+    }
+
+    // Ensure dueDate ISO if provided (from datetime-local)
     const due = (values as any).dueDate as any
     const payload: AssignmentCreateRequest = {
       ...values,
+      title: values.title.trim(),
+      description: values.description?.trim() || undefined,
+      instructions: values.instructions?.trim() || undefined,
       dueDate: due ? new Date(due).toISOString() : undefined,
+      // Only send timeLimit if it's a valid positive integer
+      timeLimit:
+        values.timeLimit && values.timeLimit > 0
+          ? Math.floor(values.timeLimit)
+          : undefined,
+      // Ensure maxAttempts is at least 1
+      maxAttempts:
+        values.maxAttempts && values.maxAttempts > 0
+          ? Math.floor(values.maxAttempts)
+          : 1,
       isPublished:
         typeof values.isPublished === 'string'
           ? values.isPublished === 'true'
@@ -567,16 +632,24 @@ export default function CreateAssignmentModal({
                 <TextInput
                   type="number"
                   min={0}
+                  placeholder="Để trống = không giới hạn"
                   {...register('timeLimit', { valueAsNumber: true })}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Để trống hoặc 0 nếu không giới hạn thời gian
+                </p>
               </Labeled>
               <Labeled label="Số lần làm tối đa">
                 <TextInput
                   type="number"
                   min={1}
                   defaultValue={1}
+                  placeholder="Tối thiểu: 1"
                   {...register('maxAttempts', { valueAsNumber: true })}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Số lần học sinh được làm bài (tối thiểu 1)
+                </p>
               </Labeled>
               <Labeled label="Trạng thái">
                 <select
