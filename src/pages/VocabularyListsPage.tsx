@@ -21,7 +21,7 @@ const VocabularyListsPage: React.FC = () => {
   const { data: stats } = useReviewStats()
 
   // DEBUG: Log data
-  console.log('📊 Vocabulary Page Data:', {
+  console.log('Vocabulary Page Data:', {
     isLoading,
     hasData: !!data,
     lists: data?.data,

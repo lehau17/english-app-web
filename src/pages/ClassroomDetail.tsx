@@ -10,6 +10,7 @@ import {
   Calendar,
   CheckCircle,
   ChevronRight,
+  ClipboardList,
   ClipboardPenLine, // NEW
   Clock,
   Copy,
@@ -36,6 +37,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react' // useMem
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import certificateApi from '../apis/certificate.api'
+import { MyAttendanceSection } from '../components/attendance'
 import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
 import ConversationWidget from '../components/conversation/ConversationWidget'
 import UserDetailModal from '../components/user/UserDetailModel'
@@ -1391,7 +1393,12 @@ function GameMapJourney({
  * =========================
  */
 
-type TabKey = 'overview' | 'assignments' | 'announcements' | 'students'
+type TabKey =
+  | 'overview'
+  | 'assignments'
+  | 'announcements'
+  | 'students'
+  | 'attendance'
 
 // Đã loại bỏ interface ClassroomDetailProps vì không còn dùng
 
@@ -1712,6 +1719,7 @@ export default function ClassroomDetail(props: {
     { id: 'assignments', label: 'Bài tập', icon: FileText },
     { id: 'announcements', label: 'Thông báo', icon: Bell },
     { id: 'students', label: 'Học sinh', icon: Users },
+    { id: 'attendance', label: 'Diem danh', icon: ClipboardList },
   ] as const
 
   // Điều hướng khi bắt đầu học bài
@@ -2699,6 +2707,12 @@ export default function ClassroomDetail(props: {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'attendance' && classroomIdFromParams && (
+            <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+              <MyAttendanceSection classroomId={classroomIdFromParams} />
             </div>
           )}
         </div>

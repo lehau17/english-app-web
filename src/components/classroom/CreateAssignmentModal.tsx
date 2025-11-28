@@ -192,10 +192,10 @@ export default function CreateAssignmentModal({
   // Reset form when initialValues change (for edit mode)
   useEffect(() => {
     if (rest.initialValues && mode === 'edit') {
-      console.log('🔄 Resetting form with initialValues:', rest.initialValues)
-      console.log('📋 Activities count:', rest.initialValues.activities?.length)
+      console.log('Resetting form with initialValues:', rest.initialValues)
+      console.log('Activities count:', rest.initialValues.activities?.length)
       rest.initialValues.activities?.forEach((activity, index) => {
-        console.log(`📝 Activity ${index}:`, {
+        console.log(`Activity ${index}:`, {
           type: activity.type,
           title: activity.title,
           content: activity.content,
@@ -212,16 +212,16 @@ export default function CreateAssignmentModal({
 
       // Also manually ensure field array is updated
       setTimeout(() => {
-        console.log('📊 After reset - actFields length:', actFields.length)
+        console.log('After reset - actFields length:', actFields.length)
       }, 100)
     }
   }, [rest.initialValues, mode, reset, actFields.length])
 
   // Debug log current field array state
   useEffect(() => {
-    console.log('📊 Current actFields length:', actFields.length)
+    console.log('Current actFields length:', actFields.length)
     actFields.forEach((field: any, index: number) => {
-      console.log(`📋 Field ${index}:`, field)
+      console.log(`Field ${index}:`, field)
     })
   }, [actFields])
 

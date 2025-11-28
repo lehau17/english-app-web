@@ -324,7 +324,7 @@ export function QuizActivity({
           <p className="text-xl text-white/90 mb-8 text-center max-w-md">
             ⚔️ Answer quickly to earn combo bonuses!
             <br />
-            🎯 Use power-ups strategically!
+            Use power-ups strategically!
           </p>
           <div className="grid grid-cols-2 gap-4 mb-8">
             {[

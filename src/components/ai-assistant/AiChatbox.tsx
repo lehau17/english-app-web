@@ -1,6 +1,8 @@
 // AI Assistant Chatbox Component for englishWeb
 import { MessageCircle, Plus, Send, Trash2, X } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   deleteConversation,
   getConversation,
@@ -65,6 +67,7 @@ export const AiChatbox: React.FC<AiChatboxProps> = ({
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const skipNextLoadRef = useRef<boolean>(false) // Flag to skip loading after creating new conversation
 
   // Load conversations on open
   useEffect(() => {
@@ -76,6 +79,11 @@ export const AiChatbox: React.FC<AiChatboxProps> = ({
   // Load messages when conversation changes
   useEffect(() => {
     if (activeConversationId) {
+      // Skip loading if we just created a new conversation (messages already in state)
+      if (skipNextLoadRef.current) {
+        skipNextLoadRef.current = false
+        return
+      }
       loadConversation(activeConversationId)
     } else {
       setMessages([])
@@ -174,6 +182,8 @@ export const AiChatbox: React.FC<AiChatboxProps> = ({
 
       // Update conversation list
       if (newConversationId && !activeConversationId) {
+        // Set flag to skip loading - we already have messages in state
+        skipNextLoadRef.current = true
         setActiveConversationId(newConversationId)
         await loadConversations()
       }
@@ -318,18 +328,53 @@ export const AiChatbox: React.FC<AiChatboxProps> = ({
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <div className="whitespace-pre-wrap break-words">
-                  {msg.content}
-                </div>
+                {msg.role === 'user' ? (
+                  <div className="whitespace-pre-wrap break-words">
+                    {msg.content}
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
 
+          {/* Thinking indicator - show when streaming starts but no content yet */}
+          {isStreaming && !streamingContent && (
+            <div className="flex justify-start">
+              <div className="max-w-[75%] px-4 py-2 rounded-lg bg-gray-100 text-gray-900">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Đang suy nghĩ</span>
+                  <div className="flex gap-1 ml-1">
+                    <span
+                      className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '0ms' }}
+                    ></span>
+                    <span
+                      className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '150ms' }}
+                    ></span>
+                    <span
+                      className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '300ms' }}
+                    ></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {streamingContent && (
             <div className="flex justify-start">
               <div className="max-w-[75%] px-4 py-2 rounded-lg bg-gray-100 text-gray-900">
-                <div className="whitespace-pre-wrap break-words">
-                  {streamingContent}
+                <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {streamingContent}
+                  </ReactMarkdown>
                 </div>
                 <span className="inline-block w-2 h-4 bg-gray-600 animate-pulse ml-1">
                   |

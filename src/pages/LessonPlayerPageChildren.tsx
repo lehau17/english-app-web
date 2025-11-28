@@ -138,7 +138,7 @@ export default function LessonPlayerPageChildren() {
                   whileHover={{ scale: 1.05, rotate: 2 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  🎯 Thêm XP
+                  Thêm XP
                 </motion.button>
 
                 <motion.button
@@ -164,7 +164,7 @@ export default function LessonPlayerPageChildren() {
                   whileHover={{ scale: 1.05, rotate: 2 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  🎉 Celebration
+                  Celebration
                 </motion.button>
 
                 <motion.button
@@ -177,7 +177,7 @@ export default function LessonPlayerPageChildren() {
                   whileHover={{ scale: 1.05, rotate: -2 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  ❌ Wrong Answer
+                  Wrong Answer
                 </motion.button>
               </div>
 
@@ -190,10 +190,10 @@ export default function LessonPlayerPageChildren() {
                   Giờ chúng ta có thể bắt đầu implement các Activity components:
                 </p>
                 <ul className="mt-3 space-y-2 text-gray-700">
-                  <li>✅ Animated Background với particles & clouds</li>
-                  <li>✅ Progress System với XP bar & rewards</li>
-                  <li>✅ Character Avatar với emotions & dialogues</li>
-                  <li>✅ Sound Effects system</li>
+                  <li>Animated Background với particles & clouds</li>
+                  <li>Progress System với XP bar & rewards</li>
+                  <li>Character Avatar với emotions & dialogues</li>
+                  <li>Sound Effects system</li>
                   <li>⏭️ Vocab Activity - Word Catcher Game</li>
                   <li>⏭️ Quiz Activity - Battle Arena</li>
                   <li>⏭️ And more...</li>

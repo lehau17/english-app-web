@@ -247,12 +247,12 @@ const AiSpeakingSessionPage: React.FC = () => {
       console.log('🔌 Connecting to WebSocket:', { sessionId, socketUrl })
 
       if (!sessionId) {
-        console.error('❌ No sessionId provided to connectSocket')
+        console.error('No sessionId provided to connectSocket')
         return
       }
 
       if (socketRef.current) {
-        console.log('🔄 Disconnecting existing socket')
+        console.log('Disconnecting existing socket')
         socketRef.current.disconnect()
       }
 
@@ -266,7 +266,7 @@ const AiSpeakingSessionPage: React.FC = () => {
 
       socket.on('connect', () => {
         console.log(
-          '✅ WebSocket connected successfully with sessionId:',
+          'WebSocket connected successfully with sessionId:',
           sessionId
         )
         setSilenceWarnings(0)
@@ -327,7 +327,7 @@ const AiSpeakingSessionPage: React.FC = () => {
             ? payload.audioUrl
             : createAudioUrlFromChunks(audioBuffersRef.current)
 
-          // ✅ Ưu tiên lấy text từ payload, nếu không có thì fallback sang turnPromptRef
+          // Ưu tiên lấy text từ payload, nếu không có thì fallback sang turnPromptRef
           const promptText =
             payload.text ??
             turnPromptRef.current.get(payload.turnId) ??
@@ -373,7 +373,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         setAiStatusMessage('AI gặp lỗi khi phát âm thanh.')
       })
 
-      // ✅ Listen for profanity warnings
+      // Listen for profanity warnings
       socket.on(
         'ai-speaking:profanity-warning',
         (payload: {
@@ -411,7 +411,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         }
       )
 
-      // ✅ Listen for session ended (from profanity ban)
+      // Listen for session ended (from profanity ban)
       socket.on(
         'ai-speaking:session-ended',
         (payload: { sessionId: string; reason: string; message: string }) => {
@@ -441,7 +441,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         }) => {
           console.log('[ASR Partial]', payload)
 
-          // ✅ Smart accumulation: check both directions to avoid duplication
+          // Smart accumulation: check both directions to avoid duplication
           setPartialTranscript((prev) => {
             const newText = payload.text.trim()
             const prevText = prev.trim()
@@ -482,7 +482,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           confidence?: number | null
         }) => {
           setFinalTranscript(payload.text)
-          // ✅ Cập nhật tin nhắn user với transcript thật (thay vì tạo mới)
+          // Cập nhật tin nhắn user với transcript thật (thay vì tạo mới)
           const messageId = `user-${payload.turnId}`
           upsertConversationMessage({
             id: messageId,
@@ -632,7 +632,7 @@ const AiSpeakingSessionPage: React.FC = () => {
             }
           }
         }) => {
-          console.log('📊 Turn evaluated:', payload)
+          console.log('Turn evaluated:', payload)
           setEvaluation({
             score: payload.evaluation.score,
             feedback: payload.evaluation.feedback,
@@ -666,7 +666,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         }
       )
 
-      // ✅ Listen for pronunciation feedback
+      // Listen for pronunciation feedback
       socket.on(
         'ai-speaking:pronunciation-feedback',
         (payload: { turnId: string; pronunciationFeedback: any }) => {
@@ -803,7 +803,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         durationRef.current += 1
       }, 1000)
 
-      // ✅ Hiển thị tin nhắn user ngay lập tức khi bắt đầu ghi âm
+      // Hiển thị tin nhắn user ngay lập tức khi bắt đầu ghi âm
       appendAudioToConversation({
         role: 'user',
         turnId: currentTurnId,
@@ -834,7 +834,7 @@ const AiSpeakingSessionPage: React.FC = () => {
       }
       recorder.stop()
 
-      // ✅ User stopped recording
+      // User stopped recording
       // KHÔNG xóa message text ở đây - ASR final event sẽ update transcript sau
     }
   }, [currentTurnId])
@@ -901,7 +901,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           maxTurns,
         })
 
-        console.log('🎯 Session created successfully:', created)
+        console.log('Session created successfully:', created)
 
         setSession(created)
 
@@ -911,7 +911,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         if (initialTurn) {
           setCurrentTurnId(initialTurn.id)
           setCurrentTurn(initialTurn)
-          console.log('📋 Initial turn set:', initialTurn)
+          console.log('Initial turn set:', initialTurn)
         }
 
         console.log('🔌 About to connect socket with session ID:', created.id)
@@ -934,7 +934,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         const message =
           error?.response?.data?.message ?? 'Không thể khởi tạo phiên'
 
-        // ✅ Handle profanity ban (403 Forbidden)
+        // Handle profanity ban (403 Forbidden)
         if (
           status === 403 &&
           (message.includes('cấm') || message.includes('vi phạm'))
@@ -1116,7 +1116,7 @@ const AiSpeakingSessionPage: React.FC = () => {
               )}
             </div>
 
-            {/* ✅ Recording Controls - Moved inside chat box */}
+            {/* Recording Controls - Moved inside chat box */}
             <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 {recordingState !== 'recording' ? (
@@ -1157,13 +1157,13 @@ const AiSpeakingSessionPage: React.FC = () => {
                 )}
               </div>
               <p className="text-xs text-gray-500">
-                💡 <strong>Quan trọng:</strong> Hãy trả lời tối thiểu{' '}
+                <strong>Quan trọng:</strong> Hãy trả lời tối thiểu{' '}
                 <strong>16 giây</strong> để AI có đủ dữ liệu đánh giá chính xác.
               </p>
             </div>
           </div>
 
-          {/* ✅ Phiên âm tạm thời & cuối cùng */}
+          {/* Phiên âm tạm thời & cuối cùng */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -1215,7 +1215,7 @@ const AiSpeakingSessionPage: React.FC = () => {
               </div>
             ) : null}
 
-            {/* ✅ Pronunciation Feedback Section */}
+            {/* Pronunciation Feedback Section */}
             {pronunciationFeedback && (
               <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -1317,7 +1317,7 @@ const AiSpeakingSessionPage: React.FC = () => {
                   pronunciationFeedback.recommendations.length > 0 && (
                     <div className="bg-white rounded-lg p-3">
                       <h4 className="text-xs font-semibold text-gray-700 mb-2">
-                        💡 Gợi ý luyện tập:
+                        Gợi ý luyện tập:
                       </h4>
                       <ul className="space-y-1 text-xs text-gray-700">
                         {pronunciationFeedback.recommendations.map(

@@ -4572,7 +4572,7 @@ function CelebrationModal({
             transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
             className="mb-3 text-3xl font-bold text-gray-900"
           >
-            🎉 Chúc mừng! 🎉
+            Chúc mừng! 🎉
           </motion.h2>
 
           {/* Subtitle */}

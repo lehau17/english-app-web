@@ -11,6 +11,8 @@ import {
   X,
 } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { AgentConversation, AgentMessage } from '../../services/agent.api'
 import {
   deleteConversation,
@@ -85,6 +87,7 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
   const streamingBufferRef = useRef<string>('')
   const streamingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const accumulatedResponseRef = useRef<string>('')
+  const skipNextLoadRef = useRef<boolean>(false) // Flag to skip loading after creating new conversation
   const [isLoadingConversations, setIsLoadingConversations] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -121,6 +124,11 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
   // Load messages when conversation changes
   useEffect(() => {
     if (activeConversationId) {
+      // Skip loading if we just created a new conversation (messages already in state)
+      if (skipNextLoadRef.current) {
+        skipNextLoadRef.current = false
+        return
+      }
       loadConversation(activeConversationId)
     } else {
       setMessages([])
@@ -197,7 +205,7 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
         // Handle metadata (conversationId)
         if (chunk.type === 'metadata' && chunk.data?.conversationId) {
           newConversationId = chunk.data.conversationId
-          console.log('📊 Setting conversation ID:', newConversationId)
+          console.log('Setting conversation ID:', newConversationId)
         }
         // Handle streaming tokens (real-time)
         else if (chunk.type === 'token' && chunk.content) {
@@ -208,7 +216,7 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
         }
         // Handle complete response
         else if (chunk.type === 'complete' && chunk.data?.answer) {
-          console.log('✅ Complete response:', chunk.data.answer)
+          console.log('Complete response:', chunk.data.answer)
           // Use the complete answer if no tokens streamed yet
           if (!accumulatedResponseRef.current) {
             accumulatedResponseRef.current = chunk.data.answer
@@ -242,6 +250,8 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
 
       // Update conversation list
       if (newConversationId && !activeConversationId) {
+        // Set flag to skip loading - we already have messages in state
+        skipNextLoadRef.current = true
         setActiveConversationId(newConversationId)
         await loadConversations()
       }
@@ -419,9 +429,17 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
                     : 'bg-white border border-gray-200 text-gray-900'
                 }`}
               >
-                <div className="whitespace-pre-wrap break-words">
-                  {msg.content}
-                </div>
+                {msg.role === 'user' ? (
+                  <div className="whitespace-pre-wrap break-words">
+                    {msg.content}
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -429,12 +447,41 @@ export const AiAgentPanel: React.FC<AiAgentPanelProps> = ({
           {streamingContent && (
             <div className="flex justify-start">
               <div className="max-w-[75%] px-4 py-3 rounded-lg shadow-sm bg-white border border-gray-200 text-gray-900">
-                <div className="whitespace-pre-wrap break-words">
-                  {streamingContent}
+                <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {streamingContent}
+                  </ReactMarkdown>
                 </div>
                 <span className="inline-block w-2 h-4 bg-purple-600 animate-pulse ml-1">
                   |
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Thinking indicator - show when streaming but no content yet */}
+          {isStreaming && !streamingContent && (
+            <div className="flex justify-start">
+              <div className="max-w-[75%] px-4 py-3 rounded-lg shadow-sm bg-white border border-gray-200 text-gray-900">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span
+                      className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                      style={{ animationDelay: '0ms' }}
+                    ></span>
+                    <span
+                      className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                      style={{ animationDelay: '150ms' }}
+                    ></span>
+                    <span
+                      className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                      style={{ animationDelay: '300ms' }}
+                    ></span>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    Đang suy nghĩ...
+                  </span>
+                </div>
               </div>
             </div>
           )}

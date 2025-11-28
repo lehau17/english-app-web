@@ -222,7 +222,7 @@ export function AudioGenerationOptions({
           {value && (
             <div className="rounded-lg bg-green-50 border border-green-200 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-green-800">✅ Audio ready!</span>
+                <span className="text-sm text-green-800">Audio ready!</span>
                 <button
                   type="button"
                   onClick={handlePlayPreview}

@@ -143,7 +143,7 @@ export function previewGapsInContent(content: string): string {
         .join('\n')
 
     if (issues.length > 0) {
-      return preview + '\n\n⚠️ Cảnh báo:\n' + issues.join('\n')
+      return preview + '\n\nCảnh báo:\n' + issues.join('\n')
     }
 
     // Show a sample of how it will look
@@ -152,7 +152,7 @@ export function previewGapsInContent(content: string): string {
       cleanContent.substring(0, sampleLength) +
       (cleanContent.length > sampleLength ? '...' : '')
 
-    return preview + '\n\n📝 Nội dung sau khi xử lý:\n' + sample
+    return preview + '\n\nNội dung sau khi xử lý:\n' + sample
   } catch (error) {
     return (
       'Lỗi khi phân tích gaps: ' +

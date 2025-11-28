@@ -253,7 +253,7 @@ export default function QuizReviewPage() {
               </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 {quizResult.score >= 80
-                  ? '🎉 Xuất sắc!'
+                  ? 'Xuất sắc!'
                   : quizResult.score >= 60
                     ? '👍 Khá tốt!'
                     : '💪 Cố gắng lên!'}

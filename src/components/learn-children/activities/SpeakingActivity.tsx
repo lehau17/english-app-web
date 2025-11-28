@@ -353,7 +353,7 @@ export function SpeakingActivity({
           <p className="text-xl text-white/90 mb-8 text-center max-w-md">
             🎙️ Have a conversation with AI
             <br />
-            📊 Improve your fluency score!
+            Improve your fluency score!
           </p>
           <motion.button
             whileHover={{ scale: 1.1 }}

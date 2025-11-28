@@ -174,7 +174,7 @@ export const ParentPaymentSection: React.FC = () => {
               {isUpcoming && (
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    💡 <strong>Lưu ý:</strong> Khóa học sẽ bắt đầu vào{' '}
+                    <strong>Lưu ý:</strong> Khóa học sẽ bắt đầu vào{' '}
                     {new Date(classroom.periodStart).toLocaleDateString(
                       'vi-VN'
                     )}
@@ -186,9 +186,9 @@ export const ParentPaymentSection: React.FC = () => {
               {isOngoing && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-800">
-                    ⚠️ <strong>Khẩn cấp:</strong> Khóa học đang diễn ra nhưng
-                    chưa thanh toán. Con em có thể bị hạn chế quyền truy cập nội
-                    dung học tập.
+                    <strong>Khẩn cấp:</strong> Khóa học đang diễn ra nhưng chưa
+                    thanh toán. Con em có thể bị hạn chế quyền truy cập nội dung
+                    học tập.
                   </p>
                 </div>
               )}

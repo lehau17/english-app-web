@@ -32,9 +32,19 @@ export const getConversations = async (
   const response = await api.get('/private/v1/agent/conversations', {
     params: { limit, offset },
   })
-  // Backend returns array directly with first message included for preview
+  // Backend returns { statusCode, message, data: [...] }
   console.log('📥 Conversations API response:', response.data)
-  return Array.isArray(response.data) ? response.data : []
+
+  // Handle wrapped response format
+  const result = response.data
+  if (result && Array.isArray(result.data)) {
+    return result.data
+  }
+  // Fallback: if backend returns array directly
+  if (Array.isArray(result)) {
+    return result
+  }
+  return []
 }
 
 /**
@@ -46,7 +56,12 @@ export const getConversation = async (
   const response = await api.get(
     `/private/v1/agent/conversations/${conversationId}`
   )
-  return response.data
+  // Handle wrapped response format
+  const result = response.data
+  if (result && result.data) {
+    return result.data
+  }
+  return result
 }
 
 /**
@@ -58,7 +73,12 @@ export const deleteConversation = async (
   const response = await api.post(
     `/private/v1/agent/conversations/${conversationId}/delete`
   )
-  return response.data
+  // Handle wrapped response format
+  const result = response.data
+  if (result && result.data) {
+    return result.data
+  }
+  return result
 }
 
 /**
@@ -92,7 +112,7 @@ export const streamAgentChat = (
 
 /**
  * Alternative: Stream using fetch (better for auth headers)
- * Automatically uses student endpoint if user is a student
+ * Automatically uses student/parent endpoint based on role
  */
 export async function* streamAgentChatFetch(
   message: string,
@@ -104,11 +124,13 @@ export async function* streamAgentChatFetch(
     params.append('conversationId', conversationId)
   }
 
-  // Use student-specific endpoint if user is a student
-  const endpoint =
-    userRole === 'student'
-      ? '/private/v1/agent/student/chat/stream'
-      : '/private/v1/agent/chat/stream'
+  // Use role-specific endpoint
+  let endpoint = '/private/v1/agent/chat/stream' // Default for admin/teacher
+  if (userRole === 'student') {
+    endpoint = '/private/v1/agent/student/chat/stream'
+  } else if (userRole === 'parent') {
+    endpoint = '/private/v1/agent/parent/chat/stream'
+  }
 
   const url = `${api.defaults.baseURL}${endpoint}?${params.toString()}`
   const token = localStorage.getItem('access_token')
@@ -155,17 +177,17 @@ export async function* streamAgentChatFetch(
       if (line.startsWith('data: ')) {
         const data = line.slice(6).trim()
         if (data === '[DONE]') {
-          console.log('✅ Stream ended')
+          console.log('Stream ended')
           return
         }
         if (!data) continue // Skip empty data
 
         try {
           const parsed = JSON.parse(data)
-          console.log('📨 Parsed SSE:', parsed)
+          console.log('Parsed SSE:', parsed)
           yield parsed
         } catch (e) {
-          console.error('❌ Failed to parse SSE data:', data, e)
+          console.error('Failed to parse SSE data:', data, e)
         }
       }
     }

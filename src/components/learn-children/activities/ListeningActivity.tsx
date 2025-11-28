@@ -229,7 +229,7 @@ export function ListeningActivity({
           <p className="text-xl text-white/90 mb-8 text-center max-w-md">
             🎧 Listen to the story
             <br />
-            📝 Answer questions to earn points!
+            Answer questions to earn points!
           </p>
           <div className="mb-8 text-center">
             <div className="text-lg text-white/80 mb-2">
@@ -481,8 +481,8 @@ export function ListeningActivity({
                         }`}
                       >
                         {isCorrect
-                          ? '✅ Correct! Great job!'
-                          : '❌ Not quite. Try again next time!'}
+                          ? 'Correct! Great job!'
+                          : 'Not quite. Try again next time!'}
                       </motion.div>
                     )}
                   </AnimatePresence>

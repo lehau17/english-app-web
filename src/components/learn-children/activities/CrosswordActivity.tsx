@@ -740,9 +740,7 @@ export function CrosswordActivity({
               <h1 className="text-6xl font-black text-white mb-4 drop-shadow-lg">
                 Puzzle Solved!
               </h1>
-              <p className="text-3xl text-white/90 mb-8">
-                🎉 Thật thông minh! 🎉
-              </p>
+              <p className="text-3xl text-white/90 mb-8">Thật thông minh! 🎉</p>
 
               <div className="bg-white/20 backdrop-blur rounded-2xl p-6 mb-8">
                 <div className="grid grid-cols-2 gap-4 text-white">

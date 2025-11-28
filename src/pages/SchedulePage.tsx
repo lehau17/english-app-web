@@ -172,7 +172,7 @@ const SchedulePage = () => {
   console.log('    Expected Monday should be: 2025-09-30 (current week)')
   console.log('  ')
   console.log(
-    '  ❌ PROBLEM: If weekStartDate is 2025-09-28, it means getWeekStart is wrong!'
+    '  PROBLEM: If weekStartDate is 2025-09-28, it means getWeekStart is wrong!'
   )
   console.log('    2025-09-28 is LAST Sunday, not this week!')
   console.log(
@@ -184,7 +184,7 @@ const SchedulePage = () => {
   const goToCurrentWeek = () => {
     const currentWeekStart = getWeekStart(new Date())
     console.log(
-      '🔄 Force refresh to current week:',
+      'Force refresh to current week:',
       currentWeekStart.toISOString()
     )
     setWeekStartDate(currentWeekStart)
@@ -198,7 +198,7 @@ const SchedulePage = () => {
 
   if (daysDiff > 7) {
     console.log(
-      '⚠️ weekStartDate is too old:',
+      'weekStartDate is too old:',
       daysDiff,
       'days. Auto-correcting to current week.'
     )

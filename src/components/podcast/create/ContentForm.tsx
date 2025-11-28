@@ -275,7 +275,7 @@ export const ContentForm: React.FC<ContentFormProps> = ({
             </div>
 
             <p className="mt-4 text-xs text-emerald-700 text-center">
-              💡 Hoặc dùng [từ] để chọn thủ công trong văn bản
+              Hoặc dùng [từ] để chọn thủ công trong văn bản
             </p>
           </div>
 

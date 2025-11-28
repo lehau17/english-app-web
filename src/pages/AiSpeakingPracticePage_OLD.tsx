@@ -233,12 +233,12 @@ const AiSpeakingPracticePage: React.FC = () => {
       console.log('🔌 Connecting to WebSocket:', { sessionId, socketUrl })
 
       if (!sessionId) {
-        console.error('❌ No sessionId provided to connectSocket')
+        console.error('No sessionId provided to connectSocket')
         return
       }
 
       if (socketRef.current) {
-        console.log('🔄 Disconnecting existing socket')
+        console.log('Disconnecting existing socket')
         socketRef.current.disconnect()
       }
 
@@ -252,7 +252,7 @@ const AiSpeakingPracticePage: React.FC = () => {
 
       socket.on('connect', () => {
         console.log(
-          '✅ WebSocket connected successfully with sessionId:',
+          'WebSocket connected successfully with sessionId:',
           sessionId
         )
         setSilenceWarnings(0)
@@ -306,7 +306,7 @@ const AiSpeakingPracticePage: React.FC = () => {
             ? payload.audioUrl
             : createAudioUrlFromChunks(audioBuffersRef.current)
 
-          // ✅ Ưu tiên lấy text từ payload, nếu không có thì fallback sang turnPromptRef
+          // Ưu tiên lấy text từ payload, nếu không có thì fallback sang turnPromptRef
           const promptText =
             payload.text ??
             turnPromptRef.current.get(payload.turnId) ??
@@ -352,7 +352,7 @@ const AiSpeakingPracticePage: React.FC = () => {
         setAiStatusMessage('AI gặp lỗi khi phát âm thanh.')
       })
 
-      // ✅ Listen for profanity warnings
+      // Listen for profanity warnings
       socket.on(
         'ai-speaking:profanity-warning',
         (payload: {
@@ -390,7 +390,7 @@ const AiSpeakingPracticePage: React.FC = () => {
         }
       )
 
-      // ✅ Listen for session ended (from profanity ban)
+      // Listen for session ended (from profanity ban)
       socket.on(
         'ai-speaking:session-ended',
         (payload: { sessionId: string; reason: string; message: string }) => {
@@ -569,7 +569,7 @@ const AiSpeakingPracticePage: React.FC = () => {
             categories?: Array<{ name: string; comment: string }>
           }
         }) => {
-          console.log('📊 Turn evaluated:', payload)
+          console.log('Turn evaluated:', payload)
           setEvaluation({
             score: payload.evaluation.score,
             feedback: payload.evaluation.feedback,
@@ -743,7 +743,7 @@ const AiSpeakingPracticePage: React.FC = () => {
         maxTurns: params.maxTurns,
       })
 
-      console.log('🎯 Session created successfully:', created)
+      console.log('Session created successfully:', created)
 
       setSession(created)
       setSelectedConversationId(conversationId ?? null)
@@ -755,7 +755,7 @@ const AiSpeakingPracticePage: React.FC = () => {
       if (initialTurn) {
         setCurrentTurnId(initialTurn.id)
         setCurrentTurn(initialTurn)
-        console.log('📋 Initial turn set:', initialTurn)
+        console.log('Initial turn set:', initialTurn)
       }
 
       console.log('🔌 About to connect socket with session ID:', created.id)
@@ -781,7 +781,7 @@ const AiSpeakingPracticePage: React.FC = () => {
       const message =
         error?.response?.data?.message ?? 'Không thể khởi tạo phiên'
 
-      // ✅ Handle profanity ban (403 Forbidden)
+      // Handle profanity ban (403 Forbidden)
       if (
         (status === 403 && message.includes('cấm')) ||
         message.includes('vi phạm')

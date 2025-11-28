@@ -238,8 +238,8 @@ export const GapsForm: React.FC<GapsFormProps> = ({ watch, setValue }) => {
 
         <div className="mt-6 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
           <p className="text-sm text-emerald-800">
-            💡 <strong>Hoặc chỉnh thủ công:</strong> Quay lại bước 2 và dùng
-            [từ] để chọn từ cụ thể
+            <strong>Hoặc chỉnh thủ công:</strong> Quay lại bước 2 và dùng [từ]
+            để chọn từ cụ thể
           </p>
         </div>
       </div>

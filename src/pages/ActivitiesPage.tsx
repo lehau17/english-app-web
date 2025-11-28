@@ -447,7 +447,7 @@ export default function ActivitiesPage() {
                       Word Catcher
                     </h2>
                     <p className="text-xl text-white/90 mb-4">
-                      🎯 Bắt từ rơi xuống
+                      Bắt từ rơi xuống
                     </p>
                     <div className="flex justify-center gap-2">
                       <span className="px-4 py-2 bg-white/30 rounded-xl text-white font-bold">

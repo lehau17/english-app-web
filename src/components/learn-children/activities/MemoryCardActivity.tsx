@@ -457,7 +457,7 @@ export function MemoryCardActivity({
                 All Matched!
               </h1>
               <p className="text-3xl text-white/90 mb-8">
-                🎉 Trí nhớ siêu đỉnh! 🎉
+                Trí nhớ siêu đỉnh! 🎉
               </p>
 
               {/* Stars */}

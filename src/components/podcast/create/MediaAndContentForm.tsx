@@ -217,7 +217,7 @@ export const MediaAndContentForm: React.FC<MediaAndContentFormProps> = ({
               </p>
             )}
             <p className="text-xs text-gray-500">
-              💡 Bạn sẽ tạo chỗ trống (gaps) ở bước tiếp theo
+              Bạn sẽ tạo chỗ trống (gaps) ở bước tiếp theo
             </p>
           </div>
         </div>
@@ -384,7 +384,7 @@ export const MediaAndContentForm: React.FC<MediaAndContentFormProps> = ({
               <div className="space-y-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-blue-800">
-                    💡 <strong>Cách hoạt động:</strong> Nhập transcript ở trên →
+                    <strong>Cách hoạt động:</strong> Nhập transcript ở trên →
                     Chọn giọng đọc → Nhấn "Tạo Audio"
                   </p>
                 </div>
@@ -445,7 +445,7 @@ export const MediaAndContentForm: React.FC<MediaAndContentFormProps> = ({
 
                 {!watchContent?.trim() && (
                   <p className="text-xs text-center text-amber-600">
-                    ⚠️ Vui lòng nhập transcript ở trên trước
+                    Vui lòng nhập transcript ở trên trước
                   </p>
                 )}
               </div>

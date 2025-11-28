@@ -256,7 +256,7 @@ const VocabularyListDetailPage: React.FC = () => {
 
                       {/* Title */}
                       <h1 className="text-4xl font-bold text-gray-900 mb-3">
-                        🎉 Great Job!
+                        Great Job!
                       </h1>
 
                       <p className="text-blue-600 text-lg mb-2">

@@ -368,7 +368,7 @@ export const MediaUploadForm: React.FC<MediaUploadFormProps> = ({
                 </Button>
 
                 <p className="text-xs text-center text-gray-500">
-                  💡 Audio sẽ được tạo từ nội dung văn bản bạn nhập ở bước tiếp
+                  Audio sẽ được tạo từ nội dung văn bản bạn nhập ở bước tiếp
                   theo
                 </p>
               </div>

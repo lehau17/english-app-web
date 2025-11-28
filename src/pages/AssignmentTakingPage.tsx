@@ -916,7 +916,7 @@ export default function AssignmentTakingPage(): JSX.Element {
               </p>
               {activity.content.tips && activity.content.tips.length > 0 && (
                 <div className="mt-3">
-                  <h5 className="font-medium text-blue-800 mb-1">💡 Gợi ý:</h5>
+                  <h5 className="font-medium text-blue-800 mb-1">Gợi ý:</h5>
                   <ul className="list-disc list-inside text-blue-700 text-sm space-y-1">
                     {activity.content.tips.map((tip: string, index: number) => (
                       <li key={index}>{tip}</li>
@@ -984,7 +984,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                 <div className="text-center">
                   <CheckCircle className="mx-auto h-16 w-16 text-green-600 mb-4" />
                   <p className="text-green-600 font-medium text-lg mb-2">
-                    ✅ Đã ghi âm xong!
+                    Đã ghi âm xong!
                   </p>
                   <p className="text-gray-600 mb-4">
                     Thời lượng: {recordState.duration}s
@@ -1028,7 +1028,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                 <div className="text-center">
                   <CheckCircle className="mx-auto h-16 w-16 text-green-600 mb-4" />
                   <p className="text-green-600 font-medium text-lg mb-2">
-                    ✅ Đã tải lên thành công!
+                    Đã tải lên thành công!
                   </p>
                   <p className="text-gray-600 mb-4 text-sm break-all px-4">
                     {answer}
@@ -1241,7 +1241,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                       <div className="text-center">
                         <CheckCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
                         <p className="text-green-600 font-medium mb-2">
-                          ✅ Đã ghi âm xong!
+                          Đã ghi âm xong!
                         </p>
                         <p className="text-gray-600 mb-3 text-sm">
                           Thời lượng: {pronunciationRecordState.duration}s
@@ -1286,7 +1286,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                       <div className="text-center">
                         <CheckCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
                         <p className="text-green-600 font-medium mb-2">
-                          ✅ Đã tải lên audio!
+                          Đã tải lên audio!
                         </p>
 
                         <audio
@@ -1309,7 +1309,7 @@ export default function AssignmentTakingPage(): JSX.Element {
               })()}
 
               <p className="text-red-600 text-xs mt-3 text-center font-medium">
-                ⚠️ Bạn phải ghi âm để hoàn thành bài tập này. Việc đánh dấu "Đã
+                Bạn phải ghi âm để hoàn thành bài tập này. Việc đánh dấu "Đã
                 thực hành" chỉ giúp theo dõi tiến độ.
               </p>
             </div>

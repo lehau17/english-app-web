@@ -17,7 +17,7 @@ interface FloatingIcon {
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title }) => {
   const [floatingIcons, setFloatingIcons] = useState<FloatingIcon[]>([])
-  const nextIdRef = useRef(0) // ✅ sinh id duy nhất
+  const nextIdRef = useRef(0) // sinh id duy nhất
 
   const iconComponents = {
     star: Star,
@@ -48,7 +48,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title }) => {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    const id = nextIdRef.current++ // ✅ id duy nhất, không trùng
+    const id = nextIdRef.current++ // id duy nhất, không trùng
     const newIcon: FloatingIcon = {
       id,
       x,

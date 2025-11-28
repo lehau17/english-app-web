@@ -1772,7 +1772,7 @@ export default function ClassroomDetail(props: {
                             | 'elementary'
                             | 'intermediate'
                             | undefined,
-                          isLocked: isLessonLocked, // ✅ Apply lock logic
+                          isLocked: isLessonLocked, // Apply lock logic
                           activities: lesson.activities.map((a) => ({
                             ...a,
                             type: a.type as ActivityType,

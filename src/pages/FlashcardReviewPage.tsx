@@ -387,7 +387,7 @@ export default function FlashcardReviewPage() {
         {/* Completion Message */}
         {isComplete && (
           <div className="mt-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-6 text-white text-center">
-            <h3 className="text-2xl font-bold mb-2">🎉 Hoàn thành!</h3>
+            <h3 className="text-2xl font-bold mb-2">Hoàn thành!</h3>
             <p className="mb-4">
               Bạn đã ôn xong {shuffledWords.length} từ vựng
             </p>

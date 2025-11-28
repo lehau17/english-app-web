@@ -745,7 +745,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
 
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <p className="text-xs text-blue-800">
-                          💡 Video sẽ được tự động xử lý:
+                          Video sẽ được tự động xử lý:
                           <br />
                           • Upload lên hệ thống
                           <br />
@@ -1076,9 +1076,8 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                               autoCount >
                                 getAvailableCandidates(watchContent) && (
                                 <div className="mt-1 text-xs text-amber-600">
-                                  ⚠️ Chỉ có{' '}
-                                  {getAvailableCandidates(watchContent)} từ khả
-                                  dụng
+                                  Chỉ có {getAvailableCandidates(watchContent)}{' '}
+                                  từ khả dụng
                                 </div>
                               )}
                           </div>
@@ -1120,7 +1119,7 @@ export const CreatePodcastPageUpdated: React.FC = () => {
                     </div>
 
                     <div className="mt-3 text-xs text-emerald-600">
-                      💡 Hoặc dùng [từ] để chọn thủ công trong văn bản
+                      Hoặc dùng [từ] để chọn thủ công trong văn bản
                     </div>
                   </div>
                   {errors.content && (

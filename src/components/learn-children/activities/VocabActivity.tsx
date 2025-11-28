@@ -266,7 +266,7 @@ export function VocabActivity({
               Word Catcher!
             </h2>
             <p className="text-xl text-white/90 mb-8 text-center max-w-md">
-              🎯 Move your basket to catch falling words!
+              Move your basket to catch falling words!
               <br />⭐ Build combos for bonus points!
             </p>
             <motion.button

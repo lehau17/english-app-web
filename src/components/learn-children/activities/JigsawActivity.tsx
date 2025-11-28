@@ -519,7 +519,7 @@ export function JigsawActivity({
               <h1 className="text-6xl font-black text-white mb-4 drop-shadow-lg">
                 Puzzle Complete!
               </h1>
-              <p className="text-3xl text-white/90 mb-8">🎉 Hoàn hảo! 🎉</p>
+              <p className="text-3xl text-white/90 mb-8">Hoàn hảo! 🎉</p>
 
               {/* Completed Image */}
               <div className="mb-8 flex justify-center">

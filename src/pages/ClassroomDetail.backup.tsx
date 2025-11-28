@@ -1516,7 +1516,7 @@ export default function ClassroomDetail(props: {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-green-900">
-                  🎉 Chúc mừng! Bạn đã hoàn thành khóa học
+                  Chúc mừng! Bạn đã hoàn thành khóa học
                 </h3>
                 <p className="text-sm text-green-700">
                   Bạn đã nhận được chứng chỉ cho khóa học "

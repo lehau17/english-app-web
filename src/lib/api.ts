@@ -6,7 +6,7 @@ const api = axios.create({
   withCredentials: true,
 })
 
-// ✅ Bỏ global 401 interceptor - để AuthContext xử lý refresh token logic
+// Bỏ global 401 interceptor - để AuthContext xử lý refresh token logic
 // AuthContext sẽ setup dynamic interceptor với refresh token flow
 // Nếu refresh fail thì AuthContext sẽ logout và redirect
 

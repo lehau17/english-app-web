@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refreshPromiseRef = useRef<Promise<string> | null>(null)
 
-  // ✅ Rehydrate từ localStorage ĐỒNG BỘ (trước khi render)
+  // Rehydrate từ localStorage ĐỒNG BỘ (trước khi render)
   // Dùng useState initial function để chạy TRƯỚC render đầu tiên
   const [initialAuth] = useState(() => {
     const a = localStorage.getItem(ACCESS_KEY)
@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (initialAuth.a) {
       setAccessToken(initialAuth.a)
-      // ✅ Set header NGAY LẬP TỨC để request đầu tiên có token
+      // Set header NGAY LẬP TỨC để request đầu tiên có token
       api.defaults.headers.common['Authorization'] = `Bearer ${initialAuth.a}`
     }
     if (initialAuth.r) setRefreshToken(initialAuth.r)
@@ -153,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     queryClient.removeQueries({ queryKey: ['me'] })
     localStorage.removeItem(USER_KEY)
 
-    // ✅ Redirect về login nếu không đang ở trang login
+    // Redirect về login nếu không đang ở trang login
     if (
       typeof window !== 'undefined' &&
       !window.location.pathname.startsWith('/login')
