@@ -37,7 +37,11 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react' // useMem
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import certificateApi from '../apis/certificate.api'
-import { MyAttendanceSection } from '../components/attendance'
+import {
+  MyAttendanceSection,
+  TeacherAttendanceSection,
+} from '../components/attendance'
+import { useClassroomSessions } from '../hooks/useTeacherAttendance'
 import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
 import ConversationWidget from '../components/conversation/ConversationWidget'
 import UserDetailModal from '../components/user/UserDetailModel'
@@ -1561,6 +1565,12 @@ export default function ClassroomDetail(props: {
   const isTeacher = role === 'teacher'
   const isStudent = role === 'student'
 
+  // Get classroom sessions for teacher attendance
+  const { data: classroomSessions = [] } = useClassroomSessions(
+    classroomIdFromParams || null,
+    isTeacher && !!classroomIdFromParams
+  )
+
   const { data: nextLessonData } = useNextLesson(isStudent)
 
   // Dữ liệu lớp học từ API
@@ -2712,7 +2722,20 @@ export default function ClassroomDetail(props: {
 
           {activeTab === 'attendance' && classroomIdFromParams && (
             <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-              <MyAttendanceSection classroomId={classroomIdFromParams} />
+              {isTeacher ? (
+                <TeacherAttendanceSection
+                  classroomId={classroomIdFromParams}
+                  sessions={classroomSessions.map((s) => ({
+                    id: s.id,
+                    title: s.title,
+                    startTime: s.startTime,
+                    endTime: s.endTime,
+                    status: s.status,
+                  }))}
+                />
+              ) : (
+                <MyAttendanceSection classroomId={classroomIdFromParams} />
+              )}
             </div>
           )}
         </div>

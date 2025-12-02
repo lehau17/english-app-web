@@ -1,7 +1,11 @@
 import { ClipboardList } from 'lucide-react'
 import { useState } from 'react'
 import { useMyAttendanceHistory } from '../../hooks/useAttendance'
-import type { AttendanceStatus } from '../../types/attendance.type'
+import type {
+  AttendanceHistoryApiResponse,
+  AttendanceStatus,
+  PaginatedAttendanceHistory,
+} from '../../types/attendance.type'
 import { AttendanceFilter } from './AttendanceFilter'
 import { AttendanceHistoryList } from './AttendanceHistoryList'
 import { AttendanceSummaryCard } from './AttendanceSummaryCard'
@@ -53,7 +57,48 @@ export const MyAttendanceSection = ({
     )
   }
 
-  const history = data?.data
+  // Map API response to frontend format
+  const apiData = data?.data as AttendanceHistoryApiResponse | undefined
+  const history: PaginatedAttendanceHistory | null = apiData
+    ? {
+        data: apiData.history.map(
+          (
+            item: {
+              sessionId: string
+              sessionTitle: string
+              sessionDate: string
+              status: string
+            },
+            index: number
+          ) => ({
+            id: item.sessionId, // Use sessionId as id
+            status: (item.status === 'not_marked'
+              ? 'not_marked'
+              : item.status) as AttendanceStatus | 'not_marked',
+            checkInTime: null,
+            checkOutTime: null,
+            notes: null,
+            createdAt: item.sessionDate,
+            session: {
+              sessionId: item.sessionId,
+              sessionTitle: item.sessionTitle,
+              sessionNumber: apiData.totalSessions - index, // Approximate session number
+              startTime: item.sessionDate,
+              endTime: item.sessionDate, // API doesn't provide endTime
+            },
+          })
+        ),
+        meta: apiData.pagination,
+        summary: {
+          totalSessions: apiData.totalSessions,
+          present: apiData.present,
+          absent: apiData.absent,
+          late: apiData.late,
+          excused: apiData.excused,
+          attendanceRate: apiData.attendanceRate,
+        },
+      }
+    : null
 
   return (
     <div className="space-y-6">

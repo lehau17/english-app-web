@@ -47,7 +47,7 @@ export interface AttendanceSession {
 
 export interface AttendanceHistoryItem {
   id: string
-  status: AttendanceStatus
+  status: AttendanceStatus | 'not_marked'
   checkInTime: string | null
   checkOutTime: string | null
   notes: string | null
@@ -72,6 +72,31 @@ export interface PaginatedAttendanceHistory {
     late: number
     excused: number
     attendanceRate: number
+  }
+}
+
+// API Response type (from backend)
+export interface AttendanceHistoryApiResponse {
+  totalSessions: number
+  attended: number
+  present: number
+  absent: number
+  late: number
+  excused: number
+  attendanceRate: number
+  history: Array<{
+    sessionId: string
+    sessionTitle: string
+    sessionDate: string
+    status: string
+  }>
+  pagination: {
+    page: number
+    limit: number
+    totalItems: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
   }
 }
 

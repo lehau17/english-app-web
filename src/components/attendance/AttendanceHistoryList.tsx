@@ -1,5 +1,8 @@
 import { Calendar, Clock } from 'lucide-react'
-import type { AttendanceHistoryItem } from '../../types/attendance.type'
+import type {
+  AttendanceHistoryItem,
+  AttendanceStatus,
+} from '../../types/attendance.type'
 import { AttendanceStatusBadge } from './AttendanceStatusBadge'
 
 interface AttendanceHistoryListProps {
@@ -69,9 +72,20 @@ export const AttendanceHistoryList = ({
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-full">
-                  Buoi {item.session.sessionNumber}
+                  {item.session.sessionNumber
+                    ? `Buoi ${item.session.sessionNumber}`
+                    : 'Buoi hoc'}
                 </span>
-                <AttendanceStatusBadge status={item.status} size="sm" />
+                {item.status !== 'not_marked' ? (
+                  <AttendanceStatusBadge
+                    status={item.status as AttendanceStatus}
+                    size="sm"
+                  />
+                ) : (
+                  <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-1 rounded-full">
+                    Chua diem danh
+                  </span>
+                )}
               </div>
               <h4 className="font-medium text-gray-900 mb-1">
                 {item.session.sessionTitle}
