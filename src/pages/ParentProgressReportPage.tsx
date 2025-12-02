@@ -1,5 +1,6 @@
 import { Activity, BookOpen, CalendarDays, Clock, Target } from 'lucide-react'
-import React from 'react'
+import React, { useMemo } from 'react'
+import { useParams } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -24,55 +25,12 @@ import {
   CardTitle,
 } from '../components/ui/card'
 import { Select } from '../components/ui/select'
+import {
+  useParentChildProgressQuery,
+  useParentChildrenQuery,
+} from '../hooks/parent.queries'
 
-// Mock Data
-const mockChildData = {
-  id: 'child-01',
-  name: 'Nguyễn Văn An',
-  avatarUrl: 'https://i.pravatar.cc/150?u=child01',
-}
-
-const mockStudyTimeData = {
-  '7days': [
-    { date: '2023-10-20', minutes: 30 },
-    { date: '2023-10-21', minutes: 45 },
-    { date: '2023-10-22', minutes: 60 },
-    { date: '2023-10-23', minutes: 25 },
-    { date: '2023-10-24', minutes: 75 },
-    { date: '2023-10-25', minutes: 40 },
-    { date: '2023-10-26', minutes: 90 },
-  ],
-  '30days': [
-    // Add more data for 30 days if needed, for now we reuse 7 days data for simplicity
-    ...Array.from({ length: 4 }, (_, i) =>
-      [
-        { date: `W${i + 1} D1`, minutes: 30 + i * 5 },
-        { date: `W${i + 1} D2`, minutes: 45 + i * 5 },
-        { date: `W${i + 1} D3`, minutes: 60 + i * 5 },
-        { date: `W${i + 1} D4`, minutes: 25 + i * 5 },
-        { date: `W${i + 1} D5`, minutes: 75 + i * 5 },
-        { date: `W${i + 1} D6`, minutes: 40 + i * 5 },
-        { date: `W${i + 1} D7`, minutes: 90 + i * 5 },
-      ].flat()
-    ).flat(),
-  ],
-  allTime: [
-    // Add more data for all time if needed
-    { date: 'Tháng 8', minutes: 1200 },
-    { date: 'Tháng 9', minutes: 1500 },
-    { date: 'Tháng 10', minutes: 1800 },
-  ],
-}
-
-const mockSkillData = [
-  { skill: 'Nghe', score: 85, fullMark: 100 },
-  { skill: 'Nói', score: 70, fullMark: 100 },
-  { skill: 'Đọc', score: 90, fullMark: 100 },
-  { skill: 'Viết', score: 65, fullMark: 100 },
-  { skill: 'Từ vựng', score: 88, fullMark: 100 },
-  { skill: 'Ngữ pháp', score: 72, fullMark: 100 },
-]
-
+// Mock data for common mistakes (no API available)
 const mockCommonMistakes = [
   {
     type: 'Phát âm',
@@ -93,46 +51,163 @@ const mockCommonMistakes = [
   },
 ]
 
-const mockRecentActivities = [
-  {
-    id: 'act-1',
-    name: 'Bài tập Nghe: Động vật trong trang trại',
-    date: '2023-10-26',
-    score: 95,
-  },
-  {
-    id: 'act-2',
-    name: 'Bài tập Nói: Giới thiệu bản thân',
-    date: '2023-10-25',
-    score: 80,
-  },
-  {
-    id: 'act-3',
-    name: 'Bài tập Đọc: Câu chuyện về chú Rùa',
-    date: '2023-10-25',
-    score: 88,
-  },
-  {
-    id: 'act-4',
-    name: 'Kiểm tra từ vựng: Chủ đề Gia đình',
-    date: '2023-10-24',
-    score: 100,
-  },
-  {
-    id: 'act-5',
-    name: 'Bài tập Ngữ pháp: Thì hiện tại tiếp diễn',
-    date: '2023-10-23',
-    score: 75,
-  },
-]
+// Map activity types to skills
+const activityTypeToSkill: Record<string, string> = {
+  LISTENING: 'Nghe',
+  SPEAKING: 'Nói',
+  READING: 'Đọc',
+  WRITING: 'Viết',
+  VOCABULARY: 'Từ vựng',
+  GRAMMAR: 'Ngữ pháp',
+}
 
 export default function ParentProgressReportPage() {
-  // For now, we don't use useParams as we have mock data.
-  // const { childId } = useParams<{ childId: string }>();
-  const [timeRange, setTimeRange] =
-    React.useState<keyof typeof mockStudyTimeData>('7days')
+  const { childId } = useParams<{ childId: string }>()
+  const [timeRange, setTimeRange] = React.useState<
+    '7days' | '30days' | 'allTime'
+  >('7days')
 
-  const chartData = mockStudyTimeData[timeRange]
+  // Fetch children list to get child info
+  const { data: childrenData } = useParentChildrenQuery(!!childId)
+
+  // Calculate date range
+  const dateRange = useMemo(() => {
+    const now = new Date()
+    const to = now.toISOString().split('T')[0]
+    let from: string
+
+    switch (timeRange) {
+      case '7days':
+        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0]
+        break
+      case '30days':
+        from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0]
+        break
+      case 'allTime':
+        from = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0]
+        break
+    }
+
+    return { from, to }
+  }, [timeRange])
+
+  // Fetch progress data
+  const { data: progressData, isLoading: isLoadingProgress } =
+    useParentChildProgressQuery(
+      childId || null,
+      { from: dateRange.from, to: dateRange.to, limit: 1000 },
+      !!childId
+    )
+
+  // Get child info
+  const childInfo = useMemo(() => {
+    if (!childrenData || !childId) return null
+    return childrenData.find(
+      (child: any) => child.id === childId || child.childId === childId
+    )
+  }, [childrenData, childId])
+
+  // Process progress data for charts
+  const chartData = useMemo(() => {
+    if (!progressData?.data) return []
+
+    const progressItems = progressData.data
+
+    // Group by date and sum time spent
+    const groupedByDate: Record<string, number> = {}
+
+    progressItems.forEach((item) => {
+      const date = new Date(item.createdAt).toISOString().split('T')[0]
+      const minutes = Math.round((item.timeSpent || 0) / 60)
+      groupedByDate[date] = (groupedByDate[date] || 0) + minutes
+    })
+
+    // Convert to array and sort by date
+    return Object.entries(groupedByDate)
+      .map(([date, minutes]) => ({ date, minutes }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [progressData])
+
+  // Calculate skills breakdown
+  const skillData = useMemo(() => {
+    if (!progressData?.data) return []
+
+    const progressItems = progressData.data
+    const skillScores: Record<string, { total: number; count: number }> = {}
+
+    progressItems.forEach((item) => {
+      const skill = activityTypeToSkill[item.activityType] || item.activityType
+      const score = item.score || 0
+
+      if (!skillScores[skill]) {
+        skillScores[skill] = { total: 0, count: 0 }
+      }
+
+      skillScores[skill].total += score
+      skillScores[skill].count += 1
+    })
+
+    // Calculate average scores
+    return Object.entries(skillScores)
+      .map(([skill, { total, count }]) => ({
+        skill,
+        score: count > 0 ? Math.round(total / count) : 0,
+        fullMark: 100,
+      }))
+      .filter((item) => item.score > 0)
+  }, [progressData])
+
+  // Get recent activities (last 5 completed)
+  const recentActivities = useMemo(() => {
+    if (!progressData?.data) return []
+
+    return progressData.data
+      .filter((item) => item.state === 'done')
+      .slice(0, 5)
+      .map((item) => ({
+        id: item.id,
+        name: item.activityTitle,
+        date: new Date(item.createdAt).toLocaleDateString('vi-VN'),
+        score: item.score || 0,
+      }))
+  }, [progressData])
+
+  const isLoading = isLoadingProgress || !childInfo
+  const childName =
+    childInfo?.name ||
+    childInfo?.child?.displayName ||
+    childInfo?.child?.firstName ||
+    'Học sinh'
+  const childAvatar = childInfo?.avatar || childInfo?.child?.avatarUrl
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!childId || !childInfo) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">
+            Không tìm thấy thông tin học sinh.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -140,19 +215,29 @@ export default function ParentProgressReportPage() {
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <img
-              src={mockChildData.avatarUrl}
-              alt={mockChildData.name}
-              className="h-16 w-16 rounded-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.style.display = 'none'
-                const fallback = target.nextElementSibling as HTMLElement
-                if (fallback) fallback.style.display = 'flex'
-              }}
-            />
-            <div className="h-16 w-16 rounded-full bg-primary/20 items-center justify-center text-primary font-bold text-xl hidden">
-              {mockChildData.name.charAt(0).toUpperCase()}
+            {childAvatar &&
+            (childAvatar.startsWith('http') || childAvatar.startsWith('/')) ? (
+              <img
+                src={childAvatar}
+                alt={childName}
+                className="h-16 w-16 rounded-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                  const fallback = target.nextElementSibling as HTMLElement
+                  if (fallback) fallback.style.display = 'flex'
+                }}
+              />
+            ) : null}
+            <div
+              className={`h-16 w-16 rounded-full bg-primary/20 items-center justify-center text-primary font-bold text-xl ${
+                childAvatar &&
+                (childAvatar.startsWith('http') || childAvatar.startsWith('/'))
+                  ? 'hidden'
+                  : 'flex'
+              }`}
+            >
+              {childName.charAt(0).toUpperCase()}
             </div>
           </div>
           <div>
@@ -160,7 +245,7 @@ export default function ParentProgressReportPage() {
               Báo cáo tiến độ học tập
             </h1>
             <p className="text-lg text-muted-foreground">
-              Học sinh: {mockChildData.name}
+              Học sinh: {childName}
             </p>
           </div>
         </div>
@@ -169,7 +254,7 @@ export default function ParentProgressReportPage() {
           <Select
             value={timeRange}
             onChange={(e) =>
-              setTimeRange(e.target.value as keyof typeof mockStudyTimeData)
+              setTimeRange(e.target.value as '7days' | '30days' | 'allTime')
             }
             className="w-[180px]"
           >
@@ -194,23 +279,29 @@ export default function ParentProgressReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis unit=" phút" />
-                <Tooltip
-                  formatter={(value) => [`${value} phút`, 'Thời gian học']}
-                />
-                <Legend />
-                <Bar
-                  dataKey="minutes"
-                  name="Số phút học"
-                  fill="var(--color-primary, #1E88E5)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                Chưa có dữ liệu thời gian học trong khoảng thời gian này
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis unit=" phút" />
+                  <Tooltip
+                    formatter={(value) => [`${value} phút`, 'Thời gian học']}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="minutes"
+                    name="Số phút học"
+                    fill="var(--color-primary, #1E88E5)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -226,26 +317,32 @@ export default function ParentProgressReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart
-                cx="50%"
-                cy="50%"
-                outerRadius="80%"
-                data={mockSkillData}
-              >
-                <PolarGrid />
-                <PolarAngleAxis dataKey="skill" />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                <Radar
-                  name={mockChildData.name}
-                  dataKey="score"
-                  stroke="var(--color-primary, #1E88E5)"
-                  fill="var(--color-primary, #1E88E5)"
-                  fillOpacity={0.6}
-                />
-                <Tooltip />
-              </RadarChart>
-            </ResponsiveContainer>
+            {skillData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                Chưa có dữ liệu kỹ năng
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="80%"
+                  data={skillData}
+                >
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="skill" />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                  <Radar
+                    name={childName}
+                    dataKey="score"
+                    stroke="var(--color-primary, #1E88E5)"
+                    fill="var(--color-primary, #1E88E5)"
+                    fillOpacity={0.6}
+                  />
+                  <Tooltip />
+                </RadarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -288,26 +385,32 @@ export default function ParentProgressReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-4">
-              {mockRecentActivities.map((activity) => (
-                <li
-                  key={activity.id}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{activity.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.date}
-                    </p>
-                  </div>
-                  <div className="ml-4">
-                    <span className="font-semibold text-primary">
-                      {activity.score}%
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {recentActivities.length === 0 ? (
+              <div className="flex items-center justify-center h-[200px] text-gray-500">
+                Chưa có hoạt động nào
+              </div>
+            ) : (
+              <ul className="space-y-4">
+                {recentActivities.map((activity) => (
+                  <li
+                    key={activity.id}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{activity.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {activity.date}
+                      </p>
+                    </div>
+                    <div className="ml-4">
+                      <span className="font-semibold text-primary">
+                        {activity.score}%
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>
