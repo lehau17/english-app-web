@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, UserX, FileCheck } from 'lucide-react'
+import { CheckCircle, Clock, FileCheck, UserX } from 'lucide-react'
 
 interface AttendanceSummaryProps {
   totalSessions: number

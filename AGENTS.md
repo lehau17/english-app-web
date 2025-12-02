@@ -1,8 +1,12 @@
 # AGENTS – englishWeb (Vite + React)
 
-> Last updated: 2025-11-05 — Tóm tắt: Hướng dẫn vận hành và checklist cho frontend student-facing (englishWeb).
+> Last updated: 2025-11-28 — Tóm tắt: Student-facing web với 50+ pages, AI Speaking, Podcast, Assignment.
 
 Ứng dụng web phía người dùng (student-facing). Dựng bằng Vite + React, Tailwind v4, TanStack Query, i18n.
+
+## Thống Kê Nhanh
+- **50+ pages** trong `src/pages/`
+- **Tính năng chính**: Classroom, Assignment, AI Speaking, Podcast, Vocabulary, Certificate, Parent Portal
 
 ## Cấu Trúc Chính
 - `src/main.tsx`: điểm vào ứng dụng.
@@ -13,6 +17,17 @@
 - `src/services/`: tầng gọi API theo domain.
 - `src/lib/api.ts`: Axios instance (đính kèm cookie, bắt 401 → chuyển hướng `/login`).
 - `src/context/`, `src/hooks/`, `src/utils/`, `src/styles/`, `src/types/`, `src/config/`.
+
+## Các Trang Chính
+| Nhóm | Pages |
+|------|-------|
+| **Learning** | `LearnPage`, `ClassroomDetail`, `ClassroomPage`, `LessonPlayerPageChildren` |
+| **Assignment** | `AssignmentTakingPage`, `AssignmentResultPage`, `AssignmentSubmissionsPage` |
+| **AI Speaking** | `AiSpeakingSessionPage`, `AiSpeakingConversationsPage`, `AiSpeakingConversationDetailPage` |
+| **Podcast** | `PodcastDetailPage`, `PodcastPracticePage`, `CreatePodcastPageBeautiful`, `PlaylistsPage` |
+| **Vocabulary** | `MyVocabularyPage`, `VocabularyListsPage`, `FlashcardReviewPage`, `VocabularyQuickReviewPage` |
+| **Certificate** | `MyCertificatesPage`, `CertificateDetailPage`, `VerifyCertificatePage` |
+| **Parent** | `ParentHomePage`, `ParentProgressReportPage`, `ParentSchedulePage`, `ParentActivitiesPage` |
 
 ## Biến Môi Trường
 - Tạo file `.env` tại thư mục `englishWeb/`:

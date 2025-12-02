@@ -1,9 +1,9 @@
 import api from '../lib/api'
-import type { BaseResponse } from '../types/base-response.type'
 import type {
   AttendanceHistoryFilter,
   PaginatedAttendanceHistory,
 } from '../types/attendance.type'
+import type { BaseResponse } from '../types/base-response.type'
 
 /**
  * Build query params for attendance history
