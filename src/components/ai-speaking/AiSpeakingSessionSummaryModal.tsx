@@ -108,11 +108,13 @@ export const AiSpeakingSessionSummaryModal: React.FC<
                   <div className="mt-2">
                     <span
                       className={`inline-flex items-center gap-1 text-sm px-3 py-1 rounded-full font-medium ${getDifficultyColor(
-                        session.currentDifficulty
+                        session.currentDifficulty ?? undefined
                       )}`}
                     >
                       <Target size={14} />
-                      {getDifficultyLabel(session.currentDifficulty)}
+                      {getDifficultyLabel(
+                        session.currentDifficulty ?? undefined
+                      )}
                     </span>
                   </div>
                 </div>
@@ -190,16 +192,21 @@ export const AiSpeakingSessionSummaryModal: React.FC<
                         </span>
                       </div>
                     )}
-                    {analytics.finishedAt && (
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-600">
-                          Hoàn thành lúc:
-                        </span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {formatDate(String(analytics.finishedAt))}
-                        </span>
-                      </div>
-                    )}
+                    {analytics.finishedAt !== undefined &&
+                      analytics.finishedAt !== null && (
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm text-gray-600">
+                            Hoàn thành lúc:
+                          </span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {formatDate(
+                              typeof analytics.finishedAt === 'string'
+                                ? analytics.finishedAt
+                                : String(analytics.finishedAt)
+                            )}
+                          </span>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>
