@@ -94,3 +94,4 @@ Xem file `UNIMPLEMENTED_FEATURES_REPORT.md` để biết chi tiết từng issue
 
 **Recommendation**: Focus on Critical issues first (Sprint 1), đặc biệt là những tính năng ảnh hưởng trực tiếp đến user experience.
 
+

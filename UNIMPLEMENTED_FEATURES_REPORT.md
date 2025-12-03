@@ -529,3 +529,4 @@ npm run lint
 
 **Tổng kết**: englishWeb có nhiều tính năng đã hoàn thành tốt, nhưng còn một số gaps quan trọng cần xử lý trước khi production-ready. Ưu tiên cao nhất là các tính năng ảnh hưởng trực tiếp đến UX (settings actions, mock data, submission display).
 
+

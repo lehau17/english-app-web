@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
+import { AiSpeakingSessionSummaryModal } from '../components/ai-speaking/AiSpeakingSessionSummaryModal'
 import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { useAuth } from '../context/AuthContext'
 import { resolveSocketUrl } from '../lib/socket'
@@ -95,6 +96,7 @@ const AiSpeakingSessionPage: React.FC = () => {
   const [conversationMessages, setConversationMessages] = useState<
     ConversationMessage[]
   >([])
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false)
 
   const socketRef = useRef<Socket | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -848,6 +850,7 @@ const AiSpeakingSessionPage: React.FC = () => {
       setSession(finalized)
       setSessionSummary(finalized.summary ?? null)
       setSessionAnalytics(finalized.analytics ?? null)
+      setIsSummaryModalOpen(true)
       toast.success('Đã tổng kết phiên luyện nói')
       setAiStatusMessage('Phiên luyện nói đã được tổng kết.')
       setAiErrorMessage(null)
@@ -856,6 +859,10 @@ const AiSpeakingSessionPage: React.FC = () => {
         error?.response?.data?.message ?? 'Không thể kết thúc phiên'
       toast.error(message)
     }
+  }
+
+  const handleViewConversation = (conversationId: string) => {
+    navigate(`/ai-speaking/conversations/${conversationId}`)
   }
 
   const handleBackToConversations = () => {
@@ -1385,6 +1392,16 @@ const AiSpeakingSessionPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Summary Modal */}
+      <AiSpeakingSessionSummaryModal
+        session={session}
+        summary={sessionSummary}
+        analytics={sessionAnalytics}
+        isOpen={isSummaryModalOpen}
+        onClose={() => setIsSummaryModalOpen(false)}
+        onViewConversation={handleViewConversation}
+      />
     </div>
   )
 }
