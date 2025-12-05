@@ -4,27 +4,23 @@ import {
   CreditCard,
   Edit,
   Globe,
-  ListMusic,
   Settings,
   User,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
-import PlaylistGrid from '../components/playlist/PlaylistGrid'
+import { useNavigate } from 'react-router-dom'
 import AvatarUpload from '../components/profile/AvatarUpload'
 import ChangePasswordModal from '../components/profile/ChangePasswordModal'
 import EditProfileModal from '../components/profile/EditProfileModal'
 import LanguageSettingsModal from '../components/profile/LanguageSettingsModal'
+import LearningAnalyticsDashboard from '../components/profile/LearningAnalyticsDashboard'
 import NotificationSettingsModal from '../components/profile/NotificationSettingsModal'
 import PrivacySettingsModal from '../components/profile/PrivacySettingsModal'
 import ProfilePageSkeleton from '../components/profile/ProfilePageSkeleton'
 import TransactionHistoryCard from '../components/profile/TransactionHistoryCard'
-import LearningAnalyticsDashboard from '../components/profile/LearningAnalyticsDashboard'
 import { useAuth } from '../context/AuthContext'
-import { useUserPlaylists } from '../hooks/playlist.hooks'
 import { changePasswordApi, updateProfileApi } from '../services/auth.api'
-import { playlistApi } from '../services/playlist.api'
 import { uploadFile } from '../services/upload.api'
 import type { User as UserType } from '../types/user.type'
 import {
@@ -33,7 +29,7 @@ import {
   validateFileUpload,
 } from '../utils/errorHandling'
 
-type TabId = 'overview' | 'playlists' | 'settings' | 'transactions'
+type TabId = 'overview' | 'settings' | 'transactions'
 
 interface UserProfile {
   id: string
@@ -69,14 +65,16 @@ export default function ProfilePage() {
   const [isAvatarUploading, setIsAvatarUploading] = useState(false)
   const { user, setUser } = useAuth()
 
-  // Playlist hooks
-  const {
-    playlists,
-    loading: playlistsLoading,
-    addPlaylist,
-    updatePlaylist,
-    removePlaylist,
-  } = useUserPlaylists({ limit: 6 }) // Limit to 6 for profile display
+  // Fallback to overview if activeTab is invalid (e.g., was 'playlists' from previous session)
+  useEffect(() => {
+    if (
+      activeTab === 'playlists' ||
+      !['overview', 'settings', 'transactions'].includes(activeTab)
+    ) {
+      setActiveTab('overview')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleProfileUpdate = async (data: Partial<UserType>) => {
     if (!user?.id) return
@@ -168,16 +166,6 @@ export default function ProfilePage() {
     }
   }
 
-  // Playlist handlers
-  const handlePlaylistDelete = async (playlistId: string) => {
-    try {
-      await playlistApi.delete(playlistId)
-      removePlaylist(playlistId)
-    } catch (error) {
-      // Error already handled by API
-    }
-  }
-
   const profile: UserProfile = useMemo(() => {
     const u = user
     return {
@@ -247,7 +235,6 @@ export default function ProfilePage() {
         {(
           [
             { id: 'overview', label: 'Tổng quan', icon: User },
-            { id: 'playlists', label: 'Playlist', icon: ListMusic },
             ...(user?.role === 'parent'
               ? [
                   {
@@ -348,38 +335,6 @@ export default function ProfilePage() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'playlists' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Playlist của tôi</h3>
-                <p className="text-sm text-gray-600">
-                  Quản lý và tổ chức podcast yêu thích
-                </p>
-              </div>
-              {playlists.length > 6 && (
-                <a
-                  href="/playlists"
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Xem tất cả ({playlists.length})
-                </a>
-              )}
-            </div>
-
-            <PlaylistGrid
-              playlists={playlists.slice(0, 6)} // Show only first 6
-              loading={playlistsLoading}
-              onPlaylistCreate={addPlaylist}
-              onPlaylistUpdate={updatePlaylist}
-              onPlaylistDelete={handlePlaylistDelete}
-              showOwner={false}
-              emptyMessage="Bạn chưa có playlist nào"
-              className="lg:grid-cols-2" // Override to show 2 columns max
-            />
           </div>
         )}
 
