@@ -22,6 +22,7 @@ import {
   ATTENDANCE_STATUS_COLORS,
 } from '../../types/attendance.type'
 import { AttendanceStatusBadge } from './AttendanceStatusBadge'
+import { ConfirmationModal } from './ConfirmationModal'
 
 interface TeacherAttendanceSectionProps {
   classroomId: string
@@ -47,6 +48,21 @@ export const TeacherAttendanceSection = ({
     Record<string, AttendanceStatus | null>
   >({})
   const [bulkMode, setBulkMode] = useState(false)
+
+  // Confirmation modal state
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    variant?: 'default' | 'warning' | 'danger'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'default',
+  })
 
   const { data: attendancesData, isLoading: isLoadingAttendances } =
     useSessionAttendances(selectedSessionId, !!selectedSessionId)
@@ -141,11 +157,28 @@ export const TeacherAttendanceSection = ({
     if (selectedSession) {
       const timingWarning = checkSessionTiming(selectedSession)
       if (timingWarning) {
-        if (!confirm(timingWarning)) {
-          return // User cancelled
-        }
+        setConfirmationModal({
+          isOpen: true,
+          title: 'Xác nhận điểm danh',
+          message: timingWarning,
+          variant: 'warning',
+          onConfirm: () => {
+            setConfirmationModal({ ...confirmationModal, isOpen: false })
+            performMarkSingle(studentId, status)
+          },
+        })
+        return
       }
     }
+
+    await performMarkSingle(studentId, status)
+  }
+
+  const performMarkSingle = async (
+    studentId: string,
+    status: AttendanceStatus
+  ) => {
+    if (!selectedSessionId) return
 
     try {
       await markAttendanceMutation.mutateAsync({
@@ -184,11 +217,27 @@ export const TeacherAttendanceSection = ({
     if (selectedSession) {
       const timingWarning = checkSessionTiming(selectedSession)
       if (timingWarning) {
-        if (!confirm(timingWarning)) {
-          return // User cancelled
-        }
+        setConfirmationModal({
+          isOpen: true,
+          title: 'Xác nhận điểm danh hàng loạt',
+          message: timingWarning,
+          variant: 'warning',
+          onConfirm: () => {
+            setConfirmationModal({ ...confirmationModal, isOpen: false })
+            performBulkMark(items)
+          },
+        })
+        return
       }
     }
+
+    await performBulkMark(items)
+  }
+
+  const performBulkMark = async (
+    items: Array<{ studentId: string; status: AttendanceStatus }>
+  ) => {
+    if (!selectedSessionId) return
 
     try {
       await bulkMarkMutation.mutateAsync({
@@ -211,21 +260,56 @@ export const TeacherAttendanceSection = ({
     if (selectedSession) {
       const timingWarning = checkSessionTiming(selectedSession)
       if (timingWarning) {
-        if (
-          !confirm(`${timingWarning}\n\nVẫn tiếp tục đánh dấu tất cả vắng mặt?`)
-        ) {
-          return
-        }
+        setConfirmationModal({
+          isOpen: true,
+          title: 'Xác nhận điểm danh',
+          message: `${timingWarning}\n\nVẫn tiếp tục đánh dấu tất cả vắng mặt?`,
+          variant: 'warning',
+          onConfirm: () => {
+            // After timing warning confirmed, show main confirmation
+            setConfirmationModal({
+              isOpen: true,
+              title: 'Xác nhận đánh dấu vắng mặt',
+              message:
+                'Bạn có chắc muốn đánh dấu tất cả học sinh chưa điểm danh là vắng mặt?',
+              variant: 'danger',
+              onConfirm: () => {
+                setConfirmationModal({
+                  isOpen: false,
+                  title: '',
+                  message: '',
+                  onConfirm: () => {},
+                })
+                performMarkAllAbsent()
+              },
+            })
+          },
+        })
+        return
       }
     }
 
-    if (
-      !confirm(
-        'Bạn có chắc muốn đánh dấu tất cả học sinh chưa điểm danh là vắng mặt?'
-      )
-    ) {
-      return
-    }
+    // Show main confirmation
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Xác nhận đánh dấu vắng mặt',
+      message:
+        'Bạn có chắc muốn đánh dấu tất cả học sinh chưa điểm danh là vắng mặt?',
+      variant: 'danger',
+      onConfirm: () => {
+        setConfirmationModal({
+          isOpen: false,
+          title: '',
+          message: '',
+          onConfirm: () => {},
+        })
+        performMarkAllAbsent()
+      },
+    })
+  }
+
+  const performMarkAllAbsent = async () => {
+    if (!selectedSessionId) return
 
     try {
       const result = await markAllAbsentMutation.mutateAsync(selectedSessionId)
@@ -585,6 +669,23 @@ export const TeacherAttendanceSection = ({
           <p className="text-gray-600">Vui lòng chọn buổi học để điểm danh</p>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() =>
+          setConfirmationModal({ ...confirmationModal, isOpen: false })
+        }
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        variant={confirmationModal.variant}
+        isLoading={
+          markAttendanceMutation.isPending ||
+          bulkMarkMutation.isPending ||
+          markAllAbsentMutation.isPending
+        }
+      />
     </div>
   )
 }

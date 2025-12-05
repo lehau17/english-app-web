@@ -1,32 +1,28 @@
 import { motion } from 'framer-motion'
 import {
-  Filter,
+  Edit,
   History,
   Pause,
   Play,
   Search,
   SortAsc,
-  Sparkles,
   Video,
   Volume2,
 } from 'lucide-react'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePodcasts } from '../hooks/podcast.hooks'
-import { useAIPodcastRecommendations } from '../hooks/useAIPodcastRecommendations'
-import { AIRecommendationCard } from '../components/podcast/AIRecommendationCard'
+import { UpdatePodcastModal } from '../components/podcast/UpdatePodcastModal'
+import { usePodcast, usePodcasts } from '../hooks/podcast.hooks'
 import { PodcastMediaType } from '../types/podcast.type'
 
 const ListeningPracticePage: React.FC = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
   const [currentPlaying, setCurrentPlaying] = useState<number | null>(null)
-  const [filterCategory, setFilterCategory] = useState('all')
-  const [filterSource, setFilterSource] = useState('all')
-  const [filterDuration, setFilterDuration] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage] = useState(1)
+  const [editingPodcastId, setEditingPodcastId] = useState<string | null>(null)
 
   // Fetch podcasts data (skip for recommended tab since we use AI)
   const {
@@ -36,38 +32,18 @@ const ListeningPracticePage: React.FC = () => {
   } = usePodcasts({
     page: currentPage,
     limit: 12,
-    category: filterCategory === 'all' ? undefined : filterCategory,
     search: searchQuery || undefined,
-    tab:
-      activeTab === 'all'
-        ? undefined
-        : (activeTab as 'recommended' | 'listening' | 'completed'),
-    source: filterSource === 'all' ? undefined : filterSource,
-    duration:
-      filterDuration === 'all'
-        ? undefined
-        : (filterDuration as 'short' | 'medium' | 'long'),
+    tab: activeTab === 'all' ? undefined : (activeTab as 'my-podcasts'),
     sortBy: sortBy,
   })
 
-  // Fetch AI recommendations when on recommended tab
-  const { data: aiRecommendationsData, isLoading: isLoadingAI } =
-    useAIPodcastRecommendations(activeTab === 'recommended')
-
-  console.log('Podcasts Response:', podcastsResponse)
-  console.log('AI Recommendations:', aiRecommendationsData)
-
   // Determine what to display based on active tab
-  const podcasts =
-    activeTab === 'recommended'
-      ? [] // Don't show regular podcasts on AI tab
-      : podcastsResponse?.data || []
-  const totalPodcasts =
-    activeTab === 'recommended'
-      ? aiRecommendationsData?.recommendations?.length || 0
-      : podcastsResponse?.total || 0
-  const isCurrentlyLoading =
-    activeTab === 'recommended' ? isLoadingAI : isLoading
+  const podcasts = podcastsResponse?.data || []
+  const totalPodcasts = podcastsResponse?.total || 0
+  const isCurrentlyLoading = isLoading
+
+  // Fetch podcast details when editing (to get gaps and transcript)
+  const { data: editingPodcastData } = usePodcast(editingPodcastId || '')
 
   const tabs = [
     {
@@ -76,20 +52,9 @@ const ListeningPracticePage: React.FC = () => {
       count: activeTab === 'all' ? totalPodcasts : undefined,
     },
     {
-      key: 'recommended',
-      label: 'Đề xuất cho bạn',
-      icon: Sparkles,
-      count: activeTab === 'recommended' ? totalPodcasts : undefined,
-    },
-    {
-      key: 'listening',
-      label: 'Bài đang nghe',
-      count: activeTab === 'listening' ? totalPodcasts : undefined,
-    },
-    {
-      key: 'completed',
-      label: 'Bài đã nghe',
-      count: activeTab === 'completed' ? totalPodcasts : undefined,
+      key: 'my-podcasts',
+      label: 'Podcast của tôi',
+      count: activeTab === 'my-podcasts' ? totalPodcasts : undefined,
     },
   ]
 
@@ -127,7 +92,7 @@ const ListeningPracticePage: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Sparkles size={18} />
+                <Video size={18} />
                 Tạo Podcast
               </motion.button>
             </div>
@@ -164,7 +129,6 @@ const ListeningPracticePage: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {tab.icon && <tab.icon size={16} className="mr-1.5 sm:mr-2" />}
                 <span>{tab.label}</span>
                 {tab.count !== undefined && (
                   <span className="ml-1.5 sm:ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -178,51 +142,6 @@ const ListeningPracticePage: React.FC = () => {
 
         {/* Filters */}
         <div className="flex flex-col gap-4 mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-          {/* Filter Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Filter className="h-4 w-4 text-gray-500" />
-              <span className="text-xs sm:text-sm font-medium text-gray-700">
-                Bộ lọc:
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Tất cả thể loại</option>
-                <option value="study">Du học</option>
-                <option value="business">Kinh doanh</option>
-                <option value="tech">Công nghệ</option>
-              </select>
-
-              <select
-                value={filterSource}
-                onChange={(e) => setFilterSource(e.target.value)}
-                className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Tất cả nguồn</option>
-                <option value="wele">WELE Partners</option>
-                <option value="ted">TED Talks</option>
-                <option value="bbc">BBC</option>
-              </select>
-
-              <select
-                value={filterDuration}
-                onChange={(e) => setFilterDuration(e.target.value)}
-                className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Tất cả độ dài</option>
-                <option value="short">&lt; 10 phút</option>
-                <option value="medium">10-20 phút</option>
-                <option value="long">&gt; 20 phút</option>
-              </select>
-            </div>
-          </div>
-
           {/* Sort Section */}
           <div className="flex flex-col xs:flex-row xs:items-center gap-3">
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -262,22 +181,8 @@ const ListeningPracticePage: React.FC = () => {
         {/* Podcast Grid */}
         {!isCurrentlyLoading && !error && (
           <>
-            {/* AI Recommendations Grid (for recommended tab) */}
-            {activeTab === 'recommended' &&
-              aiRecommendationsData?.recommendations && (
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {aiRecommendationsData.recommendations.map((rec) => (
-                    <AIRecommendationCard
-                      key={rec.podcastId}
-                      recommendation={rec}
-                      onClick={() => navigate(`/podcasts/${rec.podcastId}`)}
-                    />
-                  ))}
-                </div>
-              )}
-
-            {/* Regular Podcasts Grid (for other tabs) */}
-            {activeTab !== 'recommended' && (
+            {/* Regular Podcasts Grid */}
+            {
               <div className="grid gap-4 sm:gap-6">
                 {podcasts.map((podcast: any, index: number) => (
                   <motion.div
@@ -444,25 +349,49 @@ const ListeningPracticePage: React.FC = () => {
                                 Chưa học
                               </span>
                             )}
+                            {activeTab === 'my-podcasts' && (
+                              <span
+                                className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
+                                  podcast.isPublic
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                {podcast.isPublic ? 'Công khai' : 'Riêng tư'}
+                              </span>
+                            )}
                           </div>
 
-                          <motion.button
-                            onClick={() =>
-                              navigate(`/listening-practice/${podcast.id}`)
-                            }
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-all shadow-sm"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            Học ngay
-                          </motion.button>
+                          <div className="flex items-center gap-2">
+                            {activeTab === 'my-podcasts' && (
+                              <motion.button
+                                onClick={() => setEditingPodcastId(podcast.id)}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all shadow-sm flex items-center gap-2"
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <Edit size={16} />
+                                <span className="hidden sm:inline">Sửa</span>
+                              </motion.button>
+                            )}
+                            <motion.button
+                              onClick={() =>
+                                navigate(`/listening-practice/${podcast.id}`)
+                              }
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-all shadow-sm"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              Học ngay
+                            </motion.button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </motion.div>
                 ))}
               </div>
-            )}
+            }
 
             {/* Load more button */}
             <div className="text-center mt-6 sm:mt-8">
@@ -475,6 +404,25 @@ const ListeningPracticePage: React.FC = () => {
               </motion.button>
             </div>
           </>
+        )}
+
+        {/* Update Podcast Modal */}
+        {editingPodcastId && editingPodcastData && (
+          <UpdatePodcastModal
+            podcast={{
+              id: editingPodcastData.id,
+              title: editingPodcastData.title,
+              description: editingPodcastData.description || '',
+              isPublic: editingPodcastData.isPublic ?? true,
+              gaps: editingPodcastData.gaps,
+              transcript: editingPodcastData.transcript,
+            }}
+            isOpen={!!editingPodcastId}
+            onClose={() => setEditingPodcastId(null)}
+            onSuccess={() => {
+              setEditingPodcastId(null)
+            }}
+          />
         )}
       </div>
     </div>

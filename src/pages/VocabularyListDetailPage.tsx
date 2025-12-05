@@ -1,7 +1,9 @@
 import {
   ArrowLeft,
   BookOpen,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Loader2,
   Plus,
   RotateCcw,
@@ -20,6 +22,8 @@ import {
   useVocabularyUnit,
   useVocabularyUnits,
 } from '../hooks/vocabulary.hooks'
+import { getVocabularyUnit } from '../services/vocabulary.api'
+import type { VocabularyUnit } from '../types/vocabulary.type'
 
 const VocabularyListDetailPage: React.FC = () => {
   const { listId } = useParams<{ listId: string }>()
@@ -27,6 +31,11 @@ const VocabularyListDetailPage: React.FC = () => {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
   const [showWordsModal, setShowWordsModal] = useState(false)
   const [reviewUnitId, setReviewUnitId] = useState<string | null>(null)
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
+  const [unitsWithTerms, setUnitsWithTerms] = useState<
+    Map<string, VocabularyUnit>
+  >(new Map())
+  const [loadingUnits, setLoadingUnits] = useState<Set<string>>(new Set())
 
   const { data: list, isLoading: listLoading } = useVocabularyList(listId!)
   const { data: units, isLoading: unitsLoading } = useVocabularyUnits(listId!)
@@ -62,6 +71,48 @@ const VocabularyListDetailPage: React.FC = () => {
   const handleCloseWordsModal = () => {
     setShowWordsModal(false)
     setReviewUnitId(null)
+  }
+
+  const handleToggleUnit = async (unitId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    // Check current state before updating
+    const isCurrentlyExpanded = expandedUnits.has(unitId)
+    const isExpanding = !isCurrentlyExpanded
+
+    // Update expanded state
+    setExpandedUnits((prev) => {
+      const next = new Set(prev)
+      if (isCurrentlyExpanded) {
+        next.delete(unitId)
+      } else {
+        next.add(unitId)
+      }
+      return next
+    })
+
+    // Fetch terms if expanding and not already cached
+    if (isExpanding && !unitsWithTerms.has(unitId) && listId) {
+      setLoadingUnits((loading) => new Set(loading).add(unitId))
+      getVocabularyUnit(listId, unitId)
+        .then((unitWithTerms) => {
+          setUnitsWithTerms((prev) => {
+            const next = new Map(prev)
+            next.set(unitId, unitWithTerms)
+            return next
+          })
+        })
+        .catch((error) => {
+          console.error('Failed to fetch unit terms:', error)
+        })
+        .finally(() => {
+          setLoadingUnits((loading) => {
+            const next = new Set(loading)
+            next.delete(unitId)
+            return next
+          })
+        })
+    }
   }
 
   const handleStartOver = async (unitId: string) => {
@@ -185,48 +236,134 @@ const VocabularyListDetailPage: React.FC = () => {
 
             {/* Units */}
             <div className="space-y-2">
-              {units?.map((unit) => (
-                <div
-                  key={unit.id}
-                  onClick={() => setSelectedUnitId(unit.id)}
-                  className={`flex items-center justify-between p-2 sm:p-3 rounded-xl cursor-pointer transition-all ${
-                    selectedUnit?.id === unit.id
-                      ? 'bg-blue-500 text-white shadow-md'
-                      : 'bg-white hover:bg-gray-100 text-gray-900 border border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                    {/* Unit Icon/Emoji */}
+              {units?.map((unit) => {
+                const isExpanded = expandedUnits.has(unit.id)
+                const isSelected = selectedUnit?.id === unit.id
+                const isLoading = loadingUnits.has(unit.id)
+                const unitWithTerms = unitsWithTerms.get(unit.id)
+                return (
+                  <div key={unit.id}>
                     <div
-                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-lg sm:text-xl flex-shrink-0 ${
-                        selectedUnit?.id === unit.id
-                          ? 'bg-white/20'
-                          : 'bg-blue-100'
+                      onClick={() => setSelectedUnitId(unit.id)}
+                      className={`flex items-center justify-between p-2 sm:p-3 rounded-xl cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-blue-500 text-white shadow-md'
+                          : 'bg-white hover:bg-gray-100 text-gray-900 border border-gray-200'
                       }`}
                     >
-                      📚
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                        {/* Unit Icon/Emoji */}
+                        <div
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-lg sm:text-xl flex-shrink-0 ${
+                            isSelected ? 'bg-white/20' : 'bg-blue-100'
+                          }`}
+                        >
+                          📚
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-xs sm:text-sm truncate">
+                            {unit.title}
+                          </p>
+                          <p
+                            className={`text-xs ${
+                              isSelected ? 'text-blue-100' : 'text-blue-600'
+                            }`}
+                          >
+                            {unit.userProgress?.completedTerms ?? 0}/
+                            {unit.termCount} cards
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => handleToggleUnit(unit.id, e)}
+                          className={`p-1 rounded transition-transform duration-200 ${
+                            isSelected
+                              ? 'text-white hover:bg-white/20'
+                              : 'text-gray-400 hover:bg-gray-100'
+                          }`}
+                          aria-expanded={isExpanded}
+                          aria-label={
+                            isExpanded ? 'Collapse unit' : 'Expand unit'
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </button>
+                        {!isSelected && !isExpanded && (
+                          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-xs sm:text-sm truncate">
-                        {unit.title}
-                      </p>
-                      <p
-                        className={`text-xs ${
-                          selectedUnit?.id === unit.id
-                            ? 'text-blue-100'
-                            : 'text-blue-600'
-                        }`}
+                    {/* Expanded Terms Area */}
+                    {isExpanded && (
+                      <div
+                        className="mt-2 ml-2 pl-4 border-l-2 border-blue-200 overflow-hidden transition-all duration-300"
+                        style={{
+                          maxHeight: isExpanded ? '1000px' : '0',
+                          opacity: isExpanded ? 1 : 0,
+                        }}
                       >
-                        {unit.userProgress?.completedTerms ?? 0}/
-                        {unit.termCount} cards
-                      </p>
-                    </div>
+                        {isLoading ? (
+                          <div className="p-4 flex items-center justify-center">
+                            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                            <span className="ml-2 text-sm text-gray-600">
+                              Loading terms...
+                            </span>
+                          </div>
+                        ) : unitWithTerms?.terms &&
+                          unitWithTerms.terms.length > 0 ? (
+                          <div className="space-y-2 py-2 max-h-96 overflow-y-auto">
+                            {unitWithTerms.terms.map((term) => (
+                              <div
+                                key={term.id}
+                                className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm hover:bg-gray-100 transition-colors"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-bold text-gray-900">
+                                        {term.word}
+                                      </span>
+                                      {term.partOfSpeech && (
+                                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                                          {term.partOfSpeech}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {(term.ipaUs || term.pronunciation) && (
+                                      <p className="text-gray-600 text-xs mb-1">
+                                        /{term.ipaUs || term.pronunciation}/
+                                      </p>
+                                    )}
+                                    {term.translationVi && (
+                                      <p className="text-blue-600 font-medium text-xs mb-1">
+                                        {term.translationVi}
+                                      </p>
+                                    )}
+                                    {term.definition && (
+                                      <p className="text-gray-700 text-xs line-clamp-2">
+                                        {term.definition}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-sm text-gray-500">
+                            No terms available
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {selectedUnit?.id !== unit.id && (
-                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

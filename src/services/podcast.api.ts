@@ -78,8 +78,8 @@ export const podcastApi = {
     premium?: boolean
     sortBy?: string
     sortOrder?: 'asc' | 'desc'
-    // UI tabs: 'all' | 'recommended' | 'listening' | 'completed'
-    tab?: 'all' | 'recommended' | 'listening' | 'completed'
+    // UI tabs: 'all' | 'recommended' | 'listening' | 'completed' | 'my-podcasts'
+    tab?: 'all' | 'recommended' | 'listening' | 'completed' | 'my-podcasts'
   }) => {
     // forward params directly to backend; backend already supports `tab` and other filters
     const response = await api.get('/private/v1/podcasts', { params })
@@ -96,6 +96,27 @@ export const podcastApi = {
     const response = await api.get('/private/v1/podcasts/ai-recommendations', {
       params: { limit },
     })
+    return response.data.data
+  },
+
+  // Update podcast
+  update: async (
+    id: string,
+    data: {
+      title?: string
+      description?: string
+      isPublic?: boolean
+      gaps?: Array<{
+        id?: string
+        startIndex: number
+        endIndex: number
+        answer: string
+        orderNo?: number
+      }>
+      [key: string]: any
+    }
+  ) => {
+    const response = await api.patch(`/private/v1/podcasts/${id}`, data)
     return response.data.data
   },
 }

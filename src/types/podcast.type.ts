@@ -12,6 +12,24 @@ export interface CreatePodcastGapData {
   orderNo?: number
 }
 
+// Gap interface for existing gaps (includes id)
+export interface PodcastGap {
+  id: string
+  startIndex: number
+  endIndex: number
+  answer: string
+  orderNo: number
+}
+
+// Update gap data (id optional - if present, update; if absent, create)
+export interface UpdatePodcastGapData {
+  id?: string
+  startIndex: number
+  endIndex: number
+  answer: string
+  orderNo?: number
+}
+
 export interface CreatePodcastData {
   title: string
   description: string
@@ -63,10 +81,20 @@ export interface Podcast {
   code: string
   createdAt: string
   updatedAt: string
+  gaps?: PodcastGap[] // Gaps for fill-in-the-blank
+  isPublic?: boolean // Public/private status
 }
 
 export interface CreatePodcastResponse {
   id: string
   title: string
   audioUrl: string
+}
+
+// Update podcast data
+export interface UpdatePodcastData {
+  title?: string
+  description?: string
+  isPublic?: boolean
+  gaps?: UpdatePodcastGapData[]
 }
