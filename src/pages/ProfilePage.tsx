@@ -67,10 +67,7 @@ export default function ProfilePage() {
 
   // Fallback to overview if activeTab is invalid (e.g., was 'playlists' from previous session)
   useEffect(() => {
-    if (
-      activeTab === 'playlists' ||
-      !['overview', 'settings', 'transactions'].includes(activeTab)
-    ) {
+    if (!['overview', 'settings', 'transactions'].includes(activeTab)) {
       setActiveTab('overview')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
