@@ -98,20 +98,81 @@ export default function AssignmentResultPage(): JSX.Element {
           })
 
           isCorrect = totalCorrect === totalQuestions
-        } else if (activity.type === 'quiz' && activity.content?.questions) {
-          // Handle quiz questions
+        } else if (
+          (activity.type === 'quiz' || activity.type === 'grammar') &&
+          activity.content?.questions &&
+          Array.isArray(activity.content.questions)
+        ) {
+          // Handle quiz/grammar with multiple questions (new format)
           const questions = activity.content.questions
           totalQuestions = questions.length
 
           questions.forEach((q: any, qIndex: number) => {
-            const userAnswerForQ = userAnswer?.[`q${qIndex}`]
-            const isQuestionCorrect = userAnswerForQ === q.correctAnswer
+            // User answer is stored as { 0: selectedIndex, 1: selectedIndex, ... }
+            const userAnswerForQ = userAnswer?.[qIndex]
+            const isQuestionCorrect = userAnswerForQ === q.correctIndex
             if (isQuestionCorrect) totalCorrect++
 
             detailedResults.push({
               question: q.question,
-              userAnswer: userAnswerForQ || 'Chưa trả lời',
-              correctAnswer: q.correctAnswer,
+              userAnswer:
+                userAnswerForQ !== undefined
+                  ? q.options?.[userAnswerForQ] ||
+                    `Đáp án ${userAnswerForQ + 1}`
+                  : 'Chưa trả lời',
+              correctAnswer:
+                q.options?.[q.correctIndex] || `Đáp án ${q.correctIndex + 1}`,
+              isCorrect: isQuestionCorrect,
+            })
+          })
+
+          isCorrect = totalCorrect === totalQuestions
+        } else if (
+          (activity.type === 'quiz' || activity.type === 'grammar') &&
+          activity.content?.question
+        ) {
+          // Handle quiz/grammar with single question (legacy format)
+          totalQuestions = 1
+          const isQuestionCorrect = userAnswer === activity.content.correctIndex
+          if (isQuestionCorrect) totalCorrect = 1
+
+          detailedResults.push({
+            question: activity.content.question,
+            userAnswer:
+              userAnswer !== undefined
+                ? activity.content.options?.[userAnswer] ||
+                  `Đáp án ${userAnswer + 1}`
+                : 'Chưa trả lời',
+            correctAnswer:
+              activity.content.options?.[activity.content.correctIndex] ||
+              `Đáp án ${activity.content.correctIndex + 1}`,
+            isCorrect: isQuestionCorrect,
+          })
+
+          isCorrect = isQuestionCorrect
+        } else if (
+          activity.type === 'reading' &&
+          activity.content?.questions &&
+          Array.isArray(activity.content.questions)
+        ) {
+          // Handle reading with multiple questions
+          const questions = activity.content.questions
+          totalQuestions = questions.length
+
+          questions.forEach((q: any, qIndex: number) => {
+            const userAnswerForQ = userAnswer?.[qIndex]
+            const isQuestionCorrect = userAnswerForQ === q.correctIndex
+            if (isQuestionCorrect) totalCorrect++
+
+            detailedResults.push({
+              question: q.question,
+              userAnswer:
+                userAnswerForQ !== undefined
+                  ? q.options?.[userAnswerForQ] ||
+                    `Đáp án ${userAnswerForQ + 1}`
+                  : 'Chưa trả lời',
+              correctAnswer:
+                q.options?.[q.correctIndex] || `Đáp án ${q.correctIndex + 1}`,
               isCorrect: isQuestionCorrect,
             })
           })

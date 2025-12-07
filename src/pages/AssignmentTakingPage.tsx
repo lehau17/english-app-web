@@ -214,7 +214,8 @@ export default function AssignmentTakingPage(): JSX.Element {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft]) // Remove handleSubmit from dependencies to avoid recreating timer
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft]) // handleSubmit intentionally excluded to avoid recreating timer on each render
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -437,38 +438,130 @@ export default function AssignmentTakingPage(): JSX.Element {
 
     switch (activity.type) {
       case 'quiz':
+      case 'grammar': {
+        // Handle both old (single question) and new (multiple questions) formats
+        const hasQuizQuestions =
+          activity.content.questions &&
+          Array.isArray(activity.content.questions) &&
+          activity.content.questions.length > 0
+        const quizQuestions = hasQuizQuestions
+          ? activity.content.questions
+          : [
+              {
+                question: activity.content.question,
+                options: activity.content.options || [],
+                correctIndex: activity.content.correctIndex || 0,
+                explanation: activity.content.explanation,
+              },
+            ]
+
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">
-              {activity.content.question}
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileQuestion className="h-5 w-5 text-purple-600" />
+              {activity.type === 'grammar' ? 'Ngữ pháp' : 'Trắc nghiệm'}
             </h3>
-            <div className="space-y-2">
-              {(activity.content.options || []).map(
-                (option: string, index: number) => (
-                  <label
-                    key={index}
-                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+
+            {/* Questions Section */}
+            <div className="space-y-6">
+              {quizQuestions.map((question: any, questionIndex: number) => {
+                const questionKey = `${activity.id}_q${questionIndex}`
+                const questionAnswer = hasQuizQuestions
+                  ? answer && typeof answer === 'object'
+                    ? answer[questionIndex]
+                    : undefined
+                  : answer
+
+                return (
+                  <div
+                    key={questionIndex}
+                    className="border border-gray-200 rounded-lg p-4 bg-white"
                   >
-                    <input
-                      type="radio"
-                      name={activity.id}
-                      value={index}
-                      checked={answer === index}
-                      onChange={(e) =>
-                        handleAnswerChange(
-                          activity.id,
-                          parseInt(e.target.value)
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-800 mb-2">
+                        {quizQuestions.length > 1 && (
+                          <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full mr-2">
+                            Câu {questionIndex + 1}
+                          </span>
+                        )}
+                        {question.question}
+                      </h4>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(question.options || []).map(
+                        (option: string, optionIndex: number) => (
+                          <label
+                            key={optionIndex}
+                            className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition"
+                          >
+                            <input
+                              type="radio"
+                              name={questionKey}
+                              value={optionIndex}
+                              checked={questionAnswer === optionIndex}
+                              onChange={(e) => {
+                                const newOptionIndex = parseInt(e.target.value)
+                                if (hasQuizQuestions) {
+                                  // Multiple questions format
+                                  const newAnswer = { ...(answer || {}) }
+                                  newAnswer[questionIndex] = newOptionIndex
+                                  handleAnswerChange(activity.id, newAnswer)
+                                } else {
+                                  // Single question format (backward compatibility)
+                                  handleAnswerChange(
+                                    activity.id,
+                                    newOptionIndex
+                                  )
+                                }
+                              }}
+                              className="text-purple-600"
+                            />
+                            <span className="text-gray-700">{option}</span>
+                          </label>
                         )
-                      }
-                      className="text-blue-600"
-                    />
-                    <span>{option}</span>
-                  </label>
+                      )}
+                    </div>
+                  </div>
                 )
-              )}
+              })}
             </div>
+
+            {/* Progress Indicator for Multiple Questions */}
+            {quizQuestions.length > 1 && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-purple-700 font-medium">Tiến độ:</span>
+                  <span className="text-purple-600">
+                    {answer && typeof answer === 'object'
+                      ? Object.keys(answer).length
+                      : answer !== undefined
+                        ? 1
+                        : 0}{' '}
+                    / {quizQuestions.length} câu đã trả lời
+                  </span>
+                </div>
+                <div className="mt-2 bg-purple-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        answer && typeof answer === 'object'
+                          ? (Object.keys(answer).length /
+                              quizQuestions.length) *
+                            100
+                          : answer !== undefined
+                            ? (1 / quizQuestions.length) * 100
+                            : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )
+      }
 
       case 'fill_blank':
         return (
@@ -1417,52 +1510,6 @@ export default function AssignmentTakingPage(): JSX.Element {
               >
                 {answer === 'studied' ? 'Đã học xong' : 'Đánh dấu đã học'}
               </button>
-            </div>
-          </div>
-        )
-
-      case 'grammar':
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <FileText className="h-5 w-5 text-emerald-600" />
-              Ngữ pháp
-            </h3>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <h4 className="font-medium text-emerald-800 mb-2">
-                Quy tắc ngữ pháp:
-              </h4>
-              <p className="text-emerald-700">{activity.content.rule}</p>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-700 mb-3">
-                {activity.content.question}
-              </h4>
-              <div className="space-y-2">
-                {(activity.content.options || []).map(
-                  (option: string, index: number) => (
-                    <label
-                      key={index}
-                      className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="radio"
-                        name={activity.id}
-                        value={index}
-                        checked={answer === index}
-                        onChange={(e) =>
-                          handleAnswerChange(
-                            activity.id,
-                            parseInt(e.target.value)
-                          )
-                        }
-                        className="text-emerald-600"
-                      />
-                      <span>{option}</span>
-                    </label>
-                  )
-                )}
-              </div>
             </div>
           </div>
         )
