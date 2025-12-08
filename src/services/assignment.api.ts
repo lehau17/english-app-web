@@ -195,7 +195,7 @@ export async function uploadActivityAudio(
   formData.append('file', audioBlob, 'recording.webm')
 
   const res = await api.post<BaseResponse<{ url: string }>>(
-    `/private/v1/upload`,
+    `/public/v1/upload`,
     formData,
     {
       headers: {
@@ -204,4 +204,26 @@ export async function uploadActivityAudio(
     }
   )
   return { audioUrl: res.data.data.url }
+}
+
+// Submit assignment with streaming grading
+export type StreamingSubmitResponse = {
+  id: string
+  status: 'GRADING'
+  message: string
+}
+
+export async function submitAssignmentStreaming(
+  assignmentId: string,
+  payload: {
+    answers: Record<string, any>
+    timeSpent?: number
+    notes?: string
+  }
+): Promise<StreamingSubmitResponse> {
+  const res = await api.post<BaseResponse<StreamingSubmitResponse>>(
+    `/private/v1/assignments/${assignmentId}/submit-streaming`,
+    payload
+  )
+  return res.data.data
 }

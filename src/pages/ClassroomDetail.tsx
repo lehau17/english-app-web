@@ -1521,12 +1521,19 @@ export default function ClassroomDetail(props: {
   // Check if course is completed (has certificate)
   const isCourseCompleted = !!courseCertificate
 
-  const sortedStudentAssignments = useMemo(() => {
+  // Filter assignments based on role: Teacher sees all, Student sees only published
+  const filteredAssignments = useMemo(() => {
     if (!classroomDetail?.assignments) return []
+    // Teacher: show all assignments (including drafts)
+    // Student: only show published assignments
+    if (user?.role === 'teacher') {
+      return classroomDetail.assignments
+    }
+    return classroomDetail.assignments.filter((a) => a.isPublished)
+  }, [classroomDetail?.assignments, user?.role])
 
-    const publishedAssignments = classroomDetail.assignments.filter(
-      (a) => a.isPublished
-    )
+  const sortedStudentAssignments = useMemo(() => {
+    if (filteredAssignments.length === 0) return []
 
     const assignmentPriority = {
       [AssignmentType.FINAL_EXAM]: 4,
@@ -1535,7 +1542,7 @@ export default function ClassroomDetail(props: {
       [AssignmentType.HOMEWORK]: 1,
     }
 
-    return publishedAssignments.sort((a, b) => {
+    return [...filteredAssignments].sort((a, b) => {
       const aHasSubmission = !!a.submission
       const bHasSubmission = !!b.submission
 
@@ -1558,7 +1565,7 @@ export default function ClassroomDetail(props: {
       const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity
       return dateA - dateB
     })
-  }, [classroomDetail?.assignments])
+  }, [filteredAssignments])
 
   // Lấy dữ liệu lesson tiếp theo từ API /next
   const role = user?.role
@@ -2330,9 +2337,9 @@ export default function ClassroomDetail(props: {
                 )}
               </div>
               {(() => {
-                const assignmentGroups = groupAssignmentsByType(
-                  detail?.assignments || []
-                )
+                // Use filteredAssignments (role-based: teacher sees all, student sees published only)
+                const assignmentGroups =
+                  groupAssignmentsByType(filteredAssignments)
                 const assignmentTypes = [
                   AssignmentType.HOMEWORK,
                   AssignmentType.QUIZ,
@@ -2497,27 +2504,25 @@ export default function ClassroomDetail(props: {
                                     }}
                                   />
                                 ))
-                              : // Student view - Show published assignments
-                                assignments
-                                  .filter((a) => a.isPublished)
-                                  .map((assignment) => (
-                                    <StudentAssignmentCard
-                                      key={assignment.id}
-                                      assignment={assignment}
-                                      submission={assignment.submission ?? null}
-                                      onDownloadPdf={handleDownloadPdf}
-                                      onStartAssignment={(aid) => {
-                                        navigate(
-                                          `/classroom/${detail!.id}/assignment/${aid}`
-                                        )
-                                      }}
-                                      onViewResult={(aid) => {
-                                        navigate(
-                                          `/classroom/${detail!.id}/assignment/${aid}/result`
-                                        )
-                                      }}
-                                    />
-                                  ))}
+                              : // Student view - assignments already filtered by role
+                                assignments.map((assignment) => (
+                                  <StudentAssignmentCard
+                                    key={assignment.id}
+                                    assignment={assignment}
+                                    submission={assignment.submission ?? null}
+                                    onDownloadPdf={handleDownloadPdf}
+                                    onStartAssignment={(aid) => {
+                                      navigate(
+                                        `/classroom/${detail!.id}/assignment/${aid}`
+                                      )
+                                    }}
+                                    onViewResult={(aid) => {
+                                      navigate(
+                                        `/classroom/${detail!.id}/assignment/${aid}/result`
+                                      )
+                                    }}
+                                  />
+                                ))}
                           </div>
                         </div>
                       )

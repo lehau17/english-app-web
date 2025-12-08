@@ -26,7 +26,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   getAssignmentForTaking,
   getMySubmissionHistory,
-  submitAssignment,
+  submitAssignmentStreaming,
   uploadActivityAudio,
 } from '../services/assignment.api'
 import { AssignmentType } from '../types/assignment.type'
@@ -419,10 +419,26 @@ export default function AssignmentTakingPage(): JSX.Element {
         notes: '',
       }
 
-      await submitAssignment(assignmentId, submissionData)
+      // Use streaming API for real-time grading progress
+      const result = await submitAssignmentStreaming(
+        assignmentId,
+        submissionData
+      )
 
-      toast.success('Nộp bài thành công!')
-      navigate(`/classroom/${classroomId}/assignment/${assignmentId}/result`)
+      toast.success('Nộp bài thành công! Đang chấm điểm...')
+
+      // Navigate to result page with streaming mode
+      navigate(`/classroom/${classroomId}/assignment/${assignmentId}/result`, {
+        state: {
+          submissionId: result.id,
+          streaming: true,
+          activities: assignment.assignmentActivities.map((a) => ({
+            id: a.id,
+            type: a.type,
+            title: a.title,
+          })),
+        },
+      })
     } catch (error: any) {
       console.error('Error submitting assignment:', error)
       const errorMessage =
@@ -1704,52 +1720,191 @@ export default function AssignmentTakingPage(): JSX.Element {
           </div>
         )
 
-      case 'mini_game':
-        const gameAnswer = answer || { completed: false, score: 0 }
+      case 'mini_game': {
+        // Word Scramble Game
+        const pool: string[] = activity.content.pool || []
+        const target: string = activity.content.target || ''
+        const rounds: number = activity.content.rounds || 1
+
+        // Get current game state from answer
+        const gameState = answer || {
+          selectedIndices: [] as number[],
+          completed: false,
+          score: 0,
+        }
+        const selectedIndices: number[] = gameState.selectedIndices || []
+
+        // Build current word from selected indices
+        const currentWord = selectedIndices.map((i) => pool[i]).join('')
+        const isCorrect =
+          currentWord.toLowerCase() === target.toLowerCase() &&
+          selectedIndices.length === pool.length
+
+        // Handler for clicking a letter
+        const handleLetterClick = (index: number) => {
+          if (gameState.completed) return
+
+          if (selectedIndices.includes(index)) {
+            // Deselect - remove from selected
+            const newSelected = selectedIndices.filter((i) => i !== index)
+            handleAnswerChange(activity.id, {
+              ...gameState,
+              selectedIndices: newSelected,
+            })
+          } else {
+            // Select - add to selected
+            const newSelected = [...selectedIndices, index]
+            handleAnswerChange(activity.id, {
+              ...gameState,
+              selectedIndices: newSelected,
+            })
+          }
+        }
+
+        // Handler for reset
+        const handleReset = () => {
+          handleAnswerChange(activity.id, {
+            selectedIndices: [],
+            completed: false,
+            score: 0,
+          })
+        }
+
+        // Handler for confirming answer
+        const handleConfirm = () => {
+          if (isCorrect) {
+            handleAnswerChange(activity.id, {
+              selectedIndices,
+              completed: true,
+              score: activity.points,
+            })
+          }
+        }
 
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Trophy className="h-5 w-5 text-yellow-600" />
-              Mini Game
+              Mini Game - Ghép từ
             </h3>
+
+            {/* Game info */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-yellow-800 font-medium mb-2">
-                Mục tiêu: {activity.content.target}
+              <p className="text-yellow-800 font-medium mb-1">
+                Mục tiêu: Sắp xếp các chữ cái để tạo thành từ &quot;{target}
+                &quot;
               </p>
               <p className="text-yellow-600 text-sm">
-                Số vòng chơi: {activity.content.rounds}
+                Số vòng chơi: {rounds} | Điểm: {activity.points}
               </p>
             </div>
-            <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <Trophy className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-              <p className="text-gray-600 mb-3">
-                Mini game sẽ được phát triển trong phiên bản sau
-              </p>
-              {activity.content.pool &&
-                Array.isArray(activity.content.pool) && (
-                  <p className="text-gray-500 text-sm mb-3">
-                    Từ vựng: {activity.content.pool.join(', ')}
+
+            {/* Answer display zone */}
+            <div className="bg-white border-2 border-blue-200 rounded-lg p-4 min-h-[80px]">
+              <p className="text-sm text-gray-500 mb-2">Từ của bạn:</p>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                {selectedIndices.length === 0 ? (
+                  <p className="text-gray-400 italic">
+                    Click vào các chữ cái bên dưới
                   </p>
+                ) : (
+                  selectedIndices.map((idx, pos) => (
+                    <button
+                      key={`selected-${pos}`}
+                      onClick={() => handleLetterClick(idx)}
+                      disabled={gameState.completed}
+                      className={`w-12 h-12 rounded-lg text-xl font-bold uppercase transition-all transform hover:scale-105 ${
+                        gameState.completed
+                          ? 'bg-green-500 text-white'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                    >
+                      {pool[idx]}
+                    </button>
+                  ))
                 )}
-              <button
-                onClick={() =>
-                  handleAnswerChange(activity.id, {
-                    completed: true,
-                    score: 100,
-                  })
-                }
-                className={`px-6 py-2 rounded-lg ${
-                  gameAnswer.completed
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-yellow-100'
-                }`}
-              >
-                {gameAnswer.completed ? 'Đã hoàn thành' : 'Đánh dấu hoàn thành'}
-              </button>
+              </div>
             </div>
+
+            {/* Letter pool */}
+            <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6">
+              <p className="text-sm text-gray-500 mb-3 text-center">
+                Chữ cái có sẵn:
+              </p>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                {pool.map((letter, index) => {
+                  const isSelected = selectedIndices.includes(index)
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleLetterClick(index)}
+                      disabled={gameState.completed || isSelected}
+                      className={`w-14 h-14 rounded-xl text-2xl font-bold uppercase transition-all transform ${
+                        isSelected
+                          ? 'bg-gray-300 text-gray-400 cursor-not-allowed scale-90 opacity-50'
+                          : gameState.completed
+                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white hover:scale-110 hover:shadow-lg cursor-pointer'
+                      }`}
+                    >
+                      {letter}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={handleReset}
+                disabled={gameState.completed || selectedIndices.length === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Làm lại
+              </button>
+
+              {!gameState.completed &&
+                selectedIndices.length === pool.length && (
+                  <button
+                    onClick={handleConfirm}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all ${
+                      isCorrect
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-red-100 text-red-600 cursor-not-allowed'
+                    }`}
+                  >
+                    {isCorrect ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Chính xác! Xác nhận
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4" />
+                        Chưa đúng
+                      </>
+                    )}
+                  </button>
+                )}
+            </div>
+
+            {/* Completion message */}
+            {gameState.completed && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <CheckCircle className="mx-auto h-8 w-8 text-green-600 mb-2" />
+                <p className="text-green-800 font-medium">
+                  🎉 Xuất sắc! Bạn đã hoàn thành mini game!
+                </p>
+                <p className="text-green-600 text-sm mt-1">
+                  Điểm: {gameState.score}/{activity.points}
+                </p>
+              </div>
+            )}
           </div>
         )
+      }
 
       default:
         return (

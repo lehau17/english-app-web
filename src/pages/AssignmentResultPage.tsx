@@ -8,11 +8,13 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState, type JSX } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   getMySubmissionHistory,
   getMySubmissionResult,
 } from '../services/assignment.api'
+import { useGradingSocket } from '../hooks/useGradingSocket'
+import { GradingProgressPanel } from '../components/GradingProgressPanel'
 
 // API interfaces based on backend models
 interface AssignmentResult {
@@ -45,15 +47,124 @@ interface ActivityForResult {
 
 export default function AssignmentResultPage(): JSX.Element {
   const navigate = useNavigate()
+  const location = useLocation()
   const { classroomId, assignmentId } = useParams<{
     classroomId: string
     assignmentId: string
   }>()
 
+  // Get streaming state from navigation
+  const { submissionId, streaming, activities } =
+    (location.state as {
+      submissionId?: string
+      streaming?: boolean
+      activities?: Array<{ id: string; type: string; title: string }>
+    }) || {}
+
+  // Use grading socket if in streaming mode
+  const { isConnected, progress } = useGradingSocket(
+    streaming ? submissionId || null : null
+  )
+
   const [result, setResult] = useState<AssignmentResult | null>(null)
   const [history, setHistory] = useState<AssignmentResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showHistory, setShowHistory] = useState(false)
+
+  // If streaming mode and grading complete, fetch the actual result
+  useEffect(() => {
+    if (streaming && progress.status === 'complete' && assignmentId) {
+      // Fetch the actual result after grading is complete
+      getMySubmissionResult(assignmentId)
+        .then((res) => {
+          setResult(res.data)
+          setIsLoading(false)
+        })
+        .catch(console.error)
+    }
+  }, [streaming, progress.status, assignmentId])
+
+  // Load result and history (must be called before any conditional returns)
+  useEffect(() => {
+    const loadResult = async () => {
+      if (!assignmentId) {
+        navigate(`/classroom/${classroomId}`)
+        return
+      }
+
+      // Skip loading if in streaming mode and not complete yet
+      if (streaming && progress.status !== 'complete') {
+        return
+      }
+
+      try {
+        setIsLoading(true)
+
+        // Load both current submission and history
+        const [currentResponse, historyResponse] = await Promise.all([
+          getMySubmissionResult(assignmentId),
+          getMySubmissionHistory(assignmentId),
+        ])
+
+        const submissionData = currentResponse.data
+        const historyData = historyResponse.data || []
+
+        if (!submissionData) {
+          // No submission found, redirect back
+          navigate(`/classroom/${classroomId}/assignment/${assignmentId}`)
+          return
+        }
+
+        setResult(submissionData)
+        setHistory(historyData)
+      } catch (error) {
+        console.error('Error loading result:', error)
+        navigate(`/classroom/${classroomId}`)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadResult()
+  }, [assignmentId, classroomId, navigate, streaming, progress.status])
+
+  // If streaming mode and still grading, show progress panel
+  if (streaming && progress.status !== 'complete') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-8">
+        <div className="max-w-2xl mx-auto px-4">
+          {/* Header */}
+          <div className="mb-8">
+            <button
+              onClick={() => navigate(`/classroom/${classroomId}`)}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Quay lại lớp học
+            </button>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Kết quả bài tập
+            </h1>
+          </div>
+
+          {/* Grading Progress Panel */}
+          <GradingProgressPanel
+            progress={progress}
+            activities={activities || []}
+            onBackToClassroom={() => navigate(`/classroom/${classroomId}`)}
+          />
+
+          {/* Connection status */}
+          {!isConnected && progress.status !== 'error' && (
+            <div className="mt-4 text-center text-yellow-600 text-sm flex items-center justify-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Đang kết nối lại...
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // Helper function to calculate percentage
   const getPercentage = (result: AssignmentResult): number => {
@@ -108,7 +219,6 @@ export default function AssignmentResultPage(): JSX.Element {
           totalQuestions = questions.length
 
           questions.forEach((q: any, qIndex: number) => {
-            // User answer is stored as { 0: selectedIndex, 1: selectedIndex, ... }
             const userAnswerForQ = userAnswer?.[qIndex]
             const isQuestionCorrect = userAnswerForQ === q.correctIndex
             if (isQuestionCorrect) totalCorrect++
@@ -219,44 +329,6 @@ export default function AssignmentResultPage(): JSX.Element {
       }
     )
   }
-
-  useEffect(() => {
-    const loadResult = async () => {
-      if (!assignmentId) {
-        navigate(`/classroom/${classroomId}`)
-        return
-      }
-
-      try {
-        setIsLoading(true)
-
-        // Load both current submission and history
-        const [currentResponse, historyResponse] = await Promise.all([
-          getMySubmissionResult(assignmentId),
-          getMySubmissionHistory(assignmentId),
-        ])
-
-        const submissionData = currentResponse.data
-        const historyData = historyResponse.data || []
-
-        if (!submissionData) {
-          // No submission found, redirect back
-          navigate(`/classroom/${classroomId}/assignment/${assignmentId}`)
-          return
-        }
-
-        setResult(submissionData)
-        setHistory(historyData)
-      } catch (error) {
-        console.error('Error loading result:', error)
-        navigate(`/classroom/${classroomId}`)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadResult()
-  }, [assignmentId, classroomId, navigate])
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)

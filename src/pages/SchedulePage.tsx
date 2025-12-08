@@ -50,23 +50,15 @@ const stateStyles: Record<
   },
 }
 
-const formatTimeRange = (
-  start: string,
-  end: string,
-  timezone: string
-): string => {
-  const fmt = new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: timezone.replace('_', '/'),
-  })
-  const startLabel = fmt.format(new Date(start))
-  const endLabel = fmt.format(new Date(end))
+const formatTimeRange = (start: string, end: string): string => {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  const startLabel = `${String(startDate.getUTCHours()).padStart(2, '0')}:${String(startDate.getUTCMinutes()).padStart(2, '0')}`
+  const endLabel = `${String(endDate.getUTCHours()).padStart(2, '0')}:${String(endDate.getUTCMinutes()).padStart(2, '0')}`
   return `${startLabel} - ${endLabel}`
 }
 
-const formatWeekRange = (startDate: Date, timezone: string) => {
+const formatWeekRange = (startDate: Date) => {
   const start = new Date(startDate)
   const end = new Date(startDate)
   end.setDate(end.getDate() + 6)
@@ -75,7 +67,6 @@ const formatWeekRange = (startDate: Date, timezone: string) => {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    timeZone: timezone.replace('_', '/'),
   })
 
   return `${formatter.format(start)} - ${formatter.format(end)}`
@@ -290,8 +281,7 @@ const SchedulePage = () => {
             Lịch học, lịch thi theo tuần
           </h1>
           <p className="text-xs sm:text-sm text-gray-500">
-            {formatWeekRange(weekStartDate, timezone)} · Múi giờ{' '}
-            {timezone.replace('_', '/')}
+            {formatWeekRange(weekStartDate)}
           </p>
         </div>
 
@@ -308,7 +298,7 @@ const SchedulePage = () => {
             <div className="flex items-center px-2 sm:px-3 flex-1 min-w-0">
               <CalendarDays className="mr-1 sm:mr-2 h-4 w-4 text-blue-600 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
-                {formatWeekRange(weekStartDate, timezone)}
+                {formatWeekRange(weekStartDate)}
               </span>
             </div>
             <button
@@ -366,7 +356,7 @@ const SchedulePage = () => {
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  Tuần {formatWeekRange(weekStartDate, timezone)}
+                  Tuần {formatWeekRange(weekStartDate)}
                 </h2>
               </div>
               <span className="text-xs font-medium text-gray-400">
@@ -422,12 +412,9 @@ const SchedulePage = () => {
                             <div className="flex flex-col gap-1.5 sm:gap-2">
                               {sessions.map((session) => {
                                 const style = stateStyles[session.state]
-                                const sessionTimezone =
-                                  session.timezone || timezone
                                 const timeLabel = formatTimeRange(
                                   session.startTime,
-                                  session.endTime,
-                                  sessionTimezone
+                                  session.endTime
                                 )
 
                                 return (
