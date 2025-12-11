@@ -54,6 +54,7 @@ export interface AssignmentCreateRequest {
   timeLimit?: number
   maxAttempts?: number
   activities: AssignmentCreateActivity[]
+  startTime?: string // ISO
   type?: AssignmentType // NEW
   weight?: number // NEW - weight for final grade calculation
 }

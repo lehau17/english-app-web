@@ -84,4 +84,5 @@ export interface MakeupRequestFilter {
   page?: number
   limit?: number
   status?: MakeupRequestStatus
+  classroomId?: string
 }

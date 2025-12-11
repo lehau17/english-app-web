@@ -1,4 +1,4 @@
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, FileEdit } from 'lucide-react'
 import { useState } from 'react'
 import { useMyAttendanceHistory } from '../../hooks/useAttendance'
 import type {
@@ -9,6 +9,7 @@ import type {
 import { AttendanceFilter } from './AttendanceFilter'
 import { AttendanceHistoryList } from './AttendanceHistoryList'
 import { AttendanceSummaryCard } from './AttendanceSummaryCard'
+import { MakeupRequestHistorySection } from './MakeupRequestHistorySection'
 
 interface MyAttendanceSectionProps {
   classroomId: string
@@ -144,6 +145,24 @@ export const MyAttendanceSection = ({
         items={history?.data || []}
         isLoading={isLoading}
       />
+
+      {/* Makeup Request History Section */}
+      <div className="mt-8 pt-8 border-t border-gray-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-purple-100 rounded-lg">
+            <FileEdit className="w-6 h-6 text-purple-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              Lịch sử yêu cầu điểm danh bù
+            </h2>
+            <p className="text-sm text-gray-600">
+              Xem tất cả các yêu cầu điểm danh bù của bạn trong lớp học này
+            </p>
+          </div>
+        </div>
+        <MakeupRequestHistorySection classroomId={classroomId} />
+      </div>
     </div>
   )
 }

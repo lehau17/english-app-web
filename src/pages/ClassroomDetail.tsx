@@ -41,7 +41,6 @@ import {
   MyAttendanceSection,
   TeacherAttendanceSection,
 } from '../components/attendance'
-import { useClassroomSessions } from '../hooks/useTeacherAttendance'
 import CreateAssignmentModal from '../components/classroom/CreateAssignmentModal'
 import ConversationWidget from '../components/conversation/ConversationWidget'
 import UserDetailModal from '../components/user/UserDetailModel'
@@ -50,6 +49,7 @@ import { useConversation } from '../context/useConversation'
 import { useClassroomAnnouncements } from '../hooks/useClassroomAnnouncements'
 import { useClassroomDetail } from '../hooks/useClassroomDetail'
 import { useNextLesson } from '../hooks/useNextLesson'
+import { useClassroomSessions } from '../hooks/useTeacherAttendance'
 import { useStudentDetail, useTeacherDetail } from '../hooks/useUserDetail'
 import {
   deleteAssignment,
@@ -1476,6 +1476,14 @@ export default function ClassroomDetail(props: {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [searchStudent, setSearchStudent] = useState<string>('')
+
+  // Handle URL hash for tab navigation (e.g., #attendance)
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '')
+    if (hash === 'attendance') {
+      setActiveTab('attendance')
+    }
+  }, [])
   // const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [showAnnForm, setShowAnnForm] = useState(false)
   const [annTitle, setAnnTitle] = useState('')

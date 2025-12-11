@@ -156,7 +156,7 @@ export default function CreateAssignmentModal({
             description: '',
             instructions: '',
             isPublished: false,
-            totalPoints: 100,
+            // totalPoints removed - backend will set to 100
             maxAttempts: 1,
             timeLimit: undefined,
             type: AssignmentType.HOMEWORK,
@@ -285,9 +285,7 @@ export default function CreateAssignmentModal({
     if (importPreview.assignment.instructions) {
       setValue('instructions', importPreview.assignment.instructions)
     }
-    if (importPreview.assignment.totalPoints) {
-      setValue('totalPoints', importPreview.assignment.totalPoints)
-    }
+    // totalPoints removed - backend will set to 100
     if (importPreview.assignment.timeLimit) {
       setValue('timeLimit', importPreview.assignment.timeLimit)
     }
@@ -510,13 +508,27 @@ export default function CreateAssignmentModal({
       return
     }
 
-    // Ensure dueDate ISO if provided (from datetime-local)
+    // Validate startTime < dueDate
+    const start = (values as any).startTime as any
     const due = (values as any).dueDate as any
+    if (start && due) {
+      const startTime = new Date(start)
+      const dueDate = new Date(due)
+      if (startTime >= dueDate) {
+        toast.error('Thời gian bắt đầu phải trước hạn nộp')
+        return
+      }
+    }
+
+    // Remove totalPoints (backend will set to 100)
+    // Remove passingScore from activities
+    const { totalPoints, ...restValues } = values
     const payload: AssignmentCreateRequest = {
-      ...values,
+      ...restValues,
       title: values.title.trim(),
       description: values.description?.trim() || undefined,
       instructions: values.instructions?.trim() || undefined,
+      startTime: start ? new Date(start).toISOString() : undefined,
       dueDate: due ? new Date(due).toISOString() : undefined,
       // Only send timeLimit if it's a valid positive integer
       timeLimit:
@@ -534,6 +546,11 @@ export default function CreateAssignmentModal({
           : !!values.isPublished,
       // Convert weight from 0-100% to 0-1
       weight: values.weight ? values.weight / 100 : 0,
+      // Remove passingScore from activities
+      activities: values.activities.map((a: any) => {
+        const { passingScore, ...rest } = a
+        return rest
+      }),
     }
     mutation.mutate(payload)
   }
@@ -622,11 +639,9 @@ export default function CreateAssignmentModal({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Labeled label="Tổng điểm">
-                <TextInput
-                  type="number"
-                  min={0}
-                  {...register('totalPoints', { valueAsNumber: true })}
-                />
+                <div className="text-sm">
+                  <span className="font-semibold">100</span>
+                </div>
               </Labeled>
               <Labeled label="Giới hạn thời gian (phút)">
                 <TextInput
@@ -738,16 +753,6 @@ export default function CreateAssignmentModal({
                             {...register(`activities.${idx}.points` as const, {
                               valueAsNumber: true,
                             })}
-                          />
-                        </Labeled>
-                        <Labeled label="Qua bài khi ≥ điểm">
-                          <TextInput
-                            type="number"
-                            min={0}
-                            {...register(
-                              `activities.${idx}.passingScore` as const,
-                              { valueAsNumber: true }
-                            )}
                           />
                         </Labeled>
                         <Labeled label="Hướng dẫn">
@@ -1846,27 +1851,32 @@ function TypeSpecificFields({
       )
     case 'dictation':
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Labeled label="Audio URL">
-            <TextInput {...register(`${basePath}.audioUrl` as const)} />
-          </Labeled>
-          <Labeled label="Số từ tối thiểu">
-            <TextInput
-              type="number"
-              min={0}
-              {...register(`${basePath}.minWords` as const, {
-                valueAsNumber: true,
-              })}
-            />
-          </Labeled>
-          <div className="md:col-span-2">
-            <Labeled label="Bản chép chuẩn (đáp án)">
-              <TextArea
-                rows={4}
-                {...register(`${basePath}.transcript` as const)}
+        <div className="space-y-4">
+          <AudioGenerationOptions
+            value={val('audioUrl')}
+            onChange={(audioUrl) =>
+              setValue(`${basePath}.audioUrl` as any, audioUrl)
+            }
+            label="Audio for Dictation Activity"
+            required
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Labeled label="Số từ tối thiểu">
+              <TextInput
+                type="number"
+                min={0}
+                {...register(`${basePath}.minWords` as const, {
+                  valueAsNumber: true,
+                })}
               />
             </Labeled>
           </div>
+          <Labeled label="Bản chép chuẩn (đáp án)">
+            <TextArea
+              rows={4}
+              {...register(`${basePath}.transcript` as const)}
+            />
+          </Labeled>
         </div>
       )
     case 'matching':

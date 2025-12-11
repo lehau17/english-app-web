@@ -6,6 +6,7 @@ import {
   Copyright,
   Gift,
   Globe,
+  GraduationCap,
   LogOut,
   Menu,
   Search,
@@ -135,6 +136,10 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                         <BarChart3 className="h-4 w-4" />
                         Báo cáo học tập
                       </DropdownMenuItem>
+                      <DropdownMenuItem to="/parent/grades">
+                        <GraduationCap className="h-4 w-4" />
+                        Bảng điểm
+                      </DropdownMenuItem>
                     </DropdownMenu>
                     <DropdownMenu label="Tài khoản">
                       <DropdownMenuItem to="/parent-rewards">
@@ -199,12 +204,12 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       Từ vựng
                     </NavLink>
                     <NavLink
-                      to="/certificates"
+                      to="/transcript"
                       className={({ isActive }) =>
                         `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
                       }
                     >
-                      Chứng chỉ
+                      Bảng điểm
                     </NavLink>
                   </>
                 )}
@@ -333,6 +338,16 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       Báo cáo học tập
                     </NavLink>
                     <NavLink
+                      to="/parent/grades"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <GraduationCap className="h-5 w-5" />
+                      Bảng điểm
+                    </NavLink>
+                    <NavLink
                       to="/parent-rewards"
                       onClick={() => setMobileMenuOpen(false)}
                       className={({ isActive }) =>
@@ -401,13 +416,14 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       Từ điển
                     </NavLink>
                     <NavLink
-                      to="/certificates"
+                      to="/transcript"
                       onClick={() => setMobileMenuOpen(false)}
                       className={({ isActive }) =>
-                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
                       }
                     >
-                      Chứng chỉ
+                      <GraduationCap className="h-5 w-5" />
+                      Bảng điểm
                     </NavLink>
                   </>
                 )}

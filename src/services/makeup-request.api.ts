@@ -30,6 +30,7 @@ export const getMyMakeupRequests = async (
   if (filter.page) params.append('page', filter.page.toString())
   if (filter.limit) params.append('limit', filter.limit.toString())
   if (filter.status) params.append('status', filter.status)
+  if (filter.classroomId) params.append('classroomId', filter.classroomId)
 
   const response = await api.get(
     `/private/v1/sessions/my/makeup-requests?${params.toString()}`

@@ -6,6 +6,7 @@ import {
   Calendar,
   Check,
   Clock,
+  ExternalLink,
   FileText,
   MessageCircle,
   MoreVertical,
@@ -23,6 +24,10 @@ import {
   markNotificationRead,
   type ApiNotification,
 } from '../services/notifications.api'
+import {
+  getClassroomIdFromNotification,
+  isMakeupRequestNotification,
+} from '../utils/notification.utils'
 
 interface Notification {
   id: string
@@ -45,16 +50,29 @@ interface Notification {
 
 interface NotificationItemProps {
   notification: Notification
+  apiNotification: ApiNotification
   onMarkAsRead: (id: string) => void
   onDelete: (id: string) => void
 }
 
 const NotificationItem: React.FC<NotificationItemProps> = ({
   notification,
+  apiNotification,
   onMarkAsRead,
   onDelete,
 }) => {
   const [showActions, setShowActions] = useState(false)
+  const navigate = useNavigate()
+  const isMakeupRequest = isMakeupRequestNotification(apiNotification)
+  const classroomId = isMakeupRequest
+    ? getClassroomIdFromNotification(apiNotification)
+    : null
+
+  const handleViewAttendance = () => {
+    if (classroomId) {
+      navigate(`/classroom-detail/${classroomId}#attendance`)
+    }
+  }
 
   return (
     <div
@@ -95,6 +113,15 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             <p className="mt-1 text-sm text-gray-600 line-clamp-2">
               {notification.content}
             </p>
+            {isMakeupRequest && classroomId && (
+              <button
+                onClick={handleViewAttendance}
+                className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Xem điểm danh</span>
+              </button>
+            )}
             {!notification.isRead && (
               <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full"></div>
             )}
@@ -475,6 +502,9 @@ const NotificationsPage: React.FC = () => {
                 <div className="flex-1">
                   <NotificationItem
                     notification={notification}
+                    apiNotification={
+                      items.find((n) => n.id === notification.id)!
+                    }
                     onMarkAsRead={markAsRead}
                     onDelete={deleteNotification}
                   />

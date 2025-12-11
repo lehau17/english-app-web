@@ -180,6 +180,93 @@ export const createLinkRequestApi = async (
   return data
 }
 
+export interface ParentChildrenGrades {
+  children: {
+    childId: string
+    childName: string
+    classrooms: {
+      classroomId: string
+      classroomName: string
+      courseName: string
+      midterm?: number | null
+      final?: number | null
+      tests?: number | null
+      activities?: number | null
+      finalGrade: number
+    }[]
+  }[]
+}
+
+export const getParentChildrenGradesApi = async (): Promise<
+  BaseResponse<ParentChildrenGrades>
+> => {
+  const { data } = await api.get<BaseResponse<ParentChildrenGrades>>(
+    '/private/v1/parent/children/grades'
+  )
+  return data
+}
+
+export const exportParentChildrenGradesApi = async (): Promise<Blob> => {
+  const response = await api.get('/private/v1/parent/children/grades/export', {
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+export interface AssignmentDetail {
+  assignmentId: string
+  title: string
+  type: string
+  totalPoints: number
+  weight: number
+  score: number | null
+  maxScore: number
+  submissionId: string | null
+  submittedAt: string | null
+  gradedAt: string | null
+  feedback: string | null
+  attemptCount: number
+}
+
+export interface ActivityDetail {
+  activityId: string
+  title: string
+  type: string
+  lessonTitle: string
+  bestScore: number | null
+  currentScore: number | null
+  attemptsCount: number
+  state: string
+  timeSpentSec: number
+}
+
+export interface ChildGradeDetails {
+  studentId: string
+  studentName: string
+  classroomId: string
+  classroomName: string
+  assignments: {
+    midterm: AssignmentDetail[]
+    final: AssignmentDetail[]
+    tests: AssignmentDetail[]
+  }
+  activities: ActivityDetail[]
+}
+
+export const getChildGradeDetailsApi = async (
+  classroomId: string,
+  childId: string
+): Promise<ChildGradeDetails> => {
+  const response = await api.get<{
+    statusCode: number
+    message: string
+    data: ChildGradeDetails
+  }>(
+    `/private/v1/gradebook/classrooms/${classroomId}/students/${childId}/details`
+  )
+  return response.data.data
+}
+
 // Export as parentApi object for consistency
 export const parentApi = {
   getDashboard: getParentDashboardApi,
@@ -197,4 +284,6 @@ export const parentApi = {
   getUnpaidClassrooms: getParentUnpaidClassroomsApi,
   getPaymentSummary: getParentPaymentSummaryApi,
   createLinkRequest: createLinkRequestApi,
+  getChildrenGrades: getParentChildrenGradesApi,
+  exportChildrenGrades: exportParentChildrenGradesApi,
 }

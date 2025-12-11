@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import AvatarUpload from '../components/profile/AvatarUpload'
+import CertificatesCard from '../components/profile/CertificatesCard'
 import ChangePasswordModal from '../components/profile/ChangePasswordModal'
 import EditProfileModal from '../components/profile/EditProfileModal'
 import LanguageSettingsModal from '../components/profile/LanguageSettingsModal'
@@ -311,6 +312,9 @@ export default function ProfilePage() {
 
             {/* Learning Analytics Dashboard */}
             <LearningAnalyticsDashboard timeRange="month" />
+
+            {/* Certificates - Only for students */}
+            {user?.role === 'student' && <CertificatesCard />}
 
             {/* Learning History Link */}
             <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">

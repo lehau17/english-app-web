@@ -9,7 +9,6 @@ import {
   Clock,
   FileQuestion,
   FileText,
-  Link,
   Mic,
   PenTool,
   Play,
@@ -23,6 +22,8 @@ import {
 import { useEffect, useRef, useState, type JSX } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
+import { FillBlankActivity } from '../components/assignment/FillBlankActivity'
+import { MatchingActivity } from '../components/assignment/MatchingActivity'
 import {
   getAssignmentForTaking,
   getMySubmissionHistory,
@@ -37,6 +38,7 @@ interface Assignment {
   title: string
   description?: string
   instructions?: string
+  startTime?: string
   dueDate?: string
   totalPoints: number
   timeLimit?: number // in minutes
@@ -96,9 +98,10 @@ export default function AssignmentTakingPage(): JSX.Element {
     >
   >({})
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
   const timerIntervalRef = useRef<number | null>(null)
   const audioStreamRef = useRef<MediaStream | null>(null)
+  const startTimeRef = useRef<number | null>(null)
+  const currentRecordingIdRef = useRef<string | null>(null)
 
   // Load assignment data from API
   useEffect(() => {
@@ -161,12 +164,24 @@ export default function AssignmentTakingPage(): JSX.Element {
           return
         }
 
+        const now = new Date()
+        const startTime = assignmentData.startTime
+          ? new Date(assignmentData.startTime)
+          : null
+        const dueDate = assignmentData.dueDate
+          ? new Date(assignmentData.dueDate)
+          : null
+
+        // Check start time
+        if (startTime && now < startTime) {
+          toast.error('Bài tập chưa đến giờ bắt đầu')
+          navigate(`/classroom-detail/${classroomId}`)
+          return
+        }
+
         // Check due date
-        if (
-          assignmentData.dueDate &&
-          new Date() > new Date(assignmentData.dueDate)
-        ) {
-          toast.error('Bài tập này đã hết hạn nộp')
+        if (dueDate && now > dueDate) {
+          toast.error('Bài tập đã hết hạn')
           navigate(`/classroom-detail/${classroomId}`)
           return
         }
@@ -217,6 +232,24 @@ export default function AssignmentTakingPage(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft]) // handleSubmit intentionally excluded to avoid recreating timer on each render
 
+  // Auto-submit when dueDate passes
+  useEffect(() => {
+    if (!assignment?.dueDate) return
+
+    const checkInterval = setInterval(() => {
+      const now = new Date()
+      const dueDate = new Date(assignment.dueDate!)
+
+      if (now > dueDate) {
+        handleSubmit() // Auto submit
+        clearInterval(checkInterval)
+      }
+    }, 1000) // Check every second
+
+    return () => clearInterval(checkInterval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignment?.dueDate]) // handleSubmit intentionally excluded
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -231,67 +264,71 @@ export default function AssignmentTakingPage(): JSX.Element {
   }
 
   // Audio recording handlers
-  const handleStartRecording = async (activityId: string) => {
+  const handleStartRecording = async (key: string) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       audioStreamRef.current = stream
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
 
-      const mr = new MediaRecorder(stream)
-      mediaRecorderRef.current = mr
-      audioChunksRef.current = []
-
-      mr.ondataavailable = (e) => {
+      const chunks: BlobPart[] = []
+      mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data)
+          chunks.push(e.data)
         }
       }
 
-      mr.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        const duration = Math.round(
+          (Date.now() - (startTimeRef.current || 0)) / 1000
+        )
+
         setRecordingStates((prev) => ({
           ...prev,
-          [activityId]: {
-            ...prev[activityId],
+          [key]: {
             isRecording: false,
             recordedBlob: blob,
+            duration,
+            isUploading: false,
           },
         }))
 
-        // Stop all audio tracks
         if (audioStreamRef.current) {
           audioStreamRef.current.getTracks().forEach((track) => track.stop())
           audioStreamRef.current = null
         }
       }
 
-      mr.start()
+      mediaRecorder.start()
+      startTimeRef.current = Date.now()
+
       setRecordingStates((prev) => ({
         ...prev,
-        [activityId]: {
+        [key]: {
           isRecording: true,
           recordedBlob: null,
           duration: 0,
           isUploading: false,
         },
       }))
+      currentRecordingIdRef.current = key
 
-      // Start timer
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current)
-      }
-      timerIntervalRef.current = window.setInterval(() => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = setInterval(() => {
         setRecordingStates((prev) => ({
           ...prev,
-          [activityId]: {
-            ...prev[activityId],
-            duration: (prev[activityId]?.duration || 0) + 1,
+          [key]: {
+            ...prev[key],
+            duration: Math.round(
+              (Date.now() - (startTimeRef.current || 0)) / 1000
+            ),
           },
         }))
       }, 1000)
-
       toast.success('Đã bắt đầu ghi âm')
     } catch (error: any) {
-      console.error('Error starting recording:', error)
+      console.error('Error accessing microphone:', error)
       if (error.name === 'NotAllowedError') {
         toast.error('Vui lòng cho phép truy cập microphone')
       } else {
@@ -313,32 +350,55 @@ export default function AssignmentTakingPage(): JSX.Element {
     }
   }
 
-  const handleReRecord = (activityId: string) => {
+  const handleReRecord = (
+    key: string,
+    activityId: string,
+    phraseIndex?: number
+  ) => {
     setRecordingStates((prev) => ({
       ...prev,
-      [activityId]: {
+      [key]: {
         isRecording: false,
         recordedBlob: null,
         duration: 0,
         isUploading: false,
       },
     }))
-    // Clear answer if it was an audio URL
-    const currentAnswer = answers[activityId]
-    if (typeof currentAnswer === 'string' && currentAnswer.startsWith('http')) {
-      handleAnswerChange(activityId, '')
+
+    // Clear answer logic
+    if (phraseIndex !== undefined) {
+      // Clear specific phrase answer
+      const currentAnswer = answers[activityId] || {}
+      const newAnswer = { ...currentAnswer }
+      delete newAnswer[phraseIndex]
+      handleAnswerChange(activityId, newAnswer)
+    } else {
+      // Clear entire activity answer (for Speaking)
+      const currentAnswer = answers[activityId]
+      if (
+        typeof currentAnswer === 'string' &&
+        currentAnswer.startsWith('http')
+      ) {
+        handleAnswerChange(activityId, '')
+      }
     }
   }
 
   const handleUploadAudio = async (
     activityId: string,
     blob: Blob,
-    mergeWithExisting = false
+    mergeWithExisting = false,
+    phraseIndex?: number
   ) => {
+    const stateKey =
+      phraseIndex !== undefined
+        ? `${activityId}_phrase_${phraseIndex}`
+        : activityId
+
     setRecordingStates((prev) => ({
       ...prev,
-      [activityId]: {
-        ...prev[activityId],
+      [stateKey]: {
+        ...prev[stateKey],
         isUploading: true,
       },
     }))
@@ -346,8 +406,15 @@ export default function AssignmentTakingPage(): JSX.Element {
     try {
       const { audioUrl } = await uploadActivityAudio(blob)
 
-      if (mergeWithExisting) {
-        // For pronunciation: merge audioUrl with existing data (practiced)
+      if (phraseIndex !== undefined) {
+        // For pronunciation with multiple phrases
+        const currentAnswer = answers[activityId] || {}
+        handleAnswerChange(activityId, {
+          ...currentAnswer,
+          [phraseIndex]: audioUrl,
+        })
+      } else if (mergeWithExisting) {
+        // For pronunciation (legacy/single): merge audioUrl with existing data (practiced)
         const currentAnswer = answers[activityId] || {}
         handleAnswerChange(activityId, {
           ...currentAnswer,
@@ -365,8 +432,8 @@ export default function AssignmentTakingPage(): JSX.Element {
     } finally {
       setRecordingStates((prev) => ({
         ...prev,
-        [activityId]: {
-          ...prev[activityId],
+        [stateKey]: {
+          ...prev[stateKey],
           isUploading: false,
         },
       }))
@@ -581,118 +648,20 @@ export default function AssignmentTakingPage(): JSX.Element {
 
       case 'fill_blank':
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Điền vào chỗ trống</h3>
-            {activity.content.passage ? (
-              // New format with passage and multiple blanks
-              <div className="text-gray-700 leading-relaxed">
-                {activity.content.passage
-                  .split('___')
-                  .map((part: string, index: number, array: string[]) => (
-                    <span key={index}>
-                      {part}
-                      {index < array.length - 1 && (
-                        <input
-                          type="text"
-                          value={answer?.[index] || ''}
-                          onChange={(e) => {
-                            const newAnswers = [...(answer || [])]
-                            newAnswers[index] = e.target.value
-                            handleAnswerChange(activity.id, newAnswers)
-                          }}
-                          className="mx-2 px-2 py-1 border-b-2 border-blue-500 focus:outline-none focus:border-blue-700 min-w-[100px] bg-blue-50"
-                          placeholder={`Blank ${index + 1}`}
-                        />
-                      )}
-                    </span>
-                  ))}
-              </div>
-            ) : (
-              // Legacy format with single sentence
-              <p className="text-gray-700">
-                {activity.content.sentence
-                  .split('_____')
-                  .map((part: string, index: number, array: string[]) => (
-                    <span key={index}>
-                      {part}
-                      {index < array.length - 1 && (
-                        <input
-                          type="text"
-                          value={answer || ''}
-                          onChange={(e) =>
-                            handleAnswerChange(activity.id, e.target.value)
-                          }
-                          className="mx-2 px-2 py-1 border-b-2 border-blue-500 focus:outline-none focus:border-blue-700 min-w-[100px]"
-                          placeholder="..."
-                        />
-                      )}
-                    </span>
-                  ))}
-              </p>
-            )}
-          </div>
+          <FillBlankActivity
+            activity={activity}
+            savedAnswer={answer}
+            onSave={(newAnswer) => handleAnswerChange(activity.id, newAnswer)}
+          />
         )
 
       case 'matching':
-        const matches = answer || {}
-        const pairs = activity.content.pairs || []
-        const leftItems = pairs.map((pair: any) => pair.left)
-        const rightItems = pairs.map((pair: any) => pair.right)
-
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Link className="h-5 w-5 text-blue-600" />
-              Nối các cặp phù hợp
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <h4 className="font-medium text-gray-700">Cột A</h4>
-                {leftItems.map((item: string, index: number) => (
-                  <div
-                    key={index}
-                    className="p-3 border rounded-lg bg-blue-50 border-blue-200"
-                  >
-                    <span className="font-medium text-blue-800">
-                      {index + 1}. {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-medium text-gray-700">Cột B</h4>
-                {leftItems.map((leftItem: string, leftIndex: number) => (
-                  <div key={leftIndex} className="flex items-center gap-2">
-                    <span className="font-medium text-blue-800">
-                      {leftIndex + 1}.
-                    </span>
-                    <select
-                      value={matches[leftItem] || ''}
-                      onChange={(e) => {
-                        const newMatches = { ...matches }
-                        if (e.target.value) {
-                          newMatches[leftItem] = e.target.value
-                        } else {
-                          delete newMatches[leftItem]
-                        }
-                        handleAnswerChange(activity.id, newMatches)
-                      }}
-                      className="flex-1 p-2 border rounded-lg focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="">-- Chọn đáp án --</option>
-                      {rightItems.map(
-                        (rightItem: string, rightIndex: number) => (
-                          <option key={rightIndex} value={rightItem}>
-                            {String.fromCharCode(65 + rightIndex)}. {rightItem}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <MatchingActivity
+            activity={activity}
+            savedAnswer={answer}
+            onSave={(newAnswer) => handleAnswerChange(activity.id, newAnswer)}
+          />
         )
 
       case 'listening':
@@ -722,7 +691,14 @@ export default function AssignmentTakingPage(): JSX.Element {
             {/* Audio Section */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <audio controls className="w-full mb-3">
-                <source src={activity.content.audioUrl} type="audio/mpeg" />
+                <source
+                  src={
+                    typeof activity.content.audioUrl === 'string'
+                      ? activity.content.audioUrl
+                      : activity.content.audioUrl?.url
+                  }
+                  type="audio/mpeg"
+                />
                 Trình duyệt của bạn không hỗ trợ phát audio.
               </audio>
               <p className="text-blue-800 font-medium text-sm">
@@ -1109,7 +1085,7 @@ export default function AssignmentTakingPage(): JSX.Element {
                   {/* Action Buttons */}
                   <div className="flex gap-3 justify-center">
                     <button
-                      onClick={() => handleReRecord(activity.id)}
+                      onClick={() => handleReRecord(activity.id, activity.id)}
                       className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 flex items-center gap-2"
                     >
                       <RotateCcw className="h-4 w-4" />
@@ -1119,7 +1095,8 @@ export default function AssignmentTakingPage(): JSX.Element {
                       onClick={() =>
                         handleUploadAudio(
                           activity.id,
-                          recordState.recordedBlob!
+                          recordState.recordedBlob!,
+                          false
                         )
                       }
                       disabled={recordState.isUploading}
@@ -1152,7 +1129,7 @@ export default function AssignmentTakingPage(): JSX.Element {
 
                   {/* Re-record Button */}
                   <button
-                    onClick={() => handleReRecord(activity.id)}
+                    onClick={() => handleReRecord(activity.id, activity.id)}
                     className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 flex items-center gap-2 mx-auto"
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -1177,9 +1154,6 @@ export default function AssignmentTakingPage(): JSX.Element {
               },
             ]
 
-        // Track which phrases have been practiced
-        const practicedPhrases = answer?.practiced || []
-
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -1187,64 +1161,163 @@ export default function AssignmentTakingPage(): JSX.Element {
               Phát âm
             </h3>
 
-            {/* Phrases Section */}
+            {/* Audio Recording Section - Per Phrase */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h5 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                <Mic className="h-5 w-5" />
+                Ghi âm từng câu <span className="text-red-500">*</span>
+              </h5>
+              <p className="text-blue-700 text-sm">
+                📢 Hãy ghi âm từng cụm từ phía trên. Điểm số sẽ được tính trung
+                bình dựa trên tổng số cụm từ.
+              </p>
+            </div>
+
             <div className="space-y-4">
-              {phrases.map((phrase: any, phraseIndex: number) => (
-                <div
-                  key={phraseIndex}
-                  className="bg-blue-50 border border-blue-200 rounded-lg p-4"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      {phrases.length > 1 && (
+              {phrases.map((phrase: any, phraseIndex: number) => {
+                const stateKey = `${activity.id}_phrase_${phraseIndex}`
+                // Ensure state exists
+                const phraseRecordState = recordingStates[stateKey] || {
+                  isRecording: false,
+                  recordedBlob: null,
+                  duration: 0,
+                  isUploading: false,
+                }
+
+                // Get existing answer for this phrase
+                // answers format: { [index]: "url", practiced: [] }
+                const currentAnswer = answers[activity.id] || {}
+                const savedAudioUrl = currentAnswer[phraseIndex]
+                const isRecorded = !!savedAudioUrl
+
+                return (
+                  <div
+                    key={phraseIndex}
+                    className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-4"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
                         <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">
                           Cụm từ {phraseIndex + 1}
                         </span>
+                        <p className="text-lg font-medium text-gray-800">
+                          {phrase.text}
+                        </p>
+                      </div>
+                      {isRecorded && (
+                        <span className="text-green-600 flex items-center text-sm font-medium">
+                          <CheckCircle className="h-4 w-4 mr-1" /> Đã nộp
+                        </span>
                       )}
-                      <p className="text-blue-900 font-medium text-lg">
-                        Phát âm:{' '}
-                        <span className="font-bold">{phrase.text}</span>
-                      </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        const newPracticed = practicedPhrases.includes(
-                          phraseIndex
-                        )
-                          ? practicedPhrases
-                          : [...practicedPhrases, phraseIndex]
-                        handleAnswerChange(activity.id, {
-                          practiced: newPracticed,
-                        })
-                      }}
-                      className={`ml-3 px-3 py-1 rounded-lg text-sm transition ${
-                        practicedPhrases.includes(phraseIndex)
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {practicedPhrases.includes(phraseIndex)
-                        ? '✓ Đã thực hành'
-                        : 'Đánh dấu'}
-                    </button>
-                  </div>
 
-                  {phrase.sampleUrl && (
-                    <div className="mb-3">
-                      <p className="text-blue-700 text-sm mb-2">Nghe mẫu:</p>
-                      <audio controls className="w-full">
-                        <source src={phrase.sampleUrl} type="audio/mpeg" />
-                        Trình duyệt của bạn không hỗ trợ phát audio.
-                      </audio>
+                    {phrase.sampleUrl && (
+                      <div className="mb-4 bg-gray-50 p-2 rounded">
+                        <p className="text-xs text-gray-500 mb-1">Nghe mẫu:</p>
+                        <audio controls className="w-full h-8">
+                          <source src={phrase.sampleUrl} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+
+                    <div className="border-t pt-4">
+                      {!phraseRecordState.recordedBlob && !isRecorded ? (
+                        // Start Recording
+                        <div className="flex flex-col items-center">
+                          {phraseRecordState.isRecording ? (
+                            <>
+                              <div className="text-red-600 font-bold mb-2 animate-pulse flex items-center gap-2">
+                                <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+                                Đang ghi... {phraseRecordState.duration}s
+                              </div>
+                              <button
+                                onClick={handleStopRecording}
+                                className="px-4 py-2 bg-red-600 text-white rounded text-sm flex items-center gap-2"
+                              >
+                                <Square className="h-4 w-4" /> Dừng
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleStartRecording(stateKey)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded text-sm flex items-center gap-2"
+                            >
+                              <Mic className="h-4 w-4" /> Ghi âm
+                            </button>
+                          )}
+                        </div>
+                      ) : phraseRecordState.recordedBlob && !isRecorded ? (
+                        // Review & Upload
+                        <div className="flex flex-col items-center gap-3">
+                          <audio
+                            controls
+                            className="w-full h-8"
+                            src={URL.createObjectURL(
+                              phraseRecordState.recordedBlob
+                            )}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() =>
+                                handleReRecord(
+                                  stateKey,
+                                  activity.id,
+                                  phraseIndex
+                                )
+                              }
+                              className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm flex items-center gap-1"
+                            >
+                              <RotateCcw className="h-3 w-3" /> Ghi lại
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleUploadAudio(
+                                  activity.id,
+                                  phraseRecordState.recordedBlob!,
+                                  false,
+                                  phraseIndex
+                                )
+                              }
+                              disabled={phraseRecordState.isUploading}
+                              className="px-3 py-1 bg-green-600 text-white rounded text-sm flex items-center gap-1 disabled:opacity-50"
+                            >
+                              {phraseRecordState.isUploading
+                                ? 'Đang tải...'
+                                : 'Lưu lại'}{' '}
+                              <Upload className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        // Completed / Review Saved
+                        <div className="flex flex-col items-center gap-2">
+                          {savedAudioUrl && (
+                            <audio
+                              controls
+                              className="w-full h-8"
+                              src={savedAudioUrl}
+                            />
+                          )}
+                          <button
+                            onClick={() => {
+                              // Allow re-recording by clearing specific answer
+                              handleReRecord(stateKey, activity.id, phraseIndex)
+                            }}
+                            className="text-blue-600 text-xs hover:underline flex items-center gap-1 mt-1"
+                          >
+                            <RotateCcw className="h-3 w-3" /> Ghi âm lại
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Tips Section */}
             {activity.content.tips && activity.content.tips.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                 <h5 className="font-medium text-blue-800 mb-2">Mẹo phát âm:</h5>
                 <ul className="list-disc list-inside text-blue-700 text-sm space-y-1">
                   {activity.content.tips.map((tip: string, index: number) => (
@@ -1255,173 +1328,33 @@ export default function AssignmentTakingPage(): JSX.Element {
             )}
 
             {/* Progress Indicator */}
-            {phrases.length > 1 && (
+            {phrases.length > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-blue-700 font-medium">Tiến độ:</span>
                   <span className="text-blue-600">
-                    {practicedPhrases.length} / {phrases.length} cụm từ đã thực
-                    hành
+                    {
+                      Object.keys(answer || {}).filter(
+                        (key) => !isNaN(Number(key))
+                      ).length
+                    }{' '}
+                    / {phrases.length} cụm từ đã ghi âm
                   </span>
                 </div>
                 <div className="mt-2 bg-blue-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: `${(practicedPhrases.length / phrases.length) * 100}%`,
+                      width: `${(Object.keys(answer || {}).filter((key) => !isNaN(Number(key))).length / phrases.length) * 100}%`,
                     }}
                   />
                 </div>
               </div>
             )}
-
-            {/* Audio Recording Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h5 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
-                <Mic className="h-5 w-5" />
-                Ghi âm phát âm <span className="text-red-500">*</span>
-              </h5>
-              <p className="text-blue-700 text-sm mb-4">
-                📢 Bạn cần ghi âm đọc tất cả các cụm từ phía trên để hoàn thành
-                bài tập này
-              </p>
-
-              {(() => {
-                const pronunciationRecordState = recordingStates[
-                  activity.id
-                ] || {
-                  isRecording: false,
-                  recordedBlob: null,
-                  duration: 0,
-                  isUploading: false,
-                }
-                const hasAudioAnswer =
-                  typeof answer?.audioUrl === 'string' &&
-                  answer.audioUrl.startsWith('http')
-
-                return (
-                  <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 bg-white">
-                    {!pronunciationRecordState.recordedBlob &&
-                    !hasAudioAnswer ? (
-                      // Initial / Recording State
-                      <div className="text-center">
-                        <Mic
-                          className={`mx-auto h-12 w-12 mb-3 ${
-                            pronunciationRecordState.isRecording
-                              ? 'text-blue-600 animate-pulse'
-                              : 'text-blue-400'
-                          }`}
-                        />
-
-                        {pronunciationRecordState.isRecording ? (
-                          <>
-                            <p className="text-blue-600 font-medium mb-2">
-                              🔴 Đang ghi âm...
-                            </p>
-                            <p className="text-xl font-bold text-blue-600 mb-3">
-                              {pronunciationRecordState.duration}s
-                            </p>
-                            <button
-                              onClick={handleStopRecording}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 mx-auto"
-                            >
-                              <Square className="h-4 w-4" />
-                              Dừng ghi
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-gray-600 mb-3 text-sm">
-                              Đọc tất cả các cụm từ phía trên
-                            </p>
-                            <button
-                              onClick={() => handleStartRecording(activity.id)}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 mx-auto"
-                            >
-                              <Play className="h-4 w-4" />
-                              Bắt đầu ghi âm
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : pronunciationRecordState.recordedBlob &&
-                      !hasAudioAnswer ? (
-                      // Preview State
-                      <div className="text-center">
-                        <CheckCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
-                        <p className="text-green-600 font-medium mb-2">
-                          Đã ghi âm xong!
-                        </p>
-                        <p className="text-gray-600 mb-3 text-sm">
-                          Thời lượng: {pronunciationRecordState.duration}s
-                        </p>
-
-                        <audio
-                          controls
-                          className="w-full mb-3"
-                          src={URL.createObjectURL(
-                            pronunciationRecordState.recordedBlob
-                          )}
-                        />
-
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            onClick={() => handleReRecord(activity.id)}
-                            className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            Ghi lại
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleUploadAudio(
-                                activity.id,
-                                pronunciationRecordState.recordedBlob!,
-                                true // mergeWithExisting: keep practiced data
-                              )
-                            }
-                            disabled={pronunciationRecordState.isUploading}
-                            className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm disabled:bg-gray-300"
-                          >
-                            <Upload className="h-4 w-4" />
-                            {pronunciationRecordState.isUploading
-                              ? 'Đang tải...'
-                              : 'Tải lên'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // Uploaded State
-                      <div className="text-center">
-                        <CheckCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
-                        <p className="text-green-600 font-medium mb-2">
-                          Đã tải lên audio!
-                        </p>
-
-                        <audio
-                          controls
-                          className="w-full mb-3"
-                          src={answer.audioUrl}
-                        />
-
-                        <button
-                          onClick={() => handleReRecord(activity.id)}
-                          className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm mx-auto"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                          Ghi lại
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-
-              <p className="text-red-600 text-xs mt-3 text-center font-medium">
-                Bạn phải ghi âm để hoàn thành bài tập này. Việc đánh dấu "Đã
-                thực hành" chỉ giúp theo dõi tiến độ.
-              </p>
-            </div>
+            <p className="text-red-600 text-xs mt-3 text-center font-medium">
+              Bạn phải ghi âm để hoàn thành bài tập này. Việc đánh dấu "Đã thực
+              hành" chỉ giúp theo dõi tiến độ.
+            </p>
           </div>
         )
 
@@ -1437,7 +1370,14 @@ export default function AssignmentTakingPage(): JSX.Element {
                 Nghe và viết lại những gì bạn nghe được
               </p>
               <audio controls className="w-full mb-3">
-                <source src={activity.content.audioUrl} type="audio/mpeg" />
+                <source
+                  src={
+                    typeof activity.content.audioUrl === 'string'
+                      ? activity.content.audioUrl
+                      : activity.content.audioUrl?.url
+                  }
+                  type="audio/mpeg"
+                />
                 Trình duyệt của bạn không hỗ trợ phát audio.
               </audio>
               <p className="text-teal-600 text-sm">
@@ -1487,7 +1427,14 @@ export default function AssignmentTakingPage(): JSX.Element {
                       </h4>
                       {item.audioUrl && (
                         <audio controls className="w-32">
-                          <source src={item.audioUrl} type="audio/mpeg" />
+                          <source
+                            src={
+                              typeof item.audioUrl === 'string'
+                                ? item.audioUrl
+                                : item.audioUrl?.url
+                            }
+                            type="audio/mpeg"
+                          />
                         </audio>
                       )}
                     </div>
@@ -2363,7 +2310,7 @@ export default function AssignmentTakingPage(): JSX.Element {
           })}
         </div>
         <p className="text-xs text-gray-500 mt-2 text-center">
-          {Object.keys(answers).length}/{assignment.assignmentActivities.length}{' '}
+          {Object.keys(answers).length}/{assignment.assignmentActivities.length}
           câu
         </p>
       </div>

@@ -274,3 +274,9 @@ export interface CompleteActivityResponse {
   bestScore: number | null
   attemptsCount: number
 }
+
+export type ActivityCompletePayload = {
+  score?: number
+  feedback?: string
+  detail?: Record<string, unknown> | null
+}

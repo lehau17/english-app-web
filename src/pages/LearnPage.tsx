@@ -1777,7 +1777,14 @@ function VocabActivity({
                   >
                     <Volume2 className="h-4 w-4" /> Nghe phát âm
                   </button>
-                  <audio ref={audioRef} src={it.audioUrl} />
+                  <audio
+                    ref={audioRef}
+                    src={
+                      typeof it.audioUrl === 'string'
+                        ? it.audioUrl
+                        : (it.audioUrl as any)?.url
+                    }
+                  />
                 </>
               )}
             </div>
@@ -2229,12 +2236,48 @@ function PronunciationActivity({
   data: PronunciationContent
   onPass: (payload?: ActivityCompletePayload) => void
 }): JSX.Element {
+  // Normalize items to support both single phrase and multiple phrases
+  // CMS/Backend format: phrases: [{ text: string, sampleUrl?: string }]
+  // Legacy format: phrases: [{ phrase: string, sampleUrl?: string }] or phrases: string[]
+  // Single format: phrase: string
+  const items = useMemo(() => {
+    const rawPhrases = (data as any).phrases
+    if (Array.isArray(rawPhrases) && rawPhrases.length > 0) {
+      return rawPhrases.map((p: any) => {
+        if (typeof p === 'string') {
+          return { phrase: p, tips: data.tips, sampleUrl: data.sampleUrl }
+        }
+        // Handle both CMS format (text) and legacy format (phrase)
+        const phraseText = p.text || p.phrase || ''
+        return {
+          phrase: phraseText,
+          tips: p.tips || data.tips,
+          sampleUrl: p.sampleUrl || data.sampleUrl,
+        }
+      })
+    }
+    // Fallback to single phrase format
+    return [
+      { phrase: data.phrase || '', tips: data.tips, sampleUrl: data.sampleUrl },
+    ]
+  }, [data])
+
+  const [idx, setIdx] = useState(0)
+  const currentItem = items[idx] || { phrase: '', tips: [], sampleUrl: '' }
+
   const [recording, setRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<EvaluationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const chunks = useRef<Blob[]>([])
   const mediaRecorder = useRef<MediaRecorder | null>(null)
+
+  // Reset result when switching item
+  useEffect(() => {
+    setResult(null)
+    setError(null)
+    setRecording(false)
+  }, [idx])
 
   const cleanupRecorder = () => {
     const recorder = mediaRecorder.current
@@ -2289,13 +2332,19 @@ function PronunciationActivity({
             activityId,
             audioBase64,
             mimeType,
-            phrase: data.phrase,
+            phrase: currentItem.phrase,
           })
           const evaluation = response.data
           setResult(evaluation)
 
           if (evaluation.score >= PASSING_SCORE) {
             toast.success('Bạn đã vượt qua bài phát âm!')
+            // Optional: Auto advance or require all?
+            // For now, if passed, we can allow passing the whole activity
+            // or just stay to practice more.
+            // Let's call onPass only if it's the last item or we want to allow early exit.
+            // Current rule: Passing any item counts as "activity done" in terms of saving progress,
+            // but user can continue.
             onPass({
               score: evaluation.score,
               feedback: evaluation.feedback,
@@ -2359,20 +2408,42 @@ function PronunciationActivity({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [recording, result])
-
-  const mispronounced =
-    result?.detail && Array.isArray((result.detail as any).mispronounced)
-      ? ((result.detail as any).mispronounced as string[])
-      : []
+  }, [recording, result, idx]) // Added idx deps
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-      <h3 className="text-lg font-semibold">Nói theo: "{data.phrase}"</h3>
-      {data.tips?.length ? (
+      {/* Header logic for Multi-phrase */}
+      {items.length > 1 && (
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-2">
+          <div className="text-sm font-medium text-gray-500">
+            Mẫu câu {idx + 1} / {items.length}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIdx(Math.max(0, idx - 1))}
+              disabled={idx === 0}
+              className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-30 transition"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setIdx(Math.min(items.length - 1, idx + 1))}
+              disabled={idx === items.length - 1}
+              className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-30 transition"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <h3 className="text-lg font-semibold">
+        Nói theo: "{currentItem.phrase}"
+      </h3>
+      {currentItem.tips?.length ? (
         <div className="rounded-lg bg-amber-50 p-3 text-amber-900 text-sm">
           <ul className="list-disc pl-5 space-y-1">
-            {data.tips.map((t, i) => (
+            {currentItem.tips.map((t: string, i: number) => (
               <li key={i}>{t}</li>
             ))}
           </ul>
@@ -2399,10 +2470,10 @@ function PronunciationActivity({
             <SquareIcon /> Dừng ghi
           </button>
         )}
-        {data.sampleUrl && (
+        {currentItem.sampleUrl && (
           <button
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
-            onClick={() => window.open(data.sampleUrl, '_blank')}
+            onClick={() => window.open(currentItem.sampleUrl, '_blank')}
           >
             <Play className="h-4 w-4" /> Nghe mẫu
           </button>
@@ -2448,32 +2519,27 @@ function PronunciationActivity({
           {result.categories?.length ? (
             <div>
               <h4 className="text-xs font-semibold uppercase text-gray-500">
-                Nhận xét chi tiết
+                Chi tiết
               </h4>
-              <ul className="mt-1 space-y-1 text-sm text-gray-700">
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {result.categories.map((cat, idx) => (
-                  <li key={idx}>
-                    <span className="font-medium text-gray-800">
-                      {cat.name}:
-                    </span>{' '}
-                    {cat.comment}
-                  </li>
+                  <div
+                    key={idx}
+                    className="flex justify-between rounded bg-white p-2 text-sm border border-gray-100"
+                  >
+                    <span>{cat.name}</span>
+                    {/* <span
+                      className={
+                        cat.score >= 80 ? 'text-green-600' : 'text-amber-600'
+                      }
+                    >
+                      {cat.score}
+                    </span> */}
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
-          {mispronounced.length ? (
-            <div className="text-xs text-gray-600">
-              <span className="font-semibold text-gray-700">Từ cần luyện:</span>{' '}
-              {mispronounced.join(', ')}
-            </div>
-          ) : null}
-          {result.transcript && (
-            <div className="text-xs text-gray-500">
-              <span className="font-semibold text-gray-700">Bạn nói:</span>{' '}
-              {result.transcript}
-            </div>
-          )}
         </motion.div>
       )}
     </div>

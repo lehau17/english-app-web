@@ -29,12 +29,9 @@ import MyCertificatesPage from './pages/MyCertificatesPage'
 import MyLearningHistoryPage from './pages/MyLearningHistoryPage'
 import MyVocabularyPage from './pages/MyVocabularyPage'
 import NotFoundPage from './pages/NotFoundPage' // Import NotFoundPage
-import VocabularyListDetailPage from './pages/VocabularyListDetailPage'
-import VocabularyListsPage from './pages/VocabularyListsPage'
-import VocabularyReviewPage from './pages/VocabularyReviewPage'
-import VocabularyQuickReviewPage from './pages/VocabularyQuickReviewPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ParentActivitiesPage from './pages/ParentActivitiesPage'
+import ParentChildrenGradesPage from './pages/ParentChildrenGradesPage'
 import ParentHomePage from './pages/ParentHomePage'
 import ParentProgressReportPage from './pages/ParentProgressReportPage'
 import ParentReportsPage from './pages/ParentReportsPage'
@@ -49,7 +46,12 @@ import ProfilePage from './pages/ProfilePage'
 import QuizReviewPage from './pages/QuizReviewPage'
 import SchedulePage from './pages/SchedulePage'
 import SettingsPage from './pages/SettingsPage'
+import StudentTranscriptPage from './pages/StudentTranscriptPage'
 import VerifyCertificatePage from './pages/VerifyCertificatePage'
+import VocabularyListDetailPage from './pages/VocabularyListDetailPage'
+import VocabularyListsPage from './pages/VocabularyListsPage'
+import VocabularyQuickReviewPage from './pages/VocabularyQuickReviewPage'
+import VocabularyReviewPage from './pages/VocabularyReviewPage'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
 
@@ -324,6 +326,22 @@ function App() {
               }
             />
             <Route
+              path="/parent/grades"
+              element={
+                <HomeLayout>
+                  <ParentChildrenGradesPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/parent/children-grades"
+              element={
+                <HomeLayout>
+                  <ParentChildrenGradesPage />
+                </HomeLayout>
+              }
+            />
+            <Route
               path="/listening-practice"
               element={
                 <HomeLayout>
@@ -411,6 +429,22 @@ function App() {
               element={
                 <HomeLayout>
                   <MyCertificatesPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/transcript"
+              element={
+                <HomeLayout>
+                  <StudentTranscriptPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/my-grades"
+              element={
+                <HomeLayout>
+                  <StudentTranscriptPage />
                 </HomeLayout>
               }
             />
