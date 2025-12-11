@@ -1,6 +1,8 @@
 export { AttendanceFilter } from './AttendanceFilter'
 export { AttendanceHistoryList } from './AttendanceHistoryList'
 export { AttendanceStatusBadge } from './AttendanceStatusBadge'
+export { AttendanceStatusWidget } from './AttendanceStatusWidget'
 export { AttendanceSummaryCard } from './AttendanceSummaryCard'
+export { BlockingMessage } from './BlockingMessage'
 export { MyAttendanceSection } from './MyAttendanceSection'
 export { TeacherAttendanceSection } from './TeacherAttendanceSection'

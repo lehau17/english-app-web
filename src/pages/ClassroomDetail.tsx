@@ -38,6 +38,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import certificateApi from '../apis/certificate.api'
 import {
+  AttendanceStatusWidget,
   MyAttendanceSection,
   TeacherAttendanceSection,
 } from '../components/attendance'
@@ -2851,6 +2852,16 @@ export default function ClassroomDetail(props: {
               </button>
             </div>
           </div>
+
+          {/* Attendance Status Widget - Student only */}
+          {!isTeacher && (
+            <AttendanceStatusWidget
+              blockingStatus={blockingStatusQuery.data}
+              attendanceRate={
+                attendanceHistoryQuery.data?.data?.summary?.attendanceRate
+              }
+            />
+          )}
 
           {/* Class Stats */}
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">

@@ -107,3 +107,15 @@ export interface AttendanceHistoryFilter {
   toDate?: string
   status?: AttendanceStatus
 }
+
+/**
+ * Blocking status for attendance-based learning blocking
+ */
+export interface BlockingStatus {
+  isBlocked: boolean
+  blockedAt?: string
+  blockedReason?: string
+  consecutiveAbsences: number
+  threshold: number
+  lastAbsenceDate?: string
+}

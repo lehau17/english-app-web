@@ -36,3 +36,18 @@ export const getMyAttendanceHistory = async (
   )
   return data
 }
+
+/**
+ * Get blocking status for a student in a classroom
+ */
+export const getBlockingStatus = async (
+  classroomId: string,
+  studentId: string
+): Promise<BaseResponse<import('../types/attendance.type').BlockingStatus>> => {
+  const { data } = await api.get<
+    BaseResponse<import('../types/attendance.type').BlockingStatus>
+  >(
+    `/private/v1/classrooms/${classroomId}/students/${studentId}/blocking-status`
+  )
+  return data
+}

@@ -40,6 +40,7 @@ import {
 } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { BlockingMessage } from '../components/attendance/BlockingMessage'
 import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { ActivityAttemptHistory } from '../components/learn/ActivityAttemptHistory'
 import { VocabularyPronunciationPractice } from '../components/learn/VocabularyPronunciationPractice'
@@ -4828,6 +4829,7 @@ export default function LearnPlayerPage(): JSX.Element {
   const [activeId, setActiveId] = useState<string | undefined>()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<any>(null)
+  const [blockingStatus, setBlockingStatus] = useState<any>(null)
   const [nextLesson, setNextLesson] = useState<any>(null)
   const [showCelebration, setShowCelebration] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -4980,7 +4982,24 @@ export default function LearnPlayerPage(): JSX.Element {
           // Hiển thị lý do không thể start
           let errorMessage = 'Không thể bắt đầu hoạt động này'
 
-          if (canStart.reason === 'previous_activity_not_passed') {
+          if (canStart.reason === 'attendance_blocked') {
+            errorMessage =
+              'Bạn đã bị chặn do vắng quá nhiều buổi học. Vui lòng liên hệ giáo viên hoặc xin điểm danh bù.'
+            // Set special flag for attendance blocking
+            setErrorDetails({ ...canStart, isAttendanceBlocked: true })
+            // Fetch blocking status if we have classroomId
+            if (classroomId && user?.id) {
+              try {
+                const { getBlockingStatus } = await import(
+                  '../services/attendance.api'
+                )
+                const statusRes = await getBlockingStatus(classroomId, user.id)
+                setBlockingStatus(statusRes.data)
+              } catch (err) {
+                console.error('Failed to fetch blocking status:', err)
+              }
+            }
+          } else if (canStart.reason === 'previous_activity_not_passed') {
             errorMessage = 'Bạn cần hoàn thành hoạt động trước đó trước'
           } else if (canStart.reason === 'unmet_prerequisites') {
             errorMessage = 'Bạn chưa đáp ứng đủ điều kiện tiên quyết'
@@ -4991,7 +5010,9 @@ export default function LearnPlayerPage(): JSX.Element {
           }
 
           setErrorMessage(errorMessage)
-          setErrorDetails(canStart)
+          if (!canStart.reason || canStart.reason !== 'attendance_blocked') {
+            setErrorDetails(canStart)
+          }
 
           // Quay về activity trước đó nếu có thể
           const currentIndex = activities.findIndex((a) => a.id === activityId)
@@ -5396,8 +5417,17 @@ export default function LearnPlayerPage(): JSX.Element {
           </div>
         )}
 
-        {/* Error Banner */}
-        {errorMessage && (
+        {/* Error Banner / Blocking Message */}
+        {errorDetails?.isAttendanceBlocked &&
+        classroomId &&
+        user?.id &&
+        blockingStatus ? (
+          <BlockingMessage
+            blockingStatus={blockingStatus}
+            classroomId={classroomId}
+            studentId={user.id}
+          />
+        ) : errorMessage ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
               <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -5453,7 +5483,7 @@ export default function LearnPlayerPage(): JSX.Element {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         <Stepper
           items={activities}
