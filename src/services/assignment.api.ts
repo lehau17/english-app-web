@@ -22,6 +22,9 @@ export type AssignmentSubmission = {
     avatarUrl?: string | null
   }
   score?: number | null
+  aiScore?: number | null
+  aiFeedback?: string | null
+  gradedById?: string | null
   status: 'submitted' | 'graded' | 'late' | 'missing'
   attempt: number
   submittedAt?: string | null

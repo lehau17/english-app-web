@@ -148,6 +148,9 @@ type StudentAssignmentCardProps = {
   submission?: {
     id: string
     score: number | null
+    aiScore?: number | null
+    aiFeedback?: string | null
+    gradedById?: string | null
     status: 'submitted' | 'graded' | 'late' | 'missing'
     attempt: number
     submittedAt: string | null
@@ -172,7 +175,13 @@ function StudentAssignmentCard({
 
   // Use real submission data instead of mock data
   const hasSubmitted = !!submission
-  const score = submission?.score || null
+  const hasAIScore =
+    submission?.aiScore !== null && submission?.aiScore !== undefined
+  const hasTeacherScore = !!submission?.gradedById
+  const finalScore = hasTeacherScore
+    ? submission?.score
+    : submission?.aiScore || submission?.score || null
+  const score = finalScore
   const attempts = submission?.attempt || 0 // này là attemptCount từ backend
 
   const assignmentTypeMap: Record<
@@ -324,10 +333,41 @@ function StudentAssignmentCard({
           )}
 
           {hasSubmitted && score !== null && (
-            <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded ml-9">
-              <strong>Kết quả:</strong> Lần {attempts}/{assignment.maxAttempts}{' '}
-              - Điểm: {score}/100 -
-              {score >= 80 ? 'Xuất sắc' : score >= 60 ? 'Khá' : 'Cần cải thiện'}
+            <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded ml-9 space-y-1">
+              <div>
+                <strong>Kết quả:</strong> Lần {attempts}/
+                {assignment.maxAttempts}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {hasAIScore && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                    <Award className="h-3 w-3" />
+                    AI: {submission.aiScore}/100
+                  </span>
+                )}
+                {hasTeacherScore && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
+                    <Award className="h-3 w-3" />
+                    Giáo viên: {submission.score}/100 (Cuối)
+                  </span>
+                )}
+                {!hasTeacherScore && hasAIScore && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
+                    Điểm cuối: {submission.aiScore}/100
+                  </span>
+                )}
+                {!hasAIScore && !hasTeacherScore && (
+                  <span>Điểm: {score}/100</span>
+                )}
+                <span>
+                  -{' '}
+                  {score >= 80
+                    ? 'Xuất sắc'
+                    : score >= 60
+                      ? 'Khá'
+                      : 'Cần cải thiện'}
+                </span>
+              </div>
             </div>
           )}
 
