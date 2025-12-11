@@ -14,7 +14,7 @@ interface BlockingMessageProps {
 export const BlockingMessage = ({
   blockingStatus,
   classroomId,
-  studentId,
+  studentId: _studentId,
 }: BlockingMessageProps) => {
   const navigate = useNavigate()
 

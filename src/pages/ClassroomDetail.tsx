@@ -47,6 +47,10 @@ import ConversationWidget from '../components/conversation/ConversationWidget'
 import UserDetailModal from '../components/user/UserDetailModel'
 import { useAuth } from '../context/AuthContext'
 import { useConversation } from '../context/useConversation'
+import {
+  useBlockingStatus,
+  useMyAttendanceHistory,
+} from '../hooks/useAttendance'
 import { useClassroomAnnouncements } from '../hooks/useClassroomAnnouncements'
 import { useClassroomDetail } from '../hooks/useClassroomDetail'
 import { useNextLesson } from '../hooks/useNextLesson'
@@ -1628,6 +1632,19 @@ export default function ClassroomDetail(props: {
   )
 
   const { data: nextLessonData } = useNextLesson(isStudent)
+
+  // Get blocking status and attendance history for students
+  const blockingStatusQuery = useBlockingStatus(
+    classroomIdFromParams || '',
+    user?.id || '',
+    isStudent && !!classroomIdFromParams && !!user?.id
+  )
+
+  const attendanceHistoryQuery = useMyAttendanceHistory(
+    classroomIdFromParams || '',
+    undefined,
+    isStudent && !!classroomIdFromParams
+  )
 
   // Dữ liệu lớp học từ API
   const detail: ClassroomDetailResponse | undefined = classroomDetail
