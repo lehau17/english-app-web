@@ -3,6 +3,8 @@ import type { BaseResponse } from '../types/base-response.type'
 import type {
   ParentChildProgressItem,
   ParentDashboardData,
+  ParentInvitation,
+  AcceptInvitationResponse,
 } from '../types/parent.type'
 
 type PageResponse<T> = {
@@ -176,6 +178,50 @@ export const createLinkRequestApi = async (
   const { data } = await api.post<BaseResponse<any>>(
     '/private/v1/parent-child/request',
     { studentIdentifier }
+  )
+  return data
+}
+
+// ==================== STUDENT INVITATION APIs ====================
+
+// Student invites parent
+export const studentInviteParent = async (
+  invitedEmail: string
+): Promise<BaseResponse<ParentInvitation>> => {
+  const { data } = await api.post<BaseResponse<ParentInvitation>>(
+    '/private/v1/parent-child/student-invite',
+    { invitedEmail }
+  )
+  return data
+}
+
+// Parent accepts invitation code
+export const acceptInvitationCode = async (
+  invitationCode: string
+): Promise<BaseResponse<AcceptInvitationResponse>> => {
+  const { data } = await api.post<BaseResponse<AcceptInvitationResponse>>(
+    '/private/v1/parent-child/accept-code',
+    { invitationCode }
+  )
+  return data
+}
+
+// Get student's pending invitations
+export const getPendingInvitations = async (): Promise<
+  BaseResponse<ParentInvitation[]>
+> => {
+  const { data } = await api.get<BaseResponse<ParentInvitation[]>>(
+    '/private/v1/parent-child/pending-invitations'
+  )
+  return data
+}
+
+// Cancel invitation
+export const cancelInvitation = async (
+  invitationId: string
+): Promise<BaseResponse<{ message: string }>> => {
+  const { data } = await api.delete<BaseResponse<{ message: string }>>(
+    `/private/v1/parent-child/invitation/${invitationId}`
   )
   return data
 }

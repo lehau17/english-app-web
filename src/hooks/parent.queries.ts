@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import type { ParentActivitiesQuery } from '../services/parent.api'
 import {
+  acceptInvitationCode,
+  cancelInvitation,
   createLinkRequestApi,
   getChildNotificationSettingsApi,
   getParentActivitiesApi,
@@ -14,6 +17,8 @@ import {
   getParentLearningPathsOverviewApi,
   getParentNotificationsApi,
   getParentRewardsApi,
+  getPendingInvitations,
+  studentInviteParent,
   updateChildNotificationSettingsApi,
 } from '../services/parent.api'
 import type { ParentDashboardData } from '../types/parent.type'
@@ -243,6 +248,73 @@ export const useCreateLinkRequestMutation = () => {
       // Invalidate children query để refresh danh sách con sau khi request được approve
       queryClient.invalidateQueries({ queryKey: ['parent-children'] })
       queryClient.invalidateQueries({ queryKey: ['parent-dashboard'] })
+    },
+  })
+}
+
+// ==================== STUDENT INVITATION HOOKS ====================
+
+// Query: Get pending invitations
+export const usePendingInvitations = () => {
+  return useQuery({
+    queryKey: ['parent-invitations', 'pending'],
+    queryFn: async () => {
+      const response = await getPendingInvitations()
+      return response.data
+    },
+  })
+}
+
+// Mutation: Student invites parent
+export const useStudentInviteParent = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: studentInviteParent,
+    onSuccess: (response) => {
+      toast.success('Invitation sent successfully!')
+      queryClient.invalidateQueries({ queryKey: ['parent-invitations'] })
+      return response.data
+    },
+    onError: (error: any) => {
+      const message =
+        error.response?.data?.message || 'Failed to send invitation'
+      toast.error(message)
+    },
+  })
+}
+
+// Mutation: Cancel invitation
+export const useCancelInvitation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: cancelInvitation,
+    onSuccess: () => {
+      toast.success('Invitation cancelled')
+      queryClient.invalidateQueries({ queryKey: ['parent-invitations'] })
+    },
+    onError: (error: any) => {
+      const message =
+        error.response?.data?.message || 'Failed to cancel invitation'
+      toast.error(message)
+    },
+  })
+}
+
+// Mutation: Parent accepts code (for parent side, not used in this phase)
+export const useAcceptInvitationCode = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: acceptInvitationCode,
+    onSuccess: () => {
+      toast.success('Invitation accepted! Parent linked successfully.')
+      queryClient.invalidateQueries({ queryKey: ['parent-children'] })
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Invalid or expired code'
+      toast.error(message)
     },
   })
 }

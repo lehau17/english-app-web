@@ -62,3 +62,37 @@ export interface ParentDashboardData {
   totalStudyTime: number
   completionRate: number
 }
+
+// ==================== PARENT-CHILD INVITATION TYPES ====================
+
+export enum LinkInitiatedBy {
+  STUDENT = 'STUDENT',
+  PARENT = 'PARENT',
+  ADMIN = 'ADMIN',
+}
+
+export enum LinkRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
+}
+
+export interface ParentInvitation {
+  id: string
+  invitationCode: string
+  invitedEmail: string
+  status: LinkRequestStatus
+  initiatedBy: LinkInitiatedBy
+  expiresAt: string
+  requestedAt: string
+}
+
+export interface AcceptInvitationResponse {
+  linkRequest: ParentInvitation
+  parentChild: {
+    parentId: string
+    childId: string
+    linkedAt: string
+  }
+}

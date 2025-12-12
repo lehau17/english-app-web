@@ -16,8 +16,11 @@ import {
   ChevronRight,
   Settings,
   ArrowLeft,
+  Users,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { ParentInvitationCard } from '../components/parent-invitation/ParentInvitationCard'
+import { PendingInvitationsTable } from '../components/parent-invitation/PendingInvitationsTable'
 
 interface SettingSwitchProps {
   label: string
@@ -330,6 +333,32 @@ const SettingsPage: React.FC = () => {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
+          {/* Parent Monitoring Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center mb-6">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 mr-3">
+                <Users className="h-5 w-5 text-indigo-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Parent Monitoring
+              </h2>
+            </div>
+            <ParentInvitationCard />
+          </div>
+
+          {/* Pending Invitations Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center mb-6">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 mr-3">
+                <Bell className="h-5 w-5 text-yellow-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Pending Invitations
+              </h2>
+            </div>
+            <PendingInvitationsTable />
+          </div>
+
           {settingSections.map((section) => (
             <div
               key={section.title}
