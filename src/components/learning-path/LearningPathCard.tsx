@@ -1,11 +1,10 @@
-import { CheckCircle2, Edit, MoreVertical, Play, Trash2 } from 'lucide-react'
+import { CheckCircle2, MoreVertical, Play, Trash2 } from 'lucide-react'
 import type { JSX } from 'react'
 import type { LearningPath } from '../../services/learning-path.api'
 
 interface LearningPathCardProps {
   path: LearningPath
   onView?: (id: string) => void
-  onEdit?: (id: string) => void
   onDelete?: (id: string) => void
   onSetActive?: (id: string) => void
 }
@@ -13,13 +12,12 @@ interface LearningPathCardProps {
 export default function LearningPathCard({
   path,
   onView,
-  onEdit,
   onDelete,
   onSetActive,
 }: LearningPathCardProps): JSX.Element {
   const progress =
-    path.courseIds.length > 0
-      ? Math.round((path.currentStep / path.courseIds.length) * 100)
+    path.activityIds.length > 0
+      ? Math.round((path.currentStep / path.activityIds.length) * 100)
       : 0
 
   const statusBadge = path.isCompleted ? (
@@ -81,7 +79,7 @@ export default function LearningPathCard({
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Tiến độ</span>
               <span className="font-semibold text-gray-900">
-                {path.currentStep}/{path.courseIds.length} khóa học
+                {path.currentStep}/{path.activityIds.length} hoạt động
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
@@ -106,26 +104,21 @@ export default function LearningPathCard({
           )}
           <div className="flex items-center gap-1">
             <button
-              onClick={() => onEdit?.(path.id)}
-              className="rounded-lg p-2 text-gray-500 hover:bg-gray-50"
-              title="Chỉnh sửa"
-            >
-              <Edit className="h-4 w-4" />
-            </button>
-            <button
               onClick={() => onDelete?.(path.id)}
               className="rounded-lg p-2 text-gray-500 hover:bg-red-50 hover:text-red-600"
               title="Xóa"
             >
               <Trash2 className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => onSetActive?.(path.id)}
-              className="rounded-lg p-2 text-gray-500 hover:bg-gray-50"
-              title="Đặt làm lộ trình chính"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
+            {onSetActive && (
+              <button
+                onClick={() => onSetActive?.(path.id)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-50"
+                title="Đặt làm lộ trình chính"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

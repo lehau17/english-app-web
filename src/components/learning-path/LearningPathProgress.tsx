@@ -11,8 +11,8 @@ export default function LearningPathProgress({
   showDetails = false,
 }: LearningPathProgressProps): JSX.Element {
   const progress =
-    path.courseIds.length > 0
-      ? Math.round((path.currentStep / path.courseIds.length) * 100)
+    path.activityIds.length > 0
+      ? Math.round((path.currentStep / path.activityIds.length) * 100)
       : 0
 
   return (
@@ -34,18 +34,18 @@ export default function LearningPathProgress({
       {showDetails && (
         <div className="flex items-center justify-between text-xs text-gray-600">
           <span>
-            Bước {path.currentStep + 1} / {path.courseIds.length}
+            Bước {path.currentStep + 1} / {path.activityIds.length}
           </span>
           <span>
-            {path.courseIds.length - path.currentStep} khóa học còn lại
+            {path.activityIds.length - path.currentStep} hoạt động còn lại
           </span>
         </div>
       )}
 
       {/* Step indicators */}
-      {showDetails && path.courseIds.length > 0 && (
+      {showDetails && path.activityIds.length > 0 && (
         <div className="flex items-center gap-2 pt-2">
-          {path.courseIds.map((_, idx) => (
+          {path.activityIds.map((_, idx) => (
             <div
               key={idx}
               className={`flex-1 h-1 rounded-full ${

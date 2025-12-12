@@ -269,7 +269,7 @@ export default function ParentHomePage() {
                                 name: childOverview.activePath.name,
                                 targetLevel: '',
                                 focusAreas: [],
-                                courseIds: [],
+                                activityIds: [],
                                 currentStep:
                                   childOverview.activePath.currentStep,
                                 isCompleted:

@@ -4,7 +4,7 @@ import React from 'react'
 export interface PodcastAttemptItemData {
   attemptId: string
   attemptNo: number
-  status: 'in_progress' | 'completed' | 'abandoned'
+  status: 'in_progress' | 'submitted' | 'abandoned'
   scorePercent: number
   correctCount: number
   totalQuestions: number
@@ -34,7 +34,7 @@ export const PodcastAttemptItem: React.FC<PodcastAttemptItemProps> = ({
         </span>
       )
     }
-    if (attempt.status === 'completed') {
+    if (attempt.status === 'submitted') {
       return (
         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
           Hoàn thành
@@ -102,7 +102,7 @@ export const PodcastAttemptItem: React.FC<PodcastAttemptItemProps> = ({
       </div>
 
       {/* Score */}
-      {attempt.status === 'completed' && (
+      {attempt.status === 'submitted' && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm text-gray-600">Kết quả</span>
@@ -131,7 +131,7 @@ export const PodcastAttemptItem: React.FC<PodcastAttemptItemProps> = ({
       </div>
 
       {/* Actions */}
-      {attempt.status === 'completed' && onViewDetail && (
+      {attempt.status === 'submitted' && onViewDetail && (
         <button
           onClick={onViewDetail}
           className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"

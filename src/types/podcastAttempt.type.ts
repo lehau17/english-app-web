@@ -16,7 +16,7 @@ export interface PodcastAttempt {
   gaps: PodcastGap[]
   attemptId: string
   attemptNo: number
-  status: 'in_progress' | 'completed' | 'paused'
+  status: 'in_progress' | 'submitted' | 'abandoned'
   metadata: {
     duration: number
     difficulty: string

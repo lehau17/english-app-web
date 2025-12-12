@@ -3,12 +3,15 @@ import {
   Bell,
   BookmarkCheck,
   BookOpen,
+  ChevronDown,
   Copyright,
   Gift,
   Globe,
   GraduationCap,
+  Headphones,
   LogOut,
   Menu,
+  Mic,
   Search,
   Settings,
   UserIcon,
@@ -43,6 +46,7 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [selfStudyOpen, setSelfStudyOpen] = useState(false)
   const [unread, setUnread] = useState(0)
 
   const socketUrl = useMemo(() => resolveSocketUrl(), [])
@@ -105,7 +109,7 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                 className="text-lg sm:text-xl font-extrabold tracking-tight"
               >
                 <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  EnglishApp
+                  Eduliagua
                 </span>
               </Link>
               <nav className="hidden items-center gap-3 lg:gap-4 md:flex">
@@ -128,6 +132,10 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       so the refactoring is applied only to the 'parent' role found here.
                     */}
                     <DropdownMenu label="Theo dõi">
+                      <DropdownMenuItem to="/parent/learning-paths">
+                        <BookOpen className="h-4 w-4" />
+                        Lộ trình học tập
+                      </DropdownMenuItem>
                       <DropdownMenuItem to="/parent-activities">
                         <BookOpen className="h-4 w-4" />
                         Hoạt động của con
@@ -156,21 +164,27 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                   // Student/Teacher navigation
                   <>
                     <NavLink
-                      to="/listening-practice"
+                      to="/learning-paths"
                       className={({ isActive }) =>
                         `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
                       }
                     >
-                      Luyen nghe
+                      Lộ trình học
                     </NavLink>
-                    <NavLink
-                      to="/ai-speaking"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      Luyen noi AI
-                    </NavLink>
+                    <DropdownMenu label="Tự học">
+                      <DropdownMenuItem to="/listening-practice">
+                        <Headphones className="h-4 w-4" />
+                        Luyện nghe
+                      </DropdownMenuItem>
+                      <DropdownMenuItem to="/ai-speaking">
+                        <Mic className="h-4 w-4" />
+                        Luyện nói AI
+                      </DropdownMenuItem>
+                      <DropdownMenuItem to="/dictionary">
+                        <BookOpen className="h-4 w-4" />
+                        Từ điển
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                     <NavLink
                       to="/schedule"
                       className={({ isActive }) =>
@@ -186,14 +200,6 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       }
                     >
                       Bảng xếp hạng
-                    </NavLink>
-                    <NavLink
-                      to="/dictionary"
-                      className={({ isActive }) =>
-                        `text-sm ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
-                      }
-                    >
-                      Từ điển
                     </NavLink>
                     <NavLink
                       to="/vocabulary"
@@ -223,7 +229,7 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                   placeholder={
                     user?.role === 'parent'
                       ? 'Tìm con, hoạt động...'
-                      : 'Tim bai hoc, khoa hoc...'
+                      : 'Tìm bài học, khóa học...'
                   }
                   className="w-40 xl:w-56 bg-transparent text-sm outline-none placeholder:text-gray-400"
                 />
@@ -273,13 +279,13 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                 {open && (
                   <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-black/5 bg-white/95 shadow-lg backdrop-blur">
                     <div className="px-3 py-2 text-xs font-semibold text-gray-500">
-                      Tai khoan
+                      Tài khoản
                     </div>
                     <Link
                       to="/profile"
                       className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50"
                     >
-                      <UserIcon className="h-4 w-4" /> Ho so
+                      <UserIcon className="h-4 w-4" /> Hồ sơ
                     </Link>
                     {user?.role === 'student' && (
                       <Link
@@ -293,7 +299,7 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       onClick={logout}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                     >
-                      <LogOut className="h-4 w-4" /> Dang xuat
+                      <LogOut className="h-4 w-4" /> Đăng xuất
                     </button>
                   </div>
                 )}
@@ -316,6 +322,16 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                     >
                       <Users className="h-5 w-5" />
                       Tổng quan
+                    </NavLink>
+                    <NavLink
+                      to="/parent/learning-paths"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                      }
+                    >
+                      <BookOpen className="h-5 w-5" />
+                      Lộ trình học tập
                     </NavLink>
                     <NavLink
                       to="/parent-activities"
@@ -371,23 +387,60 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                 ) : (
                   <>
                     <NavLink
-                      to="/listening-practice"
+                      to="/learning-paths"
                       onClick={() => setMobileMenuOpen(false)}
                       className={({ isActive }) =>
                         `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
                       }
                     >
-                      Luyện nghe
+                      Lộ trình học
                     </NavLink>
-                    <NavLink
-                      to="/ai-speaking"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={({ isActive }) =>
-                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
-                      }
+                    {/* Self-Study Collapsible Section */}
+                    <button
+                      onClick={() => setSelfStudyOpen(!selfStudyOpen)}
+                      className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
                     >
-                      Luyện nói AI
-                    </NavLink>
+                      <span>Tự học</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${selfStudyOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {selfStudyOpen && (
+                      <div className="ml-4 space-y-1">
+                        <NavLink
+                          to="/listening-practice"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                          }
+                        >
+                          <Headphones className="h-4 w-4" />
+                          Luyện nghe
+                        </NavLink>
+                        <NavLink
+                          to="/ai-speaking"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                          }
+                        >
+                          <Mic className="h-4 w-4" />
+                          Luyện nói AI
+                        </NavLink>
+                        <NavLink
+                          to="/dictionary"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                          }
+                        >
+                          <BookOpen className="h-4 w-4" />
+                          Từ điển
+                        </NavLink>
+                      </div>
+                    )}
+
                     <NavLink
                       to="/schedule"
                       onClick={() => setMobileMenuOpen(false)}
@@ -405,15 +458,6 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                       }
                     >
                       Bảng xếp hạng
-                    </NavLink>
-                    <NavLink
-                      to="/dictionary"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={({ isActive }) =>
-                        `block px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
-                      }
-                    >
-                      Từ điển
                     </NavLink>
                     <NavLink
                       to="/transcript"

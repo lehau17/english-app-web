@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   BookOpen,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   Loader2,
   Plus,
@@ -293,9 +292,6 @@ const VocabularyListDetailPage: React.FC = () => {
                             <ChevronDown className="h-4 w-4" />
                           )}
                         </button>
-                        {!isSelected && !isExpanded && (
-                          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                        )}
                       </div>
                     </div>
                     {/* Expanded Terms Area */}

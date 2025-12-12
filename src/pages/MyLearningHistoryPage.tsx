@@ -16,7 +16,7 @@ const MyLearningHistoryPage: React.FC = () => {
 
   // Fetch all user attempts
   const { data: attemptsResponse, isLoading } = useAllUserAttempts({
-    status: 'completed',
+    status: 'submitted',
     limit: 100,
   })
 

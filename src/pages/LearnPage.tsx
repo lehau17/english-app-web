@@ -45,6 +45,7 @@ import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
 import { ActivityAttemptHistory } from '../components/learn/ActivityAttemptHistory'
 import { VocabularyPronunciationPractice } from '../components/learn/VocabularyPronunciationPractice'
 import { useAuth } from '../context/AuthContext'
+import { useAudioPlayer } from '../hooks/useAudioPlayer'
 import {
   useCanStartActivity,
   useClassroomDetail,
@@ -2266,6 +2267,12 @@ function PronunciationActivity({
   const [idx, setIdx] = useState(0)
   const currentItem = items[idx] || { phrase: '', tips: [], sampleUrl: '' }
 
+  const audioPlayer = useAudioPlayer(currentItem.sampleUrl, {
+    onError: (error) => {
+      console.error('Pronunciation audio playback error:', error)
+    },
+  })
+
   const [recording, setRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<EvaluationResult | null>(null)
@@ -2474,7 +2481,7 @@ function PronunciationActivity({
         {currentItem.sampleUrl && (
           <button
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
-            onClick={() => window.open(currentItem.sampleUrl, '_blank')}
+            onClick={() => audioPlayer.play()}
           >
             <Play className="h-4 w-4" /> Nghe mẫu
           </button>

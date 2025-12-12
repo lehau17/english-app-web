@@ -3,7 +3,7 @@ export type PodcastStatus = 'not_started' | 'in_progress' | 'completed'
 export interface PodcastAttempt {
   attemptId: string
   attemptNo: number
-  status: 'in_progress' | 'completed' | 'abandoned'
+  status: 'in_progress' | 'submitted' | 'abandoned'
   scorePercent: number
   correctCount: number
   totalQuestions: number
@@ -38,7 +38,7 @@ export function getPodcastStatus(
   )
 
   const latestAttempt = sortedAttempts[0]
-  const completedAttempts = attempts.filter((a) => a.status === 'completed')
+  const completedAttempts = attempts.filter((a) => a.status === 'submitted')
   const inProgressAttempts = attempts.filter((a) => a.status === 'in_progress')
 
   // If there's an in-progress attempt, status is in_progress

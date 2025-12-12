@@ -45,7 +45,7 @@ export const BlockingMessage = ({
             </h3>
             <p className="mb-4 text-sm text-red-800">
               {blockingStatus.blockedReason ||
-                `Bạn đã vắng ${blockingStatus.consecutiveAbsences} buổi học liên tiếp (ngưỡng: ${blockingStatus.threshold} buổi).`}
+                `Bạn đã vắng ${blockingStatus.consecutiveAbsences} buổi (ngưỡng cho phép: ${blockingStatus.threshold}%).`}
             </p>
 
             {blockingStatus.blockedAt && (

@@ -84,7 +84,7 @@ export const podcastAttemptApi = {
   getAllUserAttempts: async (params?: {
     page?: number
     limit?: number
-    status?: 'in_progress' | 'completed' | 'abandoned'
+    status?: 'in_progress' | 'submitted' | 'abandoned'
   }): Promise<any> => {
     const response = await api.get(`/private/v1/podcast-attempts/my-history`, {
       params,

@@ -27,9 +27,9 @@ export default function ParentLearningPathCard({
   }
 
   const progress =
-    learningPath.courseIds.length > 0
+    learningPath.activityIds.length > 0
       ? Math.round(
-          (learningPath.currentStep / learningPath.courseIds.length) * 100
+          (learningPath.currentStep / learningPath.activityIds.length) * 100
         )
       : 0
 
@@ -81,8 +81,8 @@ export default function ParentLearningPathCard({
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Tiến độ</span>
               <span className="font-semibold text-gray-900">
-                {learningPath.currentStep}/{learningPath.courseIds.length} khóa
-                học
+                {learningPath.currentStep}/{learningPath.activityIds.length}{' '}
+                hoạt động
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">

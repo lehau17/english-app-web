@@ -4,10 +4,11 @@ import type { BaseResponse } from '../types/base-response.type'
 export interface LearningPath {
   id: string
   userId: string
+  classroomId?: string
   name: string
   targetLevel: string
   focusAreas: string[]
-  courseIds: string[]
+  activityIds: string[]
   currentStep: number
   isCompleted: boolean
   timeframe?: number
@@ -19,18 +20,20 @@ export interface LearningPath {
 
 export interface CreateLearningPathRequest {
   name: string
+  classroomId?: string
   targetLevel: string
   focusAreas: string[]
-  courseIds: string[]
+  activityIds: string[]
   timeframe?: number
   customContent?: Record<string, any>
 }
 
 export interface UpdateLearningPathRequest {
   name?: string
+  classroomId?: string
   targetLevel?: string
   focusAreas?: string[]
-  courseIds?: string[]
+  activityIds?: string[]
   timeframe?: number
   customContent?: Record<string, any>
 }

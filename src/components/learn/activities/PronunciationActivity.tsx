@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import toast from 'react-hot-toast'
+import { useAudioPlayer } from '../../../hooks/useAudioPlayer'
 import {
   evaluatePronunciation,
   type EvaluationResult,
@@ -62,6 +63,12 @@ export function PronunciationActivity({
 
   const [idx, setIdx] = useState(0)
   const currentItem = items[idx] || { phrase: '', tips: [], sampleUrl: '' }
+
+  const audioPlayer = useAudioPlayer(currentItem.sampleUrl, {
+    onError: (error) => {
+      console.error('Audio playback error:', error)
+    },
+  })
 
   const [recording, setRecording] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -276,7 +283,7 @@ export function PronunciationActivity({
         {currentItem.sampleUrl && (
           <button
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
-            onClick={() => window.open(currentItem.sampleUrl, '_blank')}
+            onClick={() => audioPlayer.play()}
           >
             <Play className="h-4 w-4" /> Nghe mẫu
           </button>
@@ -319,30 +326,40 @@ export function PronunciationActivity({
           <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-line">
             {result.feedback}
           </div>
-          {result.categories?.length ? (
-            <div>
-              <h4 className="text-xs font-semibold uppercase text-gray-500">
-                Chi tiết
-              </h4>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {result.categories.map((cat, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between rounded bg-white p-2 text-sm border border-gray-100"
-                  >
-                    <span>{cat.name}</span>
-                    {/* <span
-                                            className={
-                                                cat.score >= 80 ? 'text-green-600' : 'text-amber-600'
-                                            }
-                                        >
-                                            {cat.score}
-                                        </span> */}
-                  </div>
-                ))}
+          {(() => {
+            const validCategories =
+              result.categories?.filter(
+                (cat) =>
+                  cat.name &&
+                  cat.comment &&
+                  cat.name.trim() !== '' &&
+                  cat.comment.trim() !== ''
+              ) || []
+            return validCategories.length > 0 ? (
+              <div>
+                <h4 className="text-xs font-semibold uppercase text-gray-500">
+                  Chi tiết
+                </h4>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {validCategories.map((cat, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between rounded bg-white p-2 text-sm border border-gray-100"
+                    >
+                      <span>{cat.name}</span>
+                      {/* <span
+                                              className={
+                                                  cat.score >= 80 ? 'text-green-600' : 'text-amber-600'
+                                              }
+                                          >
+                                              {cat.score}
+                                          </span> */}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null
+          })()}
           {mispronounced.length ? (
             <div className="text-xs text-gray-600">
               <span className="font-semibold text-gray-700">Từ cần luyện:</span>{' '}

@@ -162,7 +162,6 @@ type StudentAssignmentCardProps = {
   } | null
   onStartAssignment?: (id: string) => void
   onViewResult?: (id: string) => void
-  onDownloadPdf?: (a: Assignment) => void
 }
 
 function StudentAssignmentCard({
@@ -170,7 +169,6 @@ function StudentAssignmentCard({
   submission,
   onStartAssignment,
   onViewResult,
-  onDownloadPdf,
 }: StudentAssignmentCardProps): JSX.Element {
   const startTime = assignment.startTime ? new Date(assignment.startTime) : null
   const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null
@@ -406,14 +404,6 @@ function StudentAssignmentCard({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => onDownloadPdf?.(assignment)}
-              className="inline-flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-sm text-green-700 hover:bg-green-100"
-            >
-              <Download className="h-4 w-4" />
-              Tải PDF
-            </button>
-
             {hasSubmitted ? (
               <>
                 <button
@@ -2352,7 +2342,6 @@ export default function ClassroomDetail(props: {
                             key={assignment.id}
                             assignment={assignment}
                             submission={assignment.submission ?? null}
-                            onDownloadPdf={handleDownloadPdf}
                             onStartAssignment={(aid) => {
                               navigate(
                                 `/classroom/${detail?.id}/assignment/${aid}`
@@ -2576,7 +2565,6 @@ export default function ClassroomDetail(props: {
                                     key={assignment.id}
                                     assignment={assignment}
                                     submission={assignment.submission ?? null}
-                                    onDownloadPdf={handleDownloadPdf}
                                     onStartAssignment={(aid) => {
                                       navigate(
                                         `/classroom/${detail!.id}/assignment/${aid}`

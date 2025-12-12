@@ -98,7 +98,7 @@ export const PodcastAttemptDetailModal: React.FC<
                 <div className="text-center">
                   <div className="text-sm text-gray-600 mb-1">Trạng thái</div>
                   <div className="mt-2">
-                    {attempt.status === 'completed' ? (
+                    {attempt.status === 'submitted' ? (
                       <span className="inline-flex items-center gap-1 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
                         <CheckCircle2 size={14} />
                         Hoàn thành

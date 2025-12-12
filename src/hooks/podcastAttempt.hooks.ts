@@ -80,7 +80,7 @@ export const usePodcastAttempts = (podcastId: string) => {
 export const useAllUserAttempts = (params?: {
   page?: number
   limit?: number
-  status?: 'in_progress' | 'completed' | 'abandoned'
+  status?: 'in_progress' | 'submitted' | 'abandoned'
 }) => {
   return useQuery({
     queryKey: ['all-user-attempts', params],

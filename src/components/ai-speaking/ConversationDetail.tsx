@@ -3,6 +3,7 @@ import React from 'react'
 import { useAiSpeakingConversation } from '../../hooks/useAiSpeakingConversations'
 import { formatDate } from '../../utils/dateUtils'
 import TextInteractionWrapper from '../common/TextInteractionWrapper'
+import { TurnFeedbackPanel } from './TurnFeedbackPanel'
 
 interface ConversationDetailProps {
   conversationId: string
@@ -202,14 +203,11 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                                 </audio>
                               </div>
                             )}
-                            {turn.score !== null &&
-                              turn.score !== undefined && (
-                                <div className="pr-2">
-                                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                                    Điểm: {turn.score}/100
-                                  </span>
-                                </div>
-                              )}
+                            <TurnFeedbackPanel
+                              evaluation={turn.evaluation}
+                              metrics={turn.metrics}
+                              score={turn.score}
+                            />
                           </div>
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600">
                             <User className="h-4 w-4 text-white" />

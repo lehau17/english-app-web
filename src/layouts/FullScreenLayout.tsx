@@ -124,7 +124,7 @@ export const LessonMapLayout: React.FC<{ children: React.ReactNode }> = ({
               to={user?.role === 'parent' ? '/parent-home' : '/'}
               className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
             >
-              EnglishApp
+              Eduliagua
             </Link>
             <nav className="hidden items-center gap-4 md:flex">
               <NavLink

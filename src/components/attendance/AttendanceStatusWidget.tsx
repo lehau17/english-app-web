@@ -20,7 +20,7 @@ export const AttendanceStatusWidget = ({
   const threshold = blockingStatus?.threshold || 3
 
   return (
-    <div className={`rounded-lg border bg-white p-4 shadow-sm ${className}`}>
+    <div className={`rounded-lg bg-white p-4 shadow-sm ${className}`}>
       <h3 className="mb-3 text-sm font-semibold text-gray-700">
         Trạng thái điểm danh
       </h3>

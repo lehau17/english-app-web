@@ -22,6 +22,7 @@ import DictionaryPage from './pages/DictionaryPage'
 import FlashcardReviewPage from './pages/FlashcardReviewPage'
 import HomePage from './pages/HomePage' // Import HomePage
 import LeaderboardPage from './pages/LeaderboardPage'
+import LearningPathDetailPage from './pages/LearningPathDetailPage'
 import LearningPathPage from './pages/LearningPathPage'
 import LearnPlayerPage from './pages/LearnPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
@@ -486,7 +487,7 @@ function App() {
               path="/learning-paths/:id"
               element={
                 <HomeLayout>
-                  <LearningPathPage />
+                  <LearningPathDetailPage />
                 </HomeLayout>
               }
             />

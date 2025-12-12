@@ -14,10 +14,7 @@ import {
   useStartReviewSession,
   useSubmitReview,
 } from '../../hooks/vocabulary.hooks'
-import type {
-  ReviewSubmission,
-  VocabularyTerm,
-} from '../../types/vocabulary.type'
+import type { VocabularyTerm } from '../../types/vocabulary.type'
 import { ReviewMode } from '../../types/vocabulary.type'
 
 export interface VocabularyReviewSessionProps {
@@ -48,7 +45,6 @@ export const VocabularyReviewSession: React.FC<
   const [terms, setTerms] = useState<VocabularyTerm[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
-  const [reviews, setReviews] = useState<ReviewSubmission[]>([])
   const [isComplete, setIsComplete] = useState(false)
   const [startTime] = useState(Date.now())
   const [userInput, setUserInput] = useState('')
@@ -155,6 +151,8 @@ export const VocabularyReviewSession: React.FC<
       setTimeout(() => {
         handleRate(5)
       }, 1000)
+    } else {
+      setIsFlipped(true)
     }
   }
 
@@ -167,31 +165,47 @@ export const VocabularyReviewSession: React.FC<
   const handleRate = (quality: number) => {
     if (!currentTerm) return
 
-    setReviews((prev) => [...prev, { termId: currentTerm.id, quality }])
+    const isLastCard = currentIndex >= terms.length - 1
+    const duration = Math.floor((Date.now() - startTime) / 1000)
 
-    if (currentIndex < terms.length - 1) {
-      setCurrentIndex(currentIndex + 1)
-      setIsFlipped(false)
-      setUserInput('')
-      setShowResult(false)
-      setIsCorrect(false)
-      setShowPronunciation(false)
-    } else {
-      const duration = Math.floor((Date.now() - startTime) / 1000)
-      submitMutation.mutate(
-        {
-          reviews: [...reviews, { termId: currentTerm.id, quality }],
-          listId,
-          mode: ReviewMode.FLASHCARD,
-          duration,
-        },
-        {
-          onSuccess: () => {
+    // Submit review immediately (per-card)
+    submitMutation.mutate(
+      {
+        reviews: [{ termId: currentTerm.id, quality }],
+        listId,
+        mode: ReviewMode.FLASHCARD,
+        duration,
+        partial: !isLastCard, // true for all cards except last
+        finalize: isLastCard, // true only for last card
+      },
+      {
+        onSuccess: () => {
+          if (isLastCard) {
             setIsComplete(true)
-          },
-        }
-      )
-    }
+          } else {
+            // Move to next card
+            setCurrentIndex(currentIndex + 1)
+            setIsFlipped(false)
+            setUserInput('')
+            setShowResult(false)
+            setIsCorrect(false)
+            setShowPronunciation(false)
+          }
+        },
+        onError: (error) => {
+          console.error('Review submission failed:', error)
+          // Still allow progression on error (optimistic UI)
+          if (!isLastCard) {
+            setCurrentIndex(currentIndex + 1)
+            setIsFlipped(false)
+            setUserInput('')
+            setShowResult(false)
+            setIsCorrect(false)
+            setShowPronunciation(false)
+          }
+        },
+      }
+    )
   }
 
   const playAudio = () => {

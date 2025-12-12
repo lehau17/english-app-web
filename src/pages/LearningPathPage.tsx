@@ -129,7 +129,6 @@ export default function LearningPathPage() {
                   key={path.id}
                   path={path}
                   onView={(id) => navigate(`/learning-paths/${id}`)}
-                  onEdit={(id) => navigate(`/learning-paths/${id}/edit`)}
                   onDelete={handleDelete}
                 />
               ))}
@@ -141,7 +140,7 @@ export default function LearningPathPage() {
         <div className="space-y-6">
           {/* Active Path */}
           {activePath && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 max-h-[600px] overflow-y-auto">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Lộ trình đang học
               </h3>
@@ -153,7 +152,7 @@ export default function LearningPathPage() {
           )}
 
           {/* Recommendations */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 max-h-[400px] overflow-y-auto">
             <RecommendationsSection
               limit={3}
               onAction={(id, type) => {

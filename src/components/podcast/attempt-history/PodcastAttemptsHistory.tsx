@@ -24,8 +24,8 @@ export const PodcastAttemptsHistory: React.FC<PodcastAttemptsHistoryProps> = ({
     useState<PodcastAttemptItemData | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Filter only completed attempts for history
-  const completedAttempts = attempts.filter((a) => a.status === 'completed')
+  // Filter only submitted attempts for history
+  const completedAttempts = attempts.filter((a) => a.status === 'submitted')
 
   // Don't show if no completed attempts
   if (completedAttempts.length === 0) {

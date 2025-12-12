@@ -133,6 +133,8 @@ export const useSubmitReview = () => {
       listId?: string
       mode?: ReviewMode
       duration?: number
+      partial?: boolean
+      finalize?: boolean
     }) => submitReview(data),
     onSuccess: (_, variables) => {
       // Invalidate stats and due cards
