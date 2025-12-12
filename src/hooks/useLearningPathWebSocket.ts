@@ -1,8 +1,8 @@
 // Learning Path WebSocket Hook - Phase 5 Student UX
-import { useEffect, useRef, useCallback } from 'react'
-import { io, Socket } from 'socket.io-client'
 import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
+import { io, Socket } from 'socket.io-client'
 
 interface UseLearningPathWebSocketOptions {
   pathId: string
@@ -55,7 +55,7 @@ export const useLearningPathWebSocket = ({
 
   const handleDifficultyAdjusted = useCallback(
     (data: any) => {
-      toast.info(`Difficulty adjusted: ${data.reason}`)
+      toast.custom(`Difficulty adjusted: ${data.reason}`)
       onDifficultyAdjusted?.(data)
     },
     [onDifficultyAdjusted]
