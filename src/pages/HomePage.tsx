@@ -15,6 +15,8 @@ import { type JSX, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DirectPaymentModal } from '../components/classroom/DirectPaymentModal'
 import { PaymentNotificationModal } from '../components/classroom/PaymentNotificationModal'
+import LearningPathProgress from '../components/learning-path/LearningPathProgress'
+import RecommendationsSection from '../components/recommendations/RecommendationsSection'
 import { WordOfTheDayWidget } from '../components/WordOfTheDayWidget'
 import {
   getPaymentStatusDisplayInfo,
@@ -23,6 +25,7 @@ import {
 } from '../hooks/useClassroomStatus'
 import { useHasParent } from '../hooks/useHasParent'
 import { useClassroomLeaderboard } from '../hooks/useLeaderboard'
+import { useActiveLearningPath } from '../hooks/useLearningPath'
 import { useNextLesson } from '../hooks/useNextLesson'
 import { usePaymentFlow } from '../hooks/usePaymentFlow'
 import { useUserInfo } from '../hooks/useUserInfo'
@@ -78,6 +81,8 @@ export default function HomePage(): JSX.Element {
   const { data: nextLesson, isLoading: isLoadingNextLesson } = useNextLesson(
     !!role && isStudent
   )
+
+  const { data: activePath } = useActiveLearningPath()
 
   const primaryClassroom = classrooms[0]
   const [selectedClassId, setSelectedClassId] = useState<string>(
@@ -232,37 +237,63 @@ export default function HomePage(): JSX.Element {
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {isStudent && (
-            <button
-              className="group w-full overflow-hidden rounded-3xl bg-white p-6 text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
-              onClick={() => {
-                if (nextLesson?.id && nextLesson?.activity?.id) {
-                  navigate(
-                    `/learn/${nextLesson.id}/${nextLesson.courseId}/${nextLesson.activity.id}`
-                  )
-                }
-              }}
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-blue-600">
-                    Bài học tiếp theo
-                  </p>
-                  <h3 className="mt-1 text-xl font-bold text-gray-900">
-                    {nextLesson?.title || 'Chưa có bài học tiếp theo'}
-                  </h3>
-                  {nextLesson?.description && (
-                    <p className="mt-1 text-sm text-gray-500">
-                      {nextLesson.description}
+            <>
+              {/* Next Lesson */}
+              <button
+                className="group w-full overflow-hidden rounded-3xl bg-white p-6 text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
+                onClick={() => {
+                  if (nextLesson?.id && nextLesson?.activity?.id) {
+                    navigate(
+                      `/learn/${nextLesson.id}/${nextLesson.courseId}/${nextLesson.activity.id}`
+                    )
+                  }
+                }}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-blue-600">
+                      Bài học tiếp theo
                     </p>
-                  )}
+                    <h3 className="mt-1 text-xl font-bold text-gray-900">
+                      {nextLesson?.title || 'Chưa có bài học tiếp theo'}
+                    </h3>
+                    {nextLesson?.description && (
+                      <p className="mt-1 text-sm text-gray-500">
+                        {nextLesson.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 rounded-2xl bg-blue-600/10 px-4 py-3 text-blue-700">
+                    <PlayCircle className="h-6 w-6" />
+                    <span className="font-semibold">Tiếp tục học</span>
+                    <ChevronRight className="h-5 w-5" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl bg-blue-600/10 px-4 py-3 text-blue-700">
-                  <PlayCircle className="h-6 w-6" />
-                  <span className="font-semibold">Tiếp tục học</span>
-                  <ChevronRight className="h-5 w-5" />
+              </button>
+
+              {/* Active Learning Path */}
+              {activePath && (
+                <div className="rounded-3xl bg-gradient-to-br from-purple-50 to-indigo-50 p-6 shadow-sm ring-1 ring-purple-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-semibold text-purple-600">
+                        Lộ trình học của tôi
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold text-gray-900">
+                        {activePath.name}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => navigate('/learning-paths')}
+                      className="text-sm font-medium text-purple-600 hover:underline"
+                    >
+                      Xem chi tiết
+                    </button>
+                  </div>
+                  <LearningPathProgress path={activePath} showDetails />
                 </div>
-              </div>
-            </button>
+              )}
+            </>
           )}
 
           {!isStudent && (
@@ -466,6 +497,23 @@ export default function HomePage(): JSX.Element {
         <div className="space-y-6">
           {/* Word of the Day Widget */}
           <WordOfTheDayWidget />
+
+          {/* Recommendations Section */}
+          {isStudent && (
+            <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+              <RecommendationsSection
+                limit={3}
+                onAction={(_id, type) => {
+                  // Handle recommendation action based on type
+                  if (type === 'course') {
+                    navigate(`/classroom`)
+                  } else if (type === 'lesson') {
+                    navigate(`/learn`)
+                  }
+                }}
+              />
+            </div>
+          )}
 
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
             {/* Header Section */}

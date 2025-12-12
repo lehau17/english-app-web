@@ -1,16 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { ParentActivitiesQuery } from '../services/parent.api'
 import {
   createLinkRequestApi,
   getChildNotificationSettingsApi,
   getParentActivitiesApi,
+  getParentChildActiveLearningPathApi,
+  getParentChildLearningPathDetailApi,
+  getParentChildLearningPathProgressApi,
+  getParentChildLearningPathsApi,
   getParentChildProgressApi,
   getParentChildrenApi,
   getParentDashboardApi,
+  getParentLearningPathsOverviewApi,
   getParentNotificationsApi,
   getParentRewardsApi,
   updateChildNotificationSettingsApi,
 } from '../services/parent.api'
-import type { ParentActivitiesQuery } from '../services/parent.api'
 import type { ParentDashboardData } from '../types/parent.type'
 
 export const useParentDashboardQuery = (enabled: boolean = true) =>
@@ -117,6 +122,92 @@ export const useParentActivitiesQuery = (
     retry: 1,
     placeholderData: (previousData) => previousData,
     staleTime: 30 * 1000,
+  })
+
+// Learning Path Hooks for Parent
+export const useParentLearningPathsOverviewQuery = (enabled: boolean = true) =>
+  useQuery({
+    queryKey: ['parent-learning-paths-overview'],
+    queryFn: async () => {
+      const response = await getParentLearningPathsOverviewApi()
+      return response.data
+    },
+    enabled,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  })
+
+export const useParentChildLearningPathsQuery = (
+  childId: string | null,
+  params?: { isCompleted?: boolean },
+  enabled: boolean = true
+) =>
+  useQuery({
+    queryKey: ['parent-child-learning-paths', childId, params],
+    queryFn: async () => {
+      if (!childId) return []
+      const response = await getParentChildLearningPathsApi(childId, params)
+      return response.data
+    },
+    enabled: enabled && !!childId,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  })
+
+export const useParentChildActiveLearningPathQuery = (
+  childId: string | null,
+  enabled: boolean = true
+) =>
+  useQuery({
+    queryKey: ['parent-child-active-learning-path', childId],
+    queryFn: async () => {
+      if (!childId) return null
+      const response = await getParentChildActiveLearningPathApi(childId)
+      return response.data
+    },
+    enabled: enabled && !!childId,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  })
+
+export const useParentChildLearningPathDetailQuery = (
+  childId: string | null,
+  pathId: string | null,
+  enabled: boolean = true
+) =>
+  useQuery({
+    queryKey: ['parent-child-learning-path-detail', childId, pathId],
+    queryFn: async () => {
+      if (!childId || !pathId) return null
+      const response = await getParentChildLearningPathDetailApi(
+        childId,
+        pathId
+      )
+      return response.data
+    },
+    enabled: enabled && !!childId && !!pathId,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  })
+
+export const useParentChildLearningPathProgressQuery = (
+  childId: string | null,
+  pathId: string | null,
+  enabled: boolean = true
+) =>
+  useQuery({
+    queryKey: ['parent-child-learning-path-progress', childId, pathId],
+    queryFn: async () => {
+      if (!childId || !pathId) return null
+      const response = await getParentChildLearningPathProgressApi(
+        childId,
+        pathId
+      )
+      return response.data
+    },
+    enabled: enabled && !!childId && !!pathId,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   })
 
 export const useParentChildProgressQuery = (

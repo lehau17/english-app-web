@@ -10,8 +10,12 @@ import {
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ParentPaymentSection } from '../components/parent'
+import ParentLearningPathCard from '../components/parent/ParentLearningPathCard'
 import { useAuth } from '../context/AuthContext'
-import { useParentDashboardQuery } from '../hooks/parent.queries'
+import {
+  useParentDashboardQuery,
+  useParentLearningPathsOverviewQuery,
+} from '../hooks/parent.queries'
 
 function ProgressRing({ value }: { value: number }) {
   const radius = 28
@@ -58,6 +62,7 @@ export default function ParentHomePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { data: dashboardData, isLoading } = useParentDashboardQuery()
+  const { data: learningPathsOverview } = useParentLearningPathsOverviewQuery()
 
   const displayName = user?.displayName || user?.firstName || 'Phụ huynh'
 
@@ -228,6 +233,63 @@ export default function ParentHomePage() {
               ))}
             </div>
           </div>
+
+          {/* Learning Paths Section */}
+          {learningPathsOverview?.children &&
+            learningPathsOverview.children.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Lộ trình học tập của con
+                  </h2>
+                  <Link
+                    to="/parent/learning-paths"
+                    className="text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    Xem tất cả
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {learningPathsOverview.children.map((childOverview) => {
+                    const child = children.find(
+                      (c) => c.id === childOverview.childId
+                    )
+                    if (!child) return null
+
+                    return (
+                      <ParentLearningPathCard
+                        key={childOverview.childId}
+                        childName={child.name}
+                        learningPath={
+                          childOverview.activePath
+                            ? {
+                                id: childOverview.activePath.id,
+                                userId: childOverview.childId,
+                                name: childOverview.activePath.name,
+                                targetLevel: '',
+                                focusAreas: [],
+                                courseIds: [],
+                                currentStep:
+                                  childOverview.activePath.currentStep,
+                                isCompleted:
+                                  childOverview.activePath.isCompleted,
+                                createdAt: '',
+                                updatedAt: '',
+                              }
+                            : null
+                        }
+                        onView={(pathId) =>
+                          navigate(
+                            `/parent/learning-paths/${childOverview.childId}/${pathId}`
+                          )
+                        }
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

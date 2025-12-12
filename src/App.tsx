@@ -22,6 +22,7 @@ import DictionaryPage from './pages/DictionaryPage'
 import FlashcardReviewPage from './pages/FlashcardReviewPage'
 import HomePage from './pages/HomePage' // Import HomePage
 import LeaderboardPage from './pages/LeaderboardPage'
+import LearningPathPage from './pages/LearningPathPage'
 import LearnPlayerPage from './pages/LearnPage'
 import ListeningPracticePage from './pages/ListeningPracticePage'
 import { ListeningResultPage } from './pages/ListeningResultPage'
@@ -33,6 +34,7 @@ import NotificationsPage from './pages/NotificationsPage'
 import ParentActivitiesPage from './pages/ParentActivitiesPage'
 import ParentChildrenGradesPage from './pages/ParentChildrenGradesPage'
 import ParentHomePage from './pages/ParentHomePage'
+import ParentLearningPathPage from './pages/ParentLearningPathPage'
 import ParentProgressReportPage from './pages/ParentProgressReportPage'
 import ParentReportsPage from './pages/ParentReportsPage'
 import ParentRewardsPage from './pages/ParentRewardsPage'
@@ -286,6 +288,22 @@ function App() {
               }
             />
             <Route
+              path="/parent/learning-paths"
+              element={
+                <HomeLayout>
+                  <ParentLearningPathPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/parent/learning-paths/:childId/:pathId"
+              element={
+                <HomeLayout>
+                  <ParentLearningPathPage />
+                </HomeLayout>
+              }
+            />
+            <Route
               path="/parent-rewards"
               element={
                 <HomeLayout>
@@ -453,6 +471,22 @@ function App() {
               element={
                 <HomeLayout>
                   <CertificateDetailPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/learning-paths"
+              element={
+                <HomeLayout>
+                  <LearningPathPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/learning-paths/:id"
+              element={
+                <HomeLayout>
+                  <LearningPathPage />
                 </HomeLayout>
               }
             />

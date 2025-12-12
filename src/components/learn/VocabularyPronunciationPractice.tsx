@@ -61,11 +61,12 @@ export const VocabularyPronunciationPractice: React.FC<
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm',
-      })
+      const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
+
+      // Get mimeType from MediaRecorder (browser chooses best codec)
+      const mimeType = mediaRecorder.mimeType || 'audio/webm'
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -81,9 +82,9 @@ export const VocabularyPronunciationPractice: React.FC<
         recordingStartTimeRef.current = null
 
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: 'audio/webm',
+          type: mimeType,
         })
-        await handleEvaluate(audioBlob)
+        await handleEvaluate(audioBlob, mimeType)
       }
 
       mediaRecorder.start()
@@ -91,13 +92,40 @@ export const VocabularyPronunciationPractice: React.FC<
       setIsRecording(true)
       setHasRecorded(true)
       setEvaluationResult(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting recording:', error)
-      toast.error('Không thể truy cập microphone. Vui lòng cho phép quyền.')
+
+      // Provide specific error messages based on error type
+      let errorMessage = 'Không thể truy cập microphone. '
+
+      if (
+        error.name === 'NotAllowedError' ||
+        error.name === 'PermissionDeniedError'
+      ) {
+        errorMessage +=
+          'Vui lòng cho phép quyền microphone trong cài đặt trình duyệt.'
+      } else if (
+        error.name === 'NotFoundError' ||
+        error.name === 'DevicesNotFoundError'
+      ) {
+        errorMessage += 'Không tìm thấy microphone. Vui lòng kiểm tra thiết bị.'
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage +=
+          'Trình duyệt không hỗ trợ tính năng này. Vui lòng thử trình duyệt khác.'
+      } else if (error.name === 'AbortError') {
+        errorMessage += 'Yêu cầu đã bị hủy.'
+      } else {
+        errorMessage += 'Vui lòng thử lại hoặc kiểm tra cài đặt microphone.'
+      }
+
+      toast.error(errorMessage)
     }
   }
 
-  const handleEvaluate = async (audioBlob: Blob) => {
+  const handleEvaluate = async (
+    audioBlob: Blob,
+    mimeType: string = 'audio/webm'
+  ) => {
     setIsEvaluating(true)
 
     try {
@@ -125,7 +153,7 @@ export const VocabularyPronunciationPractice: React.FC<
       const response = await evaluatePronunciation({
         ...(activityId && { activityId }), // Only include activityId if provided
         audioBase64: base64Audio,
-        mimeType: 'audio/webm',
+        mimeType,
         phrase: word,
       })
 

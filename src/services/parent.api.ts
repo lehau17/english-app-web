@@ -253,6 +253,84 @@ export interface ChildGradeDetails {
   activities: ActivityDetail[]
 }
 
+// Learning Path APIs for Parent
+export const getParentLearningPathsOverviewApi = async (): Promise<
+  BaseResponse<{
+    children: Array<{
+      childId: string
+      childName: string
+      activePath: {
+        id: string
+        name: string
+        currentStep: number
+        totalSteps: number
+        isCompleted: boolean
+      } | null
+      totalPaths: number
+      progress: number
+    }>
+  }>
+> => {
+  const { data } = await api.get<
+    BaseResponse<{
+      children: Array<{
+        childId: string
+        childName: string
+        activePath: {
+          id: string
+          name: string
+          currentStep: number
+          totalSteps: number
+          isCompleted: boolean
+        } | null
+        totalPaths: number
+        progress: number
+      }>
+    }>
+  >('/private/v1/parent/learning-paths/overview')
+  return data
+}
+
+export const getParentChildLearningPathsApi = async (
+  childId: string,
+  params?: { isCompleted?: boolean }
+): Promise<BaseResponse<any[]>> => {
+  const { data } = await api.get<BaseResponse<any[]>>(
+    `/private/v1/parent/children/${childId}/learning-paths`,
+    { params }
+  )
+  return data
+}
+
+export const getParentChildActiveLearningPathApi = async (
+  childId: string
+): Promise<BaseResponse<any | null>> => {
+  const { data } = await api.get<BaseResponse<any | null>>(
+    `/private/v1/parent/children/${childId}/learning-paths/active`
+  )
+  return data
+}
+
+export const getParentChildLearningPathDetailApi = async (
+  childId: string,
+  pathId: string
+): Promise<BaseResponse<any>> => {
+  const { data } = await api.get<BaseResponse<any>>(
+    `/private/v1/parent/children/${childId}/learning-paths/${pathId}`
+  )
+  return data
+}
+
+export const getParentChildLearningPathProgressApi = async (
+  childId: string,
+  pathId: string
+): Promise<BaseResponse<any>> => {
+  const { data } = await api.get<BaseResponse<any>>(
+    `/private/v1/parent/children/${childId}/learning-paths/${pathId}/progress`
+  )
+  return data
+}
+
 export const getChildGradeDetailsApi = async (
   classroomId: string,
   childId: string
