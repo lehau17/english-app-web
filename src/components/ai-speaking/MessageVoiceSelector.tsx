@@ -12,9 +12,12 @@ interface MessageVoiceSelectorProps {
  */
 const VOICE_LABELS: Record<string, { name: string; accent: string }> = {
   'en_US-amy-medium': { name: 'Amy', accent: 'US' },
+  'en_US-john-medium': { name: 'John', accent: 'US' },
   'en_US-ryan-medium': { name: 'Ryan', accent: 'US' },
   'en_US-lessac-medium': { name: 'Lessac', accent: 'US' },
+  'en_US-kristin-medium': { name: 'Kristin', accent: 'US' },
   'en_GB-alan-medium': { name: 'Alan', accent: 'GB' },
+  'en_GB-cori-medium': { name: 'Cori', accent: 'GB' },
   'en_GB-jenny_dioco-medium': { name: 'Jenny', accent: 'GB' },
 }
 
