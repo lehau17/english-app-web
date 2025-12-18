@@ -110,6 +110,8 @@ const AiSpeakingSessionPage: React.FC = () => {
   const [conversationMessages, setConversationMessages] = useState<
     ConversationMessage[]
   >([])
+  // NEW: State to store current suggestions
+  const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([])
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false)
 
   const socketRef = useRef<Socket | null>(null)
@@ -669,7 +671,12 @@ const AiSpeakingSessionPage: React.FC = () => {
 
       socket.on(
         'ai-speaking:next-turn',
-        (payload: { turnId: string; prompt: string; difficulty?: string }) => {
+        (payload: {
+          turnId: string
+          prompt: string
+          difficulty?: string
+          suggestions?: string[] // Receive suggestions
+        }) => {
           setCurrentTurnId(payload.turnId)
           setCurrentTurn(null)
           setTtsState('streaming')
@@ -679,6 +686,8 @@ const AiSpeakingSessionPage: React.FC = () => {
           setFinalTranscript('')
           setEvaluation(null)
           setPronunciationFeedback(null)
+          // Update suggestions state
+          setCurrentSuggestions(payload.suggestions || [])
           toast.success('AI đã gửi câu hỏi tiếp theo')
           setAiStatusMessage('AI đang chuẩn bị câu hỏi mới cho bạn...')
           setAiErrorMessage(null)
@@ -1252,6 +1261,18 @@ const AiSpeakingSessionPage: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Suggestions displayed automatically */}
+              {canRecord &&
+                recordingState === 'idle' &&
+                currentSuggestions.length > 0 && (
+                  <div className="w-full mb-4 px-2">
+                    <SuggestionChips
+                      suggestions={currentSuggestions}
+                      onSelect={handleSuggestionSelect}
+                    />
+                  </div>
+                )}
 
               {/* Timer text when recording */}
               {recordingState === 'recording' && (
