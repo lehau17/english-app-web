@@ -4,11 +4,6 @@ import TextInteractionWrapper from '../common/TextInteractionWrapper'
 import { CustomAudioPlayer } from './CustomAudioPlayer'
 import { TurnFeedbackPanel } from './TurnFeedbackPanel'
 
-interface VoiceEntry {
-  voiceId: string
-  audioUrl: string
-}
-
 interface BubbleMessageProps {
   role: 'ai' | 'user'
   text?: string | null

@@ -1,4 +1,4 @@
-import { Pause, Play, Volume2 } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { MessageVoiceSelector } from './MessageVoiceSelector'
 
