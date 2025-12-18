@@ -24,6 +24,7 @@ import { io, Socket } from 'socket.io-client'
 import { AiSpeakingSessionSummaryModal } from '../components/ai-speaking/AiSpeakingSessionSummaryModal'
 import { BubbleMessage } from '../components/ai-speaking/BubbleMessage'
 import { SuggestionButton } from '../components/ai-speaking/SuggestionButton'
+import { SuggestionChips } from '../components/ai-speaking/SuggestionChips'
 import { useAuth } from '../context/AuthContext'
 import { resolveSocketUrl } from '../lib/socket'
 import type {
