@@ -14,6 +14,7 @@ export enum TtsVoice {
   US_MALE_JOHN = 'en_US-john-medium',
   US_FEMALE_LESSAC = 'en_US-lessac-medium',
   US_MALE_RYAN = 'en_US-ryan-medium',
+  US_FEMALE_KRISTIN = 'en_US-kristin-medium',
 
   // British English
   GB_MALE_ALAN = 'en_GB-alan-medium',
@@ -34,9 +35,12 @@ export enum TtsVoice {
  */
 export const MULTI_VOICE_SUBSET: TtsVoice[] = [
   TtsVoice.US_FEMALE_AMY, // US Female (primary)
-  TtsVoice.US_MALE_RYAN, // US Male
+  TtsVoice.US_MALE_JOHN,
   TtsVoice.US_FEMALE_LESSAC, // US Female (alternative)
+  TtsVoice.US_MALE_RYAN, // US Male
+  TtsVoice.US_FEMALE_KRISTIN,
   TtsVoice.GB_MALE_ALAN, // GB Male
+  TtsVoice.GB_FEMALE_CORI,
   TtsVoice.GB_FEMALE_JENNY, // GB Female
 ]
 
