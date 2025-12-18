@@ -1,13 +1,36 @@
-import { MessageCircle } from 'lucide-react'
-import { useState } from 'react'
+import { MessageCircle, AlertCircle, ArrowRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ConversationList } from '../components/ai-speaking/ConversationList'
 import { NewConversationModal } from '../components/ai-speaking/NewConversationModal'
+import {
+  getRemedialExercises,
+  type RemedialExerciseDto,
+} from '../services/aiSpeaking.api'
 
 const AiSpeakingConversationsPage: React.FC = () => {
   const navigate = useNavigate()
   const [isNewConversationModalOpen, setIsNewConversationModalOpen] =
     useState(false)
+  const [remedialExercise, setRemedialExercise] =
+    useState<RemedialExerciseDto | null>(null)
+
+  useEffect(() => {
+    fetchRemedial()
+  }, [])
+
+  const fetchRemedial = async () => {
+    try {
+      const list = await getRemedialExercises()
+      // Show the first pending one
+      const pending = list.find((e) => e.status === 'pending')
+      if (pending) {
+        setRemedialExercise(pending)
+      }
+    } catch (e) {
+      console.error('Failed to fetch remedial exercises:', e)
+    }
+  }
 
   const handleSelectConversation = (conversationId: string) => {
     navigate(`/ai-speaking/conversations/${conversationId}`)
@@ -44,6 +67,32 @@ const AiSpeakingConversationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Remedial Banner */}
+      {remedialExercise && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 shadow-sm flex items-start gap-4 animate-in slide-in-from-top-2">
+          <div className="rounded-full bg-orange-100 p-2 text-orange-600">
+            <AlertCircle className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-orange-900">
+              Cải thiện phát âm
+            </h3>
+            <p className="text-orange-800 text-sm mt-1">
+              Chúng tôi phát hiện một số lỗi phát âm thường gặp. Hãy luyện tập
+              ngay bài tập ngắn 2 phút này để cải thiện.
+            </p>
+            <button
+              onClick={() =>
+                navigate(`/ai-speaking/remedial/${remedialExercise.id}`)
+              }
+              className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-orange-700 hover:text-orange-900 hover:underline"
+            >
+              Bắt đầu luyện tập <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

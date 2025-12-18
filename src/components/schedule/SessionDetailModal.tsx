@@ -5,6 +5,7 @@ import {
   Clock,
   MapPin,
   User,
+  Video,
   X,
 } from 'lucide-react'
 import type { StudentScheduleSession } from '../../types/student-schedule.type'
@@ -86,7 +87,7 @@ const SessionDetailModal = ({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div
-          className="fixed inset-0 bg-white bg-opacity-80 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
 
@@ -153,7 +154,11 @@ const SessionDetailModal = ({
                     {session.classroomName}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {session.type === 'online' ? 'Trực tuyến' : 'Tại trung tâm'}
+                    {session.type === 'online'
+                      ? 'Trực tuyến'
+                      : session.type === 'hybrid'
+                        ? 'Hybrid (Online + Offline)'
+                        : 'Tại trung tâm'}
                   </p>
                 </div>
               </div>
@@ -274,6 +279,36 @@ const SessionDetailModal = ({
                 >
                   <MapPin className="h-4 w-4" />
                   Tham gia buổi học trực tuyến
+                </a>
+              </div>
+            )}
+
+            {/* Recording URL - Show only for completed sessions */}
+            {session.recordingUrl && (
+              <div className="border-t pt-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Video className="h-5 w-5 text-green-600" />
+                  Xem lại buổi học
+                </h4>
+                <div className="rounded-lg overflow-hidden bg-black">
+                  <video
+                    src={session.recordingUrl}
+                    controls
+                    controlsList="nodownload"
+                    className="w-full max-h-80"
+                    preload="metadata"
+                  >
+                    <source src={session.recordingUrl} />
+                    Trình duyệt của bạn không hỗ trợ phát video.
+                  </video>
+                </div>
+                <a
+                  href={session.recordingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-green-600 hover:text-green-700 mt-2"
+                >
+                  Mở trong tab mới
                 </a>
               </div>
             )}

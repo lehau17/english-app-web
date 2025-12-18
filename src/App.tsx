@@ -8,6 +8,7 @@ import { HomeLayout } from './layouts/HomeLayout'
 import AiSpeakingConversationDetailPage from './pages/AiSpeakingConversationDetailPage'
 import AiSpeakingConversationsPage from './pages/AiSpeakingConversationsPage'
 import AiSpeakingSessionPage from './pages/AiSpeakingSessionPage'
+import RemedialSessionPage from './pages/RemedialSessionPage'
 import AssignmentResultPage from './pages/AssignmentResultPage'
 import AssignmentSubmissionsPage from './pages/AssignmentSubmissionsPage'
 import AssignmentTakingPage from './pages/AssignmentTakingPage'
@@ -55,6 +56,8 @@ import VocabularyListDetailPage from './pages/VocabularyListDetailPage'
 import VocabularyListsPage from './pages/VocabularyListsPage'
 import VocabularyQuickReviewPage from './pages/VocabularyQuickReviewPage'
 import VocabularyReviewPage from './pages/VocabularyReviewPage'
+import SpeakingPracticePage from './pages/SpeakingPracticePage'
+import SpeakingPracticeSessionPage from './pages/SpeakingPracticeSessionPage'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PublicRoute from './routes/PublicRoute'
 
@@ -397,6 +400,30 @@ function App() {
               element={
                 <HomeLayout>
                   <AiSpeakingSessionPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/ai-speaking/remedial/:id"
+              element={
+                <HomeLayout>
+                  <RemedialSessionPage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/speaking-practice"
+              element={
+                <HomeLayout>
+                  <SpeakingPracticePage />
+                </HomeLayout>
+              }
+            />
+            <Route
+              path="/speaking-practice/session"
+              element={
+                <HomeLayout>
+                  <SpeakingPracticeSessionPage />
                 </HomeLayout>
               }
             />

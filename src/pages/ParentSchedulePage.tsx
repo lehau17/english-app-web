@@ -1,11 +1,14 @@
 import {
+  Building,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Layers,
   Loader2,
   RefreshCw,
   User as UserIcon,
+  Video,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -47,6 +50,31 @@ const stateStyles: Record<
     label: 'Hoãn lại',
     text: 'text-amber-700',
     bg: 'bg-amber-100',
+  },
+}
+
+// Session type styles for online/offline/hybrid
+const typeStyles: Record<
+  string,
+  { label: string; bg: string; text: string; icon: typeof Video }
+> = {
+  online: {
+    label: 'Online',
+    bg: 'bg-blue-100',
+    text: 'text-blue-700',
+    icon: Video,
+  },
+  offline: {
+    label: 'Offline',
+    bg: 'bg-gray-100',
+    text: 'text-gray-700',
+    icon: Building,
+  },
+  hybrid: {
+    label: 'Hybrid',
+    bg: 'bg-purple-100',
+    text: 'text-purple-700',
+    icon: Layers,
   },
 }
 
@@ -437,6 +465,22 @@ const ParentSchedulePage = () => {
                                     <div className="text-[11px] text-gray-500">
                                       {session.classroomName}
                                     </div>
+                                    {/* Session Type Badge */}
+                                    {session.type &&
+                                      typeStyles[session.type] && (
+                                        <span
+                                          className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${typeStyles[session.type].bg} ${typeStyles[session.type].text}`}
+                                        >
+                                          {(() => {
+                                            const TypeIcon =
+                                              typeStyles[session.type].icon
+                                            return (
+                                              <TypeIcon className="h-3 w-3" />
+                                            )
+                                          })()}
+                                          {typeStyles[session.type].label}
+                                        </span>
+                                      )}
                                     {session.course && (
                                       <div className="text-[11px] text-gray-600 font-medium">
                                         {session.course.title}

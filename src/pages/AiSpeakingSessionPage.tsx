@@ -1,17 +1,29 @@
 import {
+  AlertTriangle,
   ArrowLeft,
-  MessageCircle,
+  Award,
+  Ban,
+  BarChart2,
+  BookOpen,
+  FileText,
+  Hand,
+  HelpCircle,
+  Info,
+  Loader2,
   Mic,
   RefreshCw,
+  Star,
   StopCircle,
-  User,
+  ThumbsUp,
+  VolumeX,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
 import { AiSpeakingSessionSummaryModal } from '../components/ai-speaking/AiSpeakingSessionSummaryModal'
-import TextInteractionWrapper from '../components/common/TextInteractionWrapper'
+import { BubbleMessage } from '../components/ai-speaking/BubbleMessage'
+import { SuggestionButton } from '../components/ai-speaking/SuggestionButton'
 import { useAuth } from '../context/AuthContext'
 import { resolveSocketUrl } from '../lib/socket'
 import type {
@@ -38,6 +50,8 @@ interface ConversationMessage {
   role: 'ai' | 'user'
   turnId: string
   audioUrl?: string | null
+  audioUrls?: Record<string, string | null> // Multi-voice audio URLs
+  selectedVoice?: string // Currently selected voice for playback
   text?: string | null
   createdAt: number
 }
@@ -77,7 +91,7 @@ const AiSpeakingSessionPage: React.FC = () => {
   const [_ttsState, setTtsState] = useState<TtsState>('idle')
   const [_ttsChunkCount, setTtsChunkCount] = useState(0)
   const [aiAudioUrl, setAiAudioUrl] = useState<string | null>(null)
-  const [_aiStatusMessage, setAiStatusMessage] = useState(
+  const [aiStatusMessage, setAiStatusMessage] = useState(
     'Đang khởi tạo phiên luyện nói...'
   )
   const [_aiErrorMessage, setAiErrorMessage] = useState<string | null>(null)
@@ -87,7 +101,7 @@ const AiSpeakingSessionPage: React.FC = () => {
   const [pronunciationFeedback, setPronunciationFeedback] = useState<
     any | null
   >(null)
-  const [silenceWarnings, setSilenceWarnings] = useState(0)
+  const [_silenceWarnings, setSilenceWarnings] = useState(0)
   const [sessionSummary, setSessionSummary] = useState<string | null>(null)
   const [sessionAnalytics, setSessionAnalytics] = useState<Record<
     string,
@@ -125,6 +139,12 @@ const AiSpeakingSessionPage: React.FC = () => {
             ...(message.audioUrl !== undefined && {
               audioUrl: message.audioUrl,
             }),
+            ...(message.audioUrls !== undefined && {
+              audioUrls: message.audioUrls,
+            }),
+            ...(message.selectedVoice !== undefined && {
+              selectedVoice: message.selectedVoice,
+            }),
             createdAt: next[index].createdAt ?? message.createdAt,
           }
           return next
@@ -135,14 +155,42 @@ const AiSpeakingSessionPage: React.FC = () => {
     []
   )
 
+  // Change voice for a specific message
+  const changeMessageVoice = useCallback(
+    (messageId: string, newVoice: string) => {
+      setConversationMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId && msg.audioUrls) {
+            const newAudioUrl = msg.audioUrls[newVoice]
+            return {
+              ...msg,
+              selectedVoice: newVoice,
+              audioUrl: newAudioUrl ?? msg.audioUrl,
+            }
+          }
+          return msg
+        })
+      )
+    },
+    []
+  )
+
+  const handleSuggestionSelect = useCallback((suggestion: string) => {
+    // Copy suggestion to clipboard for user convenience
+    navigator.clipboard.writeText(suggestion)
+    toast.success('Đã sao chép gợi ý vào clipboard', { duration: 3000 })
+  }, [])
+
   const appendAudioToConversation = useCallback(
     (params: {
       role: 'ai' | 'user'
       turnId: string
       audioUrl?: string | null
+      audioUrls?: Record<string, string | null>
+      selectedVoice?: string
       text?: string | null
     }) => {
-      const { role, turnId, audioUrl, text } = params
+      const { role, turnId, audioUrl, audioUrls, selectedVoice, text } = params
       const id = `${role}-${turnId}`
 
       // Chỉ include các field được cung cấp
@@ -165,6 +213,14 @@ const AiSpeakingSessionPage: React.FC = () => {
       // Chỉ thêm audioUrl nếu có giá trị
       if (audioUrl !== undefined) {
         messageUpdate.audioUrl = audioUrl
+      }
+
+      // Thêm multi-voice support
+      if (audioUrls !== undefined) {
+        messageUpdate.audioUrls = audioUrls
+      }
+      if (selectedVoice !== undefined) {
+        messageUpdate.selectedVoice = selectedVoice
       }
 
       upsertConversationMessage(messageUpdate as ConversationMessage)
@@ -297,7 +353,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           role: 'ai',
           turnId: payload.turnId,
           audioUrl: null,
-          text: '⏳ Đang trả lời...',
+          text: 'Đang trả lời...',
         })
       })
 
@@ -312,7 +368,7 @@ const AiSpeakingSessionPage: React.FC = () => {
             }
             audioBuffersRef.current.push(view)
             setTtsChunkCount((count) => count + 1)
-            setAiStatusMessage('AI đang gửi âm thanh, vui lòng chờ...')
+            setAiStatusMessage('AI đang gửi âm thanh, vui lòng chờ')
           }
         }
       )
@@ -322,7 +378,10 @@ const AiSpeakingSessionPage: React.FC = () => {
         (payload: {
           turnId: string
           audioUrl?: string | null
+          audioUrls?: Record<string, string | null>
+          primaryVoice?: string
           text?: string | null
+          multiVoice?: boolean
         }) => {
           setTtsState(payload.audioUrl ? 'ready' : 'idle')
           const mergedUrl = payload.audioUrl
@@ -338,6 +397,15 @@ const AiSpeakingSessionPage: React.FC = () => {
             )?.aiPrompt ??
             null
 
+          // Determine selected voice (prioritize primaryVoice or first available)
+          const selectedVoice =
+            payload.primaryVoice ||
+            (payload.audioUrls
+              ? Object.keys(payload.audioUrls).find(
+                  (k) => payload.audioUrls?.[k]
+                )
+              : undefined)
+
           if (mergedUrl) {
             setAiAudioUrl((prev) => {
               if (prev) URL.revokeObjectURL(prev)
@@ -351,6 +419,8 @@ const AiSpeakingSessionPage: React.FC = () => {
               role: 'ai',
               turnId: payload.turnId,
               audioUrl: mergedUrl,
+              audioUrls: payload.audioUrls,
+              selectedVoice,
               text: promptText,
             })
           } else {
@@ -362,9 +432,41 @@ const AiSpeakingSessionPage: React.FC = () => {
               role: 'ai',
               turnId: payload.turnId,
               audioUrl: null,
+              audioUrls: payload.audioUrls,
+              selectedVoice,
               text: promptText,
             })
           }
+        }
+      )
+
+      // Listen for incremental voice updates (secondary voices from fast-track synthesis)
+      socket.on(
+        'ai-speaking:voice-ready',
+        (payload: {
+          turnId: string
+          voice: string
+          audioUrl: string | null
+        }) => {
+          console.log(`🎙️ Secondary voice ready: ${payload.voice}`)
+
+          // Update conversation message with new voice URL
+          const messageId = `ai-${payload.turnId}`
+
+          setConversationMessages((prev) =>
+            prev.map((msg) => {
+              if (msg.id === messageId) {
+                return {
+                  ...msg,
+                  audioUrls: {
+                    ...(msg.audioUrls || {}),
+                    [payload.voice]: payload.audioUrl,
+                  },
+                }
+              }
+              return msg
+            })
+          )
         }
       )
 
@@ -391,7 +493,7 @@ const AiSpeakingSessionPage: React.FC = () => {
             // Banned - show severe error
             toast.error(payload.message, {
               duration: 10000,
-              icon: '🚫',
+              icon: <Ban className="text-white" />,
               style: {
                 background: '#DC2626',
                 color: '#fff',
@@ -402,7 +504,7 @@ const AiSpeakingSessionPage: React.FC = () => {
             // Warning - show alert
             toast(payload.message, {
               duration: 6000,
-              icon: '⚠️',
+              icon: <AlertTriangle className="text-white" />,
               style: {
                 background: '#F59E0B',
                 color: '#fff',
@@ -422,7 +524,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           if (payload.reason === 'profanity-ban') {
             toast.error(payload.message, {
               duration: 10000,
-              icon: '🚫',
+              icon: <Ban />,
             })
 
             // Navigate back after delay
@@ -525,7 +627,7 @@ const AiSpeakingSessionPage: React.FC = () => {
             'Không nhận được nội dung giọng nói. Hãy ghi âm lại nhé.'
           )
           toast('AI không nghe thấy bạn, hãy thử ghi âm lại.', {
-            icon: '🔇',
+            icon: <VolumeX />,
           })
         }
       )
@@ -647,7 +749,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           if (payload.evaluation.score === 0) {
             toast(payload.evaluation.feedback, {
               duration: 6000,
-              icon: 'ℹ️',
+              icon: <Info className="text-white" />,
               style: {
                 background: '#3b82f6',
                 color: 'white',
@@ -656,7 +758,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           } else if (payload.evaluation.score < 50) {
             toast(payload.evaluation.feedback, {
               duration: 5000,
-              icon: '⚠️',
+              icon: <AlertTriangle className="text-white" />,
               style: {
                 background: '#f59e0b',
                 color: 'white',
@@ -682,23 +784,23 @@ const AiSpeakingSessionPage: React.FC = () => {
           const score = payload.pronunciationFeedback.pronunciationScore
           if (score >= 80) {
             toast.success(`Phát âm xuất sắc! ${score}/100`, {
-              icon: '🌟',
+              icon: <Star className="text-yellow-400" />,
               duration: 3000,
             })
           } else if (score >= 60) {
             toast.success(`Phát âm tốt! ${score}/100`, {
-              icon: '👍',
+              icon: <ThumbsUp className="text-green-500" />,
               duration: 3000,
             })
           } else if (score >= 40) {
             toast(`Phát âm cần cải thiện: ${score}/100`, {
-              icon: '📚',
+              icon: <BookOpen className="text-white" />,
               duration: 4000,
               style: { background: '#f59e0b', color: 'white' },
             })
           } else {
             toast(`Hãy luyện tập thêm: ${score}/100`, {
-              icon: '💪',
+              icon: <Award className="text-white" />,
               duration: 4000,
               style: { background: '#ef4444', color: 'white' },
             })
@@ -791,6 +893,17 @@ const AiSpeakingSessionPage: React.FC = () => {
         }
         setRecordingState('processing')
         detachRecorderStream()
+
+        // Update bubble text to Processing
+        if (currentTurnId) {
+          appendAudioToConversation({
+            role: 'user',
+            turnId: currentTurnId,
+            audioUrl: null,
+            text: 'Đang xử lý...',
+          })
+        }
+
         const tryEmit = () => {
           if (!emitUserStop()) {
             window.setTimeout(tryEmit, 150)
@@ -906,6 +1019,7 @@ const AiSpeakingSessionPage: React.FC = () => {
           goal,
           targetDifficulty,
           maxTurns,
+          multiVoice: true, // Enable 5-voice generation for voice selector
         })
 
         console.log('Session created successfully:', created)
@@ -925,7 +1039,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         connectSocket(created.id)
         setSessionSummary(null)
         setSessionAnalytics(null)
-        setAiStatusMessage('AI đang chuẩn bị câu hỏi mở đầu...')
+        setAiStatusMessage('')
         setAiErrorMessage(null)
         setConversationMessages([])
         turnPromptRef.current = new Map()
@@ -934,6 +1048,21 @@ const AiSpeakingSessionPage: React.FC = () => {
             turnPromptRef.current.set(turn.id, turn.aiPrompt)
           }
         })
+
+        // Add initial AI message from session creation (first turn)
+        if (initialTurn?.aiPrompt || initialTurn?.aiAudioUrl) {
+          const initialMessage: ConversationMessage = {
+            id: `ai-${initialTurn.id}`,
+            role: 'ai',
+            text: initialTurn.aiPrompt ?? null,
+            audioUrl: initialTurn.aiAudioUrl ?? null,
+            createdAt: initialTurn.createdAt
+              ? new Date(initialTurn.createdAt).getTime()
+              : Date.now(),
+            turnId: initialTurn.id,
+          }
+          setConversationMessages([initialMessage])
+        }
 
         toast.success('Đã bắt đầu phiên luyện nói với AI')
       } catch (error: any) {
@@ -948,7 +1077,7 @@ const AiSpeakingSessionPage: React.FC = () => {
         ) {
           toast.error(message, {
             duration: 10000,
-            icon: '🚫',
+            icon: <Ban className="text-white" />,
             style: {
               background: '#DC2626',
               color: '#fff',
@@ -968,14 +1097,17 @@ const AiSpeakingSessionPage: React.FC = () => {
 
   const canRecord = Boolean(session) && Boolean(currentTurnId)
   const hasEvaluation = Boolean(evaluation?.score)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   if (!session) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex h-screen items-center justify-center bg-sky-50">
         <div className="text-center">
-          <div className="inline-flex h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">
-            Đang khởi tạo phiên luyện nói...
+          <div className="mx-auto flex h-16 w-16 items-center justify-center animate-bounce text-sky-500">
+            <Loader2 className="h-12 w-12 animate-spin" />
+          </div>
+          <p className="mt-4 text-lg font-medium text-sky-800">
+            Đang chuẩn bị bài học...
           </p>
         </div>
       </div>
@@ -983,414 +1115,291 @@ const AiSpeakingSessionPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleBackToConversations}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <ArrowLeft className="h-4 w-4" /> Quay lại
-            </button>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                Phiên luyện nói
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Chủ đề: {session.topic ?? 'Tự do'} • Lượt {session.turnCount}/
-                {session.maxTurns}
-              </p>
-            </div>
+    <div className="relative flex h-screen flex-col bg-sky-50 overflow-hidden">
+      {/* Top Header */}
+      <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-sky-100 bg-white px-6 shadow-sm z-10 transition-all duration-300">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleBackToConversations}
+            className="group flex items-center justify-center rounded-full bg-sky-100 p-2 text-sky-600 hover:bg-sky-200 transition-all"
+            title="Quay lại"
+          >
+            <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
+          </button>
+          <div>
+            <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <span>{session.topic ?? 'Hội thoại vui vẻ'}</span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+                {session.targetDifficulty === 'beginner'
+                  ? 'Dễ'
+                  : session.targetDifficulty === 'advanced'
+                    ? 'Khó'
+                    : 'Vừa'}
+              </span>
+            </h1>
+            <p className="text-xs text-gray-500">
+              Lượt {session.turnCount} / {session.maxTurns}
+            </p>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Dòng hội thoại
-              </h2>
-              <span className="text-xs text-gray-500">
-                {conversationMessages.length} lượt trao đổi
-              </span>
-            </div>
-            <div className="mt-4 max-h-96 overflow-y-auto space-y-4 rounded-lg bg-gray-50 p-4">
-              {conversationMessages.length === 0 ? (
-                <p className="text-center text-sm text-gray-500">
-                  Bắt đầu ghi âm để thêm nội dung vào hội thoại.
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isSidebarOpen ? 'bg-sky-100 text-sky-700' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+          >
+            {isSidebarOpen ? 'Ẩn thông tin' : 'Hiện thông tin'}
+          </button>
+          <button
+            onClick={handleFinalizeSession}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all"
+          >
+            <RefreshCw className="h-4 w-4" /> Tổng kết
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Chat Area (Full Screen / Resizable) */}
+        <main className="flex flex-1 flex-col overflow-hidden relative transition-all duration-300">
+          {/* Messages List */}
+          <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth space-y-6 md:px-8 lg:px-12 bg-sky-50/50">
+            {conversationMessages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center text-center opacity-60">
+                <div className="mb-4 animate-pulse text-sky-400">
+                  <Hand className="h-16 w-16" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-400">Chào bạn!</h3>
+                <p className="text-gray-400">
+                  Nhấn nút micro để bắt đầu trò chuyện nhé.
                 </p>
-              ) : (
-                conversationMessages.map((message) => (
-                  <div key={message.id}>
-                    {message.role === 'ai' ? (
-                      /* AI Message - Left side */
-                      <div className="flex items-start gap-2">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
-                          <MessageCircle className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div className="flex-1 space-y-1.5">
-                          {message.text && (
-                            <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 shadow-sm max-w-[85%]">
-                              {message.text === '⏳ Đang trả lời...' ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="flex gap-1">
-                                    <div className="h-2 w-2 rounded-full bg-blue-400 animate-bounce" />
-                                    <div
-                                      className="h-2 w-2 rounded-full bg-blue-400 animate-bounce"
-                                      style={{ animationDelay: '0.1s' }}
-                                    />
-                                    <div
-                                      className="h-2 w-2 rounded-full bg-blue-400 animate-bounce"
-                                      style={{ animationDelay: '0.2s' }}
-                                    />
-                                  </div>
-                                  <p className="text-sm text-gray-600">
-                                    Đang trả lời...
-                                  </p>
-                                </div>
-                              ) : (
-                                <TextInteractionWrapper>
-                                  <p className="text-sm text-gray-800 whitespace-pre-line">
-                                    {message.text}
-                                  </p>
-                                </TextInteractionWrapper>
-                              )}
-                            </div>
-                          )}
-                          {message.audioUrl && (
-                            <div className="flex items-center gap-2 pl-2">
-                              <audio
-                                controls
-                                className="h-8 max-w-xs"
-                                src={message.audioUrl}
-                                style={{ maxHeight: '32px' }}
-                              >
-                                <track kind="captions" />
-                              </audio>
-                            </div>
-                          )}
-                          <div className="pl-2 text-xs text-gray-400">
-                            {new Date(message.createdAt).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      /* User Message - Right side */
-                      <div className="flex items-start justify-end gap-2">
-                        <div className="flex-1 flex flex-col items-end space-y-1.5">
-                          {message.text && (
-                            <div className="rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5 shadow-sm max-w-[85%]">
-                              {message.text === 'Đang ghi âm...' ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                                  <p className="text-sm text-white">
-                                    Đang ghi âm...
-                                  </p>
-                                </div>
-                              ) : (
-                                <p className="text-sm text-white whitespace-pre-line">
-                                  {message.text}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          {message.audioUrl && (
-                            <div className="flex items-center gap-2 pr-2">
-                              <audio
-                                controls
-                                className="h-8 max-w-xs"
-                                src={message.audioUrl}
-                                style={{ maxHeight: '32px' }}
-                              >
-                                <track kind="captions" />
-                              </audio>
-                            </div>
-                          )}
-                          <div className="pr-2 text-xs text-gray-400">
-                            {new Date(message.createdAt).toLocaleTimeString()}
-                          </div>
-                        </div>
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600">
-                          <User className="h-4 w-4 text-white" />
-                        </div>
-                      </div>
-                    )}
+              </div>
+            ) : (
+              conversationMessages.map((message) => {
+                // Find turn data for user messages to show evaluation
+                const turn = session.turns.find((t) => t.id === message.turnId)
+
+                return (
+                  <BubbleMessage
+                    key={message.id}
+                    role={message.role}
+                    text={message.text}
+                    audioUrl={message.audioUrl}
+                    audioUrls={message.audioUrls}
+                    selectedVoice={message.selectedVoice}
+                    createdAt={message.createdAt}
+                    turnId={message.turnId}
+                    onVoiceChange={(voice) =>
+                      changeMessageVoice(message.id, voice)
+                    }
+                    sessionTurn={turn}
+                  />
+                )
+              })
+            )}
+            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+          </div>
+
+          {/* Bottom Action Bar */}
+          <div className="flex-shrink-0 border-t border-sky-100 bg-white p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+            <div className="mx-auto max-w-4xl flex flex-col gap-4">
+              {/* Controls Layout - Grid for perfect centering */}
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                {/* Left: Status Text */}
+                <div className="flex items-center gap-2 text-sm text-gray-500 min-w-0 pr-2">
+                  {recordingState === 'recording' ? (
+                    <span className="flex items-center gap-2 text-red-500 font-medium animate-pulse whitespace-nowrap">
+                      <div className="h-2 w-2 rounded-full bg-red-500" /> Đang
+                      ghi âm...
+                    </span>
+                  ) : (
+                    <span className="truncate">{aiStatusMessage}</span>
+                  )}
+                </div>
+
+                {/* Center: Recording Button */}
+                <div className="flex flex-col items-center justify-center -mt-6">
+                  {recordingState !== 'recording' ? (
+                    <button
+                      onClick={startRecording}
+                      disabled={!canRecord}
+                      className="group relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-xl shadow-indigo-200 transition-all hover:scale-110 active:scale-95 disabled:opacity-50 disabled:grayscale border-4 border-white"
+                    >
+                      <Mic className="h-9 w-9 text-white group-hover:animate-pulse" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={stopRecording}
+                      className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500 shadow-xl shadow-red-200 transition-all hover:scale-105 active:scale-95 animate-pulse border-4 border-white"
+                    >
+                      <StopCircle className="h-9 w-9 text-white" />
+                    </button>
+                  )}
+                  <span className="mt-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    {recordingState === 'recording' ? 'Dừng lại' : 'Nói ngay'}
+                  </span>
+                </div>
+
+                {/* Right: Suggestion Button */}
+                <div className="flex justify-end pl-2">
+                  {canRecord && recordingState === 'idle' && (
+                    <SuggestionButton
+                      sessionId={session.id}
+                      onSelect={handleSuggestionSelect}
+                      disabled={!canRecord}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Timer text when recording */}
+              {recordingState === 'recording' && (
+                <div className="text-center">
+                  <span
+                    className={`text-sm font-bold ${
+                      durationRef.current >= 16
+                        ? 'text-green-600'
+                        : 'text-amber-600'
+                    }`}
+                  >
+                    {durationRef.current}s
+                  </span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    (Tối thiểu 10s)
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        {/* Sidebar (Collapsible) */}
+        <aside
+          className={`flex-shrink-0 border-l border-sky-100 bg-white transition-all duration-300 ease-in-out absolute right-0 top-0 bottom-0 z-30 md:static ${
+            isSidebarOpen
+              ? 'w-80 translate-x-0 shadow-xl md:shadow-none'
+              : 'w-0 translate-x-full opacity-0 overflow-hidden'
+          }`}
+        >
+          <div className="h-full overflow-y-auto p-4 space-y-6">
+            {/* Transcript Section */}
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <FileText className="h-4 w-4" /> Phiên âm
+              </h3>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 min-h-[100px] text-sm text-gray-700 max-h-60 overflow-y-auto">
+                {recordingState === 'recording' ? (
+                  <span className="text-gray-400 italic">
+                    {partialTranscript || 'Đang nghe...'}
+                  </span>
+                ) : (
+                  finalTranscript || (
+                    <span className="text-gray-400 italic">
+                      Chưa có kết quả...
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Metrics Section */}
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <BarChart2 className="h-4 w-4" /> Đánh giá gần nhất
+              </h3>
+
+              {hasEvaluation ? (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100 text-center mb-3">
+                    <div className="text-3xl font-black text-emerald-600">
+                      {evaluation?.score}
+                    </div>
+                    <div className="text-xs font-bold text-emerald-800 uppercase">
+                      Điểm tổng
+                    </div>
                   </div>
-                ))
+
+                  {evaluation?.feedback && (
+                    <div className="rounded-xl bg-white border border-gray-100 p-3 text-sm text-gray-600 shadow-sm mb-3">
+                      {evaluation.feedback}
+                    </div>
+                  )}
+
+                  {/* Categories */}
+                  {evaluation?.categories && (
+                    <div className="mt-2 space-y-2">
+                      {evaluation.categories.map((cat, i) => (
+                        <div
+                          key={i}
+                          className="text-xs border-b border-dashed border-gray-200 pb-2 last:border-0"
+                        >
+                          <span className="font-bold text-gray-700 block">
+                            {cat.name}
+                          </span>
+                          <span className="text-gray-500">{cat.comment}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl">
+                  <HelpCircle className="h-8 w-8 text-gray-300 mx-auto mb-1" />
+                  <span className="text-xs text-gray-400">
+                    Chưa có đánh giá
+                  </span>
+                </div>
               )}
             </div>
 
-            {/* Recording Controls - Moved inside chat box */}
-            <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                {recordingState !== 'recording' ? (
-                  <button
-                    onClick={startRecording}
-                    disabled={!canRecord}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    <Mic className="h-4 w-4" /> Bắt đầu trả lời
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopRecording}
-                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                  >
-                    <StopCircle className="h-4 w-4" /> Dừng ghi âm
-                  </button>
-                )}
-                <span
-                  className={`text-sm font-medium ${
-                    durationRef.current >= 16
-                      ? 'text-emerald-600'
-                      : durationRef.current >= 10
-                        ? 'text-yellow-600'
-                        : 'text-gray-600'
-                  }`}
-                >
-                  Thời lượng: {durationRef.current}s
-                  {durationRef.current >= 16 && ' ✓'}
-                  {durationRef.current < 16 &&
-                    durationRef.current >= 10 &&
-                    ' (cần thêm vài giây)'}
-                </span>
-                {silenceWarnings > 0 && (
-                  <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs text-yellow-800">
-                    AI chưa nghe thấy bạn ({silenceWarnings})
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-500">
-                <strong>Quan trọng:</strong> Hãy trả lời tối thiểu{' '}
-                <strong>16 giây</strong> để AI có đủ dữ liệu đánh giá chính xác.
-              </p>
-            </div>
-          </div>
-
-          {/* Phiên âm tạm thời & cuối cùng */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-gray-800">
-                  Phiên âm tạm thời
-                </h3>
-                <p className="mt-2 text-sm text-gray-600 min-h-[48px] max-h-[120px] overflow-y-auto whitespace-pre-line">
-                  {partialTranscript ||
-                    (recordingState === 'recording'
-                      ? '🎤 Đang ghi âm... (hãy nói to và rõ ràng)'
-                      : 'Chờ bạn bắt đầu ghi âm')}
-                </p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-gray-800">
-                  Phiên âm cuối cùng
-                </h3>
-                <p className="mt-2 text-sm text-gray-700 min-h-[48px] max-h-[120px] overflow-y-auto whitespace-pre-line">
-                  {finalTranscript || 'Sẽ hiển thị sau khi bạn dừng ghi âm.'}
-                </p>
-              </div>
-            </div>
-
-            {hasEvaluation ? (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-emerald-900">
-                    Kết quả đánh giá
-                  </h3>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-700">
-                    {evaluation?.score ?? 0}/100
-                  </span>
-                </div>
-                {evaluation?.feedback && (
-                  <p className="mt-2 text-sm text-emerald-900 whitespace-pre-line">
-                    {evaluation.feedback}
-                  </p>
-                )}
-                {evaluation?.categories && (
-                  <ul className="mt-3 space-y-1 text-sm text-emerald-800">
-                    {evaluation.categories.map((cat) => (
-                      <li key={cat.name}>
-                        <span className="font-medium">{cat.name}: </span>
-                        {cat.comment}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-
-            {/* Pronunciation Feedback Section */}
+            {/* Pronunciation Section */}
             {pronunciationFeedback && (
-              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
-                    🎤 Đánh giá phát âm
-                  </h3>
-                </div>
-
-                {/* Overall Scores */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-xs text-gray-600 mb-1">Tổng điểm</div>
-                    <div
-                      className={`text-2xl font-bold ${
-                        pronunciationFeedback.pronunciationScore >= 80
-                          ? 'text-green-600'
-                          : pronunciationFeedback.pronunciationScore >= 60
-                            ? 'text-blue-600'
-                            : pronunciationFeedback.pronunciationScore >= 40
-                              ? 'text-yellow-600'
-                              : 'text-red-600'
-                      }`}
-                    >
-                      {pronunciationFeedback.pronunciationScore}
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-xs text-gray-600 mb-1">Chính xác</div>
-                    <div className="text-2xl font-bold text-blue-600">
+              <div className="space-y-2">
+                <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-wide">
+                  <Mic className="h-4 w-4" /> Phát âm
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-blue-50 p-2 text-center">
+                    <div className="text-xl font-bold text-blue-600">
                       {pronunciationFeedback.accuracyScore}
                     </div>
+                    <div className="text-[10px] uppercase text-blue-800 font-bold">
+                      Chính xác
+                    </div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-xs text-gray-600 mb-1">Trôi chảy</div>
-                    <div className="text-2xl font-bold text-blue-600">
+                  <div className="rounded-lg bg-purple-50 p-2 text-center">
+                    <div className="text-xl font-bold text-purple-600">
                       {pronunciationFeedback.fluencyScore}
                     </div>
+                    <div className="text-[10px] uppercase text-purple-800 font-bold">
+                      Trôi chảy
+                    </div>
                   </div>
                 </div>
-
-                {/* Problematic Phonemes */}
-                {pronunciationFeedback.problematicPhonemes &&
-                  pronunciationFeedback.problematicPhonemes.length > 0 && (
-                    <div className="bg-white rounded-lg p-3 mb-3">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">
-                        Âm cần luyện tập:
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {pronunciationFeedback.problematicPhonemes.map(
-                          (phoneme: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-md text-sm font-mono"
-                            >
-                              /{phoneme}/
-                            </span>
-                          )
-                        )}
-                      </div>
+                {pronunciationFeedback.problematicPhonemes?.length > 0 && (
+                  <div className="rounded-lg border border-red-100 bg-red-50 p-3">
+                    <div className="text-xs font-bold text-red-800 mb-1">
+                      Cần luyện thêm:
                     </div>
-                  )}
-
-                {/* Words Breakdown */}
-                {pronunciationFeedback.words &&
-                  pronunciationFeedback.words.length > 0 && (
-                    <div className="bg-white rounded-lg p-3 mb-3">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">
-                        Chi tiết từng từ:
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {pronunciationFeedback.words.map(
-                          (word: any, idx: number) => (
-                            <div
-                              key={idx}
-                              className={`px-2 py-1 rounded-md text-sm ${
-                                word.accuracyScore >= 80
-                                  ? 'bg-green-100 text-green-800'
-                                  : word.accuracyScore >= 60
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : word.accuracyScore >= 40
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-red-100 text-red-800'
-                              }`}
-                              title={`Accuracy: ${word.accuracyScore}`}
-                            >
-                              {word.word}
-                              {word.errorType && word.errorType !== 'None' && (
-                                <span className="ml-1 text-xs">⚠️</span>
-                              )}
-                            </div>
-                          )
-                        )}
-                      </div>
+                    <div className="flex flex-wrap gap-1">
+                      {pronunciationFeedback.problematicPhonemes.map(
+                        (p: string, i: number) => (
+                          <span
+                            key={i}
+                            className="px-1.5 py-0.5 bg-white rounded text-xs text-red-600 font-mono shadow-sm"
+                          >
+                            /{p}/
+                          </span>
+                        )
+                      )}
                     </div>
-                  )}
-
-                {/* Recommendations */}
-                {pronunciationFeedback.recommendations &&
-                  pronunciationFeedback.recommendations.length > 0 && (
-                    <div className="bg-white rounded-lg p-3">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">
-                        Gợi ý luyện tập:
-                      </h4>
-                      <ul className="space-y-1 text-xs text-gray-700">
-                        {pronunciationFeedback.recommendations.map(
-                          (rec: string, idx: number) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <span className="text-blue-600 mt-0.5">•</span>
-                              <span>{rec}</span>
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
-
-                {/* Speaking Stats */}
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  <div className="bg-white rounded-lg p-2">
-                    Thời lượng: {pronunciationFeedback.durationSec?.toFixed(1)}s
                   </div>
-                  <div className="bg-white rounded-lg p-2">
-                    Tốc độ: {pronunciationFeedback.wordsPerMinute} từ/phút
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
-
-          {sessionSummary && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Tổng kết phiên
-              </h3>
-              <p className="mt-2 whitespace-pre-line text-sm text-gray-700">
-                {sessionSummary}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800">Tiến trình</h3>
-            <ul className="mt-3 space-y-2 text-sm text-gray-700">
-              <li>
-                Lượt hiện tại: {session.turnCount}/{session.maxTurns}
-              </li>
-              <li>Cảnh báo im lặng: {silenceWarnings}</li>
-              <li>Chủ đề: {session.topic ?? 'Tự do'}</li>
-            </ul>
-            <button
-              onClick={handleFinalizeSession}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700"
-            >
-              <RefreshCw className="h-4 w-4" /> Tổng kết phiên
-            </button>
-          </div>
-
-          {sessionAnalytics && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-800">Thống kê</h3>
-              <pre className="mt-2 max-h-60 overflow-auto rounded bg-gray-50 p-3 text-xs text-gray-600">
-                {JSON.stringify(sessionAnalytics, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
+        </aside>
       </div>
 
       {/* Summary Modal */}

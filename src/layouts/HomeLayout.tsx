@@ -180,6 +180,10 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                         <Mic className="h-4 w-4" />
                         Luyện nói AI
                       </DropdownMenuItem>
+                      <DropdownMenuItem to="/speaking-practice">
+                        <Mic className="h-4 w-4" />
+                        Luyện phát âm
+                      </DropdownMenuItem>
                       <DropdownMenuItem to="/dictionary">
                         <BookOpen className="h-4 w-4" />
                         Từ điển
@@ -427,6 +431,16 @@ export const HomeLayout: React.FC<{ children: React.ReactNode }> = ({
                         >
                           <Mic className="h-4 w-4" />
                           Luyện nói AI
+                        </NavLink>
+                        <NavLink
+                          to="/speaking-practice"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+                          }
+                        >
+                          <Mic className="h-4 w-4" />
+                          Luyện phát âm
                         </NavLink>
                         <NavLink
                           to="/dictionary"

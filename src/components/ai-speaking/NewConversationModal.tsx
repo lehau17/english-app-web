@@ -1,5 +1,7 @@
 import { Clock, MessageCircle, Target, X, Zap } from 'lucide-react'
 import React, { useState } from 'react'
+import { TopicSelector } from './TopicSelector'
+import { type Topic } from '../../hooks/useTopics'
 
 interface NewConversationModalProps {
   isOpen: boolean
@@ -7,6 +9,7 @@ interface NewConversationModalProps {
   onStartConversation: (params: {
     conversationId?: string
     topic: string
+    topicId?: string
     goal?: string
     targetDifficulty: string
     maxTurns: number
@@ -47,26 +50,14 @@ const difficultyOptions = [
   },
 ]
 
-const topicSuggestions = [
-  'Daily life and routines',
-  'Work and career',
-  'Travel and culture',
-  'Food and cooking',
-  'Technology and innovation',
-  'Environment and sustainability',
-  'Health and fitness',
-  'Education and learning',
-  'Entertainment and hobbies',
-  'Family and relationships',
-]
-
 export const NewConversationModal: React.FC<NewConversationModalProps> = ({
   isOpen,
   onClose,
   onStartConversation,
   existingConversationId,
 }) => {
-  const [topic, setTopic] = useState('')
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
+  const [customTopic, setCustomTopic] = useState('')
   const [goal, setGoal] = useState('')
   const [targetDifficulty, setTargetDifficulty] = useState('intermediate')
   const [maxTurns, setMaxTurns] = useState(8)
@@ -76,20 +67,24 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!topic.trim()) {
+    const topicText = selectedTopic?.name || customTopic.trim()
+
+    if (!topicText) {
       return
     }
 
     onStartConversation({
       conversationId: existingConversationId,
-      topic: topic.trim(),
+      topic: topicText,
+      topicId: selectedTopic?.id,
       goal: goal.trim() || undefined,
       targetDifficulty,
       maxTurns,
     })
 
     // Reset form
-    setTopic('')
+    setSelectedTopic(null)
+    setCustomTopic('')
     setGoal('')
     setTargetDifficulty('intermediate')
     setMaxTurns(8)
@@ -162,34 +157,34 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
         >
           {/* Topic Selection */}
           <div>
-            <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
-              <Target className="h-4 w-4" />
-              Chủ đề hội thoại *
-            </label>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="Ví dụ: Daily life and routines"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
+            <TopicSelector
+              value={selectedTopic}
+              onChange={(topic) => {
+                setSelectedTopic(topic)
+                setCustomTopic('') // Clear custom topic when selecting from list
+                setTargetDifficulty(topic.difficulty) // Auto-set difficulty based on topic
+              }}
+              difficulty={targetDifficulty as any}
             />
 
-            {/* Topic suggestions */}
-            <div className="mt-3">
-              <p className="text-xs text-gray-500 mb-2">Gợi ý chủ đề:</p>
-              <div className="flex flex-wrap gap-2">
-                {topicSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => setTopic(suggestion)}
-                    className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+            {/* Custom topic fallback */}
+            <div className="mt-4">
+              <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
+                <Target className="h-4 w-4" />
+                Or enter custom topic
+              </label>
+              <input
+                type="text"
+                value={customTopic}
+                onChange={(e) => {
+                  setCustomTopic(e.target.value)
+                  if (e.target.value) {
+                    setSelectedTopic(null) // Clear selected topic when typing custom
+                  }
+                }}
+                placeholder="e.g., Daily life and routines"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
           </div>
 
@@ -265,7 +260,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!topic.trim()}
+              disabled={!selectedTopic && !customTopic.trim()}
               className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               <MessageCircle className="h-4 w-4" />

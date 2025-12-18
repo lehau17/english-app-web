@@ -45,6 +45,7 @@ export interface StudentScheduleSession {
   timezone: string
   durationHours: number
   meetingUrl?: string | null
+  recordingUrl?: string | null
   agenda?: Record<string, unknown> | null
   materials?: Record<string, unknown> | null
   instructor: StudentScheduleInstructor | null
